@@ -12,7 +12,7 @@ endif()
 project ("Mozlang")
 
 # Add source to this project's executable.
-add_executable (Mozlang "src/Mozlang.cpp" )
+add_executable (Mozlang "src/Mozlang.cpp"  "src/Lexer.cpp" "src/Lexer.h" "src/Token.h" "src/Token.cpp")
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET Mozlang PROPERTY CXX_STANDARD 20)
