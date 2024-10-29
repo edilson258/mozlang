@@ -11,8 +11,11 @@ endif()
 
 project ("Mozlang")
 
+set(CMAKE_CXX_STANDARD 20)           # Replace '17' with your desired standard
+set(CMAKE_CXX_STANDARD_REQUIRED ON)   # Make the standard required
+
 # Add source to this project's executable.
-add_executable (Mozlang "src/Mozlang.cpp"  "src/Lexer.cpp" "src/Lexer.h" "src/Token.h" "src/Token.cpp")
+add_executable (Mozlang "src/Mozlang.cpp"  "src/Lexer.cpp" "src/Lexer.h" "src/Token.h" "src/Token.cpp" "src/Parser.h" "src/Parser.cpp")
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET Mozlang PROPERTY CXX_STANDARD 20)

@@ -1,24 +1,18 @@
 ﻿#include "Lexer.h"
+#include "Parser.h"
 
 #include <iostream>
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
-	std::string Code = "fn main() {\n"
-		"  print(\"Hello Mozambique!\");\n"
-		"}";
+    std::string code = "fn main() {\n"
+                       "  print(\"Hello Mozambique!\");\n"
+                       "}";
 
-	Lexer lexer(Code);
+    Lexer lexer(code);
+    Parser parser(lexer);
 
-	while (1)
-	{
-		Token token = lexer.GetNextToken();
+    AST ast = parser.Parse();
 
-		if (token.Type == TokenType::Eof)
-		{
-			break;
-		}
-
-		std::cout << token.ToString();
-	}
+    std::cout << ast.ToStrng() << std::endl;
 }
