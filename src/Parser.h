@@ -4,8 +4,6 @@
 #include "Lexer.h"
 #include "Token.h"
 
-#include <memory>
-
 enum class Precedence
 {
   Lowest = 1,
