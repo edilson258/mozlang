@@ -2,4 +2,5 @@ BasedOnStyle: LLVM
 ColumnLimit: 120
 AllowShortBlocksOnASingleLine: Always
 BreakBeforeBraces: Allman
-IndentWidth: 4
+IndentWidth: 2
+AlignConsecutiveAssignments: Consecutive

@@ -6,154 +6,154 @@
 
 AST Parser::Parse()
 {
-    Bump();
-    Bump();
+  Bump();
+  Bump();
 
-    AST ast;
+  AST ast;
 
-    while (CurrentToken.Type != TokenType::Eof)
-    {
-        ast.Nodes.push_back(ParseStatement());
-    }
+  while (CurrentToken.Type != TokenType::Eof)
+  {
+    ast.Nodes.push_back(ParseStatement());
+  }
 
-    return ast;
+  return ast;
 }
 
 void Parser::Bump()
 {
-    CurrentToken = NextToken;
-    NextToken = lexer.GetNextToken();
+  CurrentToken = NextToken;
+  NextToken    = lexer.GetNextToken();
 }
 
 void Parser::BumpExpected(TokenType expectedType)
 {
-    if (expectedType != CurrentToken.Type)
-    {
-        std::cerr << "[ERROR]: Unexpected token: " << CurrentToken.ToString() << std::endl;
-        std::exit(1);
-    }
-    Bump();
+  if (expectedType != CurrentToken.Type)
+  {
+    std::cerr << "[ERROR]: Unexpected token: " << CurrentToken.ToString() << std::endl;
+    std::exit(1);
+  }
+  Bump();
 }
 
 Statement *Parser::ParseStatement()
 {
-    if (CurrentToken.Type == TokenType::Fn)
-    {
-        return ParseFunctionStatement();
-    }
+  if (CurrentToken.Type == TokenType::Fn)
+  {
+    return ParseFunctionStatement();
+  }
 
-    auto expression = ParseExpressionStatement(Precedence::Lowest);
-    BumpExpected(TokenType::Semicolon);
-    return expression;
+  auto expression = ParseExpressionStatement(Precedence::Lowest);
+  BumpExpected(TokenType::Semicolon);
+  return expression;
 }
 
 FunctionStatement *Parser::ParseFunctionStatement()
 {
-    Bump(); // eat 'fn'
+  Bump(); // eat 'fn'
 
-    if (CurrentToken.Type != TokenType::Identifier)
-    {
-        std::cerr << "[ERROR]: Expected identifier after 'fn' but got: " << CurrentToken.ToString() << std::endl;
-        std::exit(1);
-    }
+  if (CurrentToken.Type != TokenType::Identifier)
+  {
+    std::cerr << "[ERROR]: Expected identifier after 'fn' but got: " << CurrentToken.ToString() << std::endl;
+    std::exit(1);
+  }
 
-    auto identifier = CurrentToken;
+  auto identifier = CurrentToken;
 
-    Bump(); // eat 'function name'
+  Bump(); // eat 'function name'
 
-    // TODO: parse params
-    BumpExpected(TokenType::LeftParent);
-    BumpExpected(TokenType::RightParent);
+  // TODO: parse params
+  BumpExpected(TokenType::LeftParent);
+  BumpExpected(TokenType::RightParent);
 
-    auto body = ParseBlockStatement();
+  auto body = ParseBlockStatement();
 
-    return new FunctionStatement(identifier, body);
+  return new FunctionStatement(identifier, body);
 }
 
 BlockStatement Parser::ParseBlockStatement()
 {
-    Bump(); // eat '{'
+  Bump(); // eat '{'
 
-    std::vector<Statement *> block;
+  std::vector<Statement *> block;
 
-    while (1)
+  while (1)
+  {
+    if (CurrentToken.Type == TokenType::Eof)
     {
-        if (CurrentToken.Type == TokenType::Eof)
-        {
-            std::cerr << "[ERROR]: Unexpected EOF\n";
-            std::exit(1);
-        }
-
-        if (CurrentToken.Type == TokenType::RightBrace)
-        {
-            break;
-        }
-
-        block.push_back(ParseStatement());
+      std::cerr << "[ERROR]: Unexpected EOF\n";
+      std::exit(1);
     }
 
-    Bump(); // eat '}'
+    if (CurrentToken.Type == TokenType::RightBrace)
+    {
+      break;
+    }
 
-    return BlockStatement(block);
+    block.push_back(ParseStatement());
+  }
+
+  Bump(); // eat '}'
+
+  return BlockStatement(block);
 }
 
 Expression *Parser::ParseExpressionStatement(Precedence precedence)
 {
-    Expression *leftHandSide;
+  Expression *leftHandSide;
 
-    if (CurrentToken.Type == TokenType::Identifier)
-    {
-        leftHandSide = new IdentifierExpression(CurrentToken);
-    }
-    else if (CurrentToken.Type == TokenType::String)
-    {
-        leftHandSide = new StringExpression(CurrentToken);
-    }
-    else
-    {
-        std::cerr << "[ERROR}: Unexpected left side expression: " << CurrentToken.ToString();
-        std::exit(1);
-    }
+  if (CurrentToken.Type == TokenType::Identifier)
+  {
+    leftHandSide = new IdentifierExpression(CurrentToken);
+  }
+  else if (CurrentToken.Type == TokenType::String)
+  {
+    leftHandSide = new StringExpression(CurrentToken);
+  }
+  else
+  {
+    std::cerr << "[ERROR}: Unexpected left side expression: " << CurrentToken.ToString();
+    std::exit(1);
+  }
 
-    Bump();
+  Bump();
 
-    while ((TokenType::Eof != CurrentToken.Type) && (precedence < GetCurrentTokenPrecedence()))
+  while ((TokenType::Eof != CurrentToken.Type) && (precedence < GetCurrentTokenPrecedence()))
+  {
+    switch (CurrentToken.Type)
     {
-        switch (CurrentToken.Type)
-        {
-        case TokenType::LeftParent:
-            leftHandSide = ParseCallExpression(std::move(leftHandSide));
-            break;
-        default:
-            break;
-        }
+    case TokenType::LeftParent:
+      leftHandSide = ParseCallExpression(std::move(leftHandSide));
+      break;
+    default:
+      break;
     }
+  }
 
-    return leftHandSide;
+  return leftHandSide;
 }
 
 CallExpression *Parser::ParseCallExpression(Expression *callee)
 {
-    Bump(); // eat '('
+  Bump(); // eat '('
 
-    // TODO: parse args
-    std::vector<Expression *> args;
-    args.push_back(ParseExpressionStatement(Precedence::Call));
+  // TODO: parse args
+  std::vector<Expression *> args;
+  args.push_back(ParseExpressionStatement(Precedence::Call));
 
-    BumpExpected(TokenType::RightParent);
+  BumpExpected(TokenType::RightParent);
 
-    return new CallExpression(callee, args);
+  return new CallExpression(callee, args);
 }
 
 Precedence Parser::TokenToPrecedence(Token &t)
 {
-    switch (t.Type)
-    {
-    case TokenType::LeftParent:
-        return Precedence::Call;
-    default:
-        return Precedence::Lowest;
-    }
+  switch (t.Type)
+  {
+  case TokenType::LeftParent:
+    return Precedence::Call;
+  default:
+    return Precedence::Lowest;
+  }
 }
 
 Precedence Parser::GetCurrentTokenPrecedence() { return TokenToPrecedence(CurrentToken); }

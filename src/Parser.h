@@ -8,33 +8,33 @@
 
 enum class Precedence
 {
-    Lowest = 1,
-    Call = 2,
+  Lowest = 1,
+  Call   = 2,
 };
 
 class Parser
 {
-  public:
-    Lexer &lexer;
+public:
+  Lexer &lexer;
 
-    AST Parse();
+  AST Parse();
 
-    Parser(Lexer &lex) : lexer(lex) {};
+  Parser(Lexer &lex) : lexer(lex) {};
 
-  private:
-    Token CurrentToken;
-    Token NextToken;
+private:
+  Token CurrentToken;
+  Token NextToken;
 
-    void Bump();
-    void BumpExpected(TokenType);
+  void Bump();
+  void BumpExpected(TokenType);
 
-    Precedence TokenToPrecedence(Token &);
-    Precedence GetCurrentTokenPrecedence();
+  Precedence TokenToPrecedence(Token &);
+  Precedence GetCurrentTokenPrecedence();
 
-    // Parsers
-    BlockStatement ParseBlockStatement();
-    Statement *ParseStatement();
-    FunctionStatement *ParseFunctionStatement();
-    Expression *ParseExpressionStatement(Precedence);
-    CallExpression *ParseCallExpression(Expression *);
+  // Parsers
+  BlockStatement ParseBlockStatement();
+  Statement *ParseStatement();
+  FunctionStatement *ParseFunctionStatement();
+  Expression *ParseExpressionStatement(Precedence);
+  CallExpression *ParseCallExpression(Expression *);
 };

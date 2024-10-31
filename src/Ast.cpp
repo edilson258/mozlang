@@ -2,13 +2,13 @@
 
 std::string AST::ToStrng()
 {
-    AstInspector inspector;
-    for (auto &x : Nodes)
-    {
-        x->accept(&inspector);
-    }
+  AstInspector inspector;
+  for (auto &node : Nodes)
+  {
+    node->accept(&inspector);
+  }
 
-    return inspector.GetValue();
+  return inspector.GetValue();
 }
 
 std::any FunctionStatement::accept(AstVisitor *visitor) { return visitor->visit(this); }

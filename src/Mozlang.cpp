@@ -3,16 +3,16 @@
 
 #include <iostream>
 
-int main(int argc, char *argv[])
+int main()
 {
-    std::string code = "fn main() {\n"
-                       "  print(\"Hello Mozambique!\");\n"
-                       "}";
+  std::string code = "fn main() {\n"
+                     "  print(\"Hello Mozambique!\");\n"
+                     "}";
 
-    Lexer lexer(code);
-    Parser parser(lexer);
+  Lexer lexer(code);
+  Parser parser(lexer);
 
-    AST ast = parser.Parse();
+  AST ast = parser.Parse();
 
-    std::cout << ast.ToStrng() << std::endl;
+  std::cout << ast.ToStrng() << std::endl;
 }

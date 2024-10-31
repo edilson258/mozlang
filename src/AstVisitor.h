@@ -12,35 +12,37 @@ class StringExpression;
 
 class AstVisitor
 {
-  public:
-    virtual std::any visit(BlockStatement *) = 0;
-    virtual std::any visit(FunctionStatement *) = 0;
-    virtual std::any visit(CallExpression *) = 0;
-    virtual std::any visit(IdentifierExpression *) = 0;
-    virtual std::any visit(StringExpression *) = 0;
+public:
+  virtual std::any visit(BlockStatement *)       = 0;
+  virtual std::any visit(FunctionStatement *)    = 0;
+  virtual std::any visit(CallExpression *)       = 0;
+  virtual std::any visit(IdentifierExpression *) = 0;
+  virtual std::any visit(StringExpression *)     = 0;
+
+  virtual ~AstVisitor() = default;
 };
 
 class AstInspector : public AstVisitor
 {
-  public:
-    std::any visit(BlockStatement *) override;
-    std::any visit(FunctionStatement *) override;
-    std::any visit(CallExpression *) override;
-    std::any visit(IdentifierExpression *) override;
-    std::any visit(StringExpression *) override;
+public:
+  std::any visit(BlockStatement *) override;
+  std::any visit(FunctionStatement *) override;
+  std::any visit(CallExpression *) override;
+  std::any visit(IdentifierExpression *) override;
+  std::any visit(StringExpression *) override;
 
-    AstInspector() : TabRate(4), TabSize(0) {};
+  AstInspector() : TabSize(0), TabRate(4) {};
 
-    std::string GetValue() const { return Out.str(); }
+  std::string GetValue() const { return Out.str(); }
 
-  private:
-    unsigned long TabSize;
-    unsigned long TabRate;
+private:
+  unsigned long TabSize;
+  unsigned long TabRate;
 
-    std::ostringstream Out;
+  std::ostringstream Out;
 
-    void Write(std::string);
+  void Write(std::string);
 
-    void Tab();
-    void UnTab();
+  void Tab();
+  void UnTab();
 };
