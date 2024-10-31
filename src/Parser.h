@@ -19,7 +19,7 @@ class Parser
 
     AST Parse();
 
-    Parser(Lexer &lex) : lexer(lex){};
+    Parser(Lexer &lex) : lexer(lex) {};
 
   private:
     Token CurrentToken;
@@ -33,8 +33,8 @@ class Parser
 
     // Parsers
     BlockStatement ParseBlockStatement();
-    std::unique_ptr<Statement> ParseStatement();
-    std::unique_ptr<FunctionStatement> ParseFunctionStatement();
-    std::unique_ptr<Expression> ParseExpressionStatement(Precedence);
-    std::unique_ptr<CallExpression> ParseCallExpression(std::unique_ptr<Expression>);
+    Statement *ParseStatement();
+    FunctionStatement *ParseFunctionStatement();
+    Expression *ParseExpressionStatement(Precedence);
+    CallExpression *ParseCallExpression(Expression *);
 };

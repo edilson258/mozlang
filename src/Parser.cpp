@@ -35,7 +35,7 @@ void Parser::BumpExpected(TokenType expectedType)
     Bump();
 }
 
-std::unique_ptr<Statement> Parser::ParseStatement()
+Statement *Parser::ParseStatement()
 {
     if (CurrentToken.Type == TokenType::Fn)
     {
@@ -47,7 +47,7 @@ std::unique_ptr<Statement> Parser::ParseStatement()
     return expression;
 }
 
-std::unique_ptr<FunctionStatement> Parser::ParseFunctionStatement()
+FunctionStatement *Parser::ParseFunctionStatement()
 {
     Bump(); // eat 'fn'
 
@@ -67,14 +67,14 @@ std::unique_ptr<FunctionStatement> Parser::ParseFunctionStatement()
 
     auto body = ParseBlockStatement();
 
-    return std::make_unique<FunctionStatement>(identifier, std::move(body));
+    return new FunctionStatement(identifier, body);
 }
 
 BlockStatement Parser::ParseBlockStatement()
 {
     Bump(); // eat '{'
 
-    std::vector<std::unique_ptr<Statement>> block;
+    std::vector<Statement *> block;
 
     while (1)
     {
@@ -94,20 +94,20 @@ BlockStatement Parser::ParseBlockStatement()
 
     Bump(); // eat '}'
 
-    return BlockStatement(std::move(block));
+    return BlockStatement(block);
 }
 
-std::unique_ptr<Expression> Parser::ParseExpressionStatement(Precedence precedence)
+Expression *Parser::ParseExpressionStatement(Precedence precedence)
 {
-    std::unique_ptr<Expression> leftHandSide;
+    Expression *leftHandSide;
 
     if (CurrentToken.Type == TokenType::Identifier)
     {
-        leftHandSide = std::make_unique<IdentifierExpression>(CurrentToken);
+        leftHandSide = new IdentifierExpression(CurrentToken);
     }
     else if (CurrentToken.Type == TokenType::String)
     {
-        leftHandSide = std::make_unique<StringExpression>(CurrentToken);
+        leftHandSide = new StringExpression(CurrentToken);
     }
     else
     {
@@ -132,17 +132,17 @@ std::unique_ptr<Expression> Parser::ParseExpressionStatement(Precedence preceden
     return leftHandSide;
 }
 
-std::unique_ptr<CallExpression> Parser::ParseCallExpression(std::unique_ptr<Expression> callee)
+CallExpression *Parser::ParseCallExpression(Expression *callee)
 {
     Bump(); // eat '('
 
     // TODO: parse args
-    std::vector<std::unique_ptr<Expression>> args;
+    std::vector<Expression *> args;
     args.push_back(ParseExpressionStatement(Precedence::Call));
 
     BumpExpected(TokenType::RightParent);
 
-    return std::make_unique<CallExpression>(std::move(callee), std::move(args));
+    return new CallExpression(callee, args);
 }
 
 Precedence Parser::TokenToPrecedence(Token &t)

@@ -4,7 +4,6 @@
 #include "Token.h"
 
 #include <any>
-#include <memory>
 #include <vector>
 
 enum class AstNodeType
@@ -23,23 +22,28 @@ class AstNode
 
     virtual std::any accept(AstVisitor *) = 0;
 
+    virtual ~AstNode() = default;
+
   protected:
-    AstNode(AstNodeType type) : Type(type){};
+    AstNode(AstNodeType type) : Type(type) {};
 };
 
 class Statement : public AstNode
 {
+  public:
+    virtual ~Statement() = default;
+
   protected:
-    Statement(AstNodeType type) : AstNode(type){};
+    Statement(AstNodeType type) : AstNode(type) {};
 };
 
 class BlockStatement : public Statement
 {
   public:
-    std::vector<std::unique_ptr<Statement>> Statements;
+    std::vector<Statement *> Statements;
 
-    BlockStatement(std::vector<std::unique_ptr<Statement>> statements)
-        : Statement(AstNodeType::BlockStatement), Statements(std::move(statements)){};
+    BlockStatement(std::vector<Statement *> statements)
+        : Statement(AstNodeType::BlockStatement), Statements(statements) {};
 
     std::any accept(AstVisitor *visitor) override;
 };
@@ -51,7 +55,7 @@ class FunctionStatement : public Statement
     BlockStatement Body;
 
     FunctionStatement(Token identifier, BlockStatement body)
-        : Statement(AstNodeType::FunctionStatement), Identifier(identifier), Body(std::move(body)){};
+        : Statement(AstNodeType::FunctionStatement), Identifier(identifier), Body(body) {};
 
     std::string GetName() const;
     std::any accept(AstVisitor *visitor) override;
@@ -60,7 +64,7 @@ class FunctionStatement : public Statement
 class Expression : public Statement
 {
   protected:
-    Expression(AstNodeType type) : Statement(type){};
+    Expression(AstNodeType type) : Statement(type) {};
 };
 
 class IdentifierExpression : public Expression
@@ -68,7 +72,7 @@ class IdentifierExpression : public Expression
   public:
     Token Identifier;
 
-    IdentifierExpression(Token identifier) : Expression(AstNodeType::IdentifierExpression), Identifier(identifier){};
+    IdentifierExpression(Token identifier) : Expression(AstNodeType::IdentifierExpression), Identifier(identifier) {};
 
     std::string GetValue() const;
     std::any accept(AstVisitor *visitor) override;
@@ -79,7 +83,7 @@ class StringExpression : public Expression
   public:
     Token String;
 
-    StringExpression(Token string) : Expression(AstNodeType::StringExpression), String(string){};
+    StringExpression(Token string) : Expression(AstNodeType::StringExpression), String(string) {};
 
     std::string GetValue() const;
     std::any accept(AstVisitor *visitor) override;
@@ -88,11 +92,11 @@ class StringExpression : public Expression
 class CallExpression : public Expression
 {
   public:
-    std::unique_ptr<Expression> Callee;
-    std::vector<std::unique_ptr<Expression>> Args;
+    Expression *Callee;
+    std::vector<Expression *> Args;
 
-    CallExpression(std::unique_ptr<Expression> callee, std::vector<std::unique_ptr<Expression>> args)
-        : Expression(AstNodeType::CallExpression), Callee(std::move(callee)), Args(std::move(args)){};
+    CallExpression(Expression *callee, std::vector<Expression *> args)
+        : Expression(AstNodeType::CallExpression), Callee(callee), Args(args) {};
 
     std::any accept(AstVisitor *visitor) override;
 };
@@ -100,9 +104,9 @@ class CallExpression : public Expression
 class AST
 {
   public:
-    std::vector<std::unique_ptr<AstNode>> Nodes;
+    std::vector<AstNode *> Nodes;
 
-    AST() : Nodes(){};
+    AST() : Nodes() {};
 
     std::string ToStrng();
 };

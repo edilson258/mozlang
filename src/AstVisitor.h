@@ -29,7 +29,7 @@ class AstInspector : public AstVisitor
     std::any visit(IdentifierExpression *) override;
     std::any visit(StringExpression *) override;
 
-    AstInspector() : TabRate(4), TabSize(0){};
+    AstInspector() : TabRate(4), TabSize(0) {};
 
     std::string GetValue() const { return Out.str(); }
 

@@ -21,7 +21,7 @@ std::any AstInspector::visit(BlockStatement *block)
     Tab();
     for (auto &x : block->Statements)
     {
-        x.get()->accept(this);
+        x->accept(this);
     }
     UnTab();
     return 0;
@@ -47,14 +47,14 @@ std::any AstInspector::visit(CallExpression *call)
 
     Write("Callee:");
     Tab();
-    call->Callee.get()->accept(this);
+    call->Callee->accept(this);
     UnTab();
 
     Write("Arguments: [");
     Tab();
     for (auto &x : call->Args)
     {
-        x.get()->accept(this);
+        x->accept(this);
     }
     UnTab();
     Write("]");

@@ -5,7 +5,7 @@ std::string AST::ToStrng()
     AstInspector inspector;
     for (auto &x : Nodes)
     {
-        x.get()->accept(&inspector);
+        x->accept(&inspector);
     }
 
     return inspector.GetValue();
