@@ -2,20 +2,18 @@
 #include "Ast.h"
 
 #include <format>
+#include <string>
 
 void AstInspector::Write(std::string string)
 {
-  for (unsigned int i = 0; i < TabSize; ++i)
-  {
-    Out << " ";
-  }
+  Out << std::string(TabSize, ' ');
   Out << string << std::endl;
 }
 
 void AstInspector::Tab() { TabSize += TabRate; }
 void AstInspector::UnTab() { TabSize -= TabRate; }
 
-std::any AstInspector::visit(BlockStatement *block)
+void *AstInspector::visit(BlockStatement *block)
 {
   Write("Block Statement:");
   Tab();
@@ -27,11 +25,11 @@ std::any AstInspector::visit(BlockStatement *block)
   return 0;
 }
 
-std::any AstInspector::visit(FunctionStatement *function)
+void *AstInspector::visit(FunctionStatement *function)
 {
   Write("Function Statement:");
   Tab();
-  Write(std::format("Name: \"{}\"", function->GetName()));
+  Write(std::format("Name: \"{}\"", function->Identifier->GetValue()));
   Write("Body:");
   Tab();
   function->Body.accept(this);
@@ -40,7 +38,7 @@ std::any AstInspector::visit(FunctionStatement *function)
   return 0;
 }
 
-std::any AstInspector::visit(CallExpression *call)
+void *AstInspector::visit(CallExpression *call)
 {
   Write("Call Expression:");
   Tab();
@@ -63,13 +61,13 @@ std::any AstInspector::visit(CallExpression *call)
   return 0;
 }
 
-std::any AstInspector::visit(IdentifierExpression *ident)
+void *AstInspector::visit(IdentifierExpression *ident)
 {
   Write(std::format("Identifier: {}", ident->GetValue()));
   return 0;
 }
 
-std::any AstInspector::visit(StringExpression *string)
+void *AstInspector::visit(StringExpression *string)
 {
   Write(std::format("String: \"{}\"", string->GetValue()));
   return 0;

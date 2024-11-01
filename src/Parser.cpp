@@ -1,8 +1,7 @@
 #include "Parser.h"
+#include "Ast.h"
 
-#include <format>
 #include <iostream>
-#include <sstream>
 
 AST Parser::Parse()
 {
@@ -57,9 +56,9 @@ FunctionStatement *Parser::ParseFunctionStatement()
     std::exit(1);
   }
 
-  auto identifier = CurrentToken;
+  auto *identifier = new IdentifierExpression(CurrentToken);
 
-  Bump(); // eat 'function name'
+  Bump(); // eat function's name
 
   // TODO: parse params
   BumpExpected(TokenType::LeftParent);

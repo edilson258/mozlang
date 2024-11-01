@@ -1,30 +1,50 @@
-﻿#include "Lexer.h"
+﻿#include "CodeGen.h"
+#include "Lexer.h"
 #include "Parser.h"
-#include "llvm/IR/IRBuilder.h"
 
+#include <filesystem>
+#include <fstream>
 #include <iostream>
 
-#include <llvm/IR/Function.h>
-#include <llvm/IR/IRBuilder.h>
-#include <llvm/IR/LLVMContext.h>
-#include <llvm/IR/Module.h>
-#include <llvm/IR/Type.h>
-#include <llvm/IR/Verifier.h>
-#include <llvm/Support/raw_ostream.h>
+#include <llvm-18/llvm/IR/Module.h>
+#include <llvm-18/llvm/Support/raw_ostream.h>
 
-int main()
+std::string readFile(std::filesystem::path path);
+
+int main(int argc, char *argv[])
 {
-  std::string code = "fn main() {\n"
-                     "  print(\"Hello Mozambique!\");\n"
-                     "}";
+  if (argc < 2)
+  {
+    std::cerr << "[ERROR] No input file provided\n";
+    return 1;
+  }
+
+  std::string code = readFile(argv[1]);
 
   Lexer lexer(code);
   Parser parser(lexer);
 
   AST ast = parser.Parse();
 
-  std::cout << ast.ToStrng() << std::endl;
+  CodeGen gen;
+  llvm::Module *module = gen.Generate(ast);
 
-  llvm::LLVMContext context;
-  llvm::Module *module = new llvm::Module("hello", context);
+  llvm::outs() << *module;
+
+  return 0;
+}
+
+std::string readFile(std::filesystem::path path)
+{
+  std::ifstream file(path);
+
+  if (!file.is_open())
+  {
+    std::cerr << "Coudn't open source file" << std::endl;
+    abort();
+  }
+
+  std::ostringstream oss;
+  oss << file.rdbuf();
+  return oss.str();
 }

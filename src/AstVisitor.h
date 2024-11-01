@@ -1,6 +1,5 @@
 #pragma once
 
-#include <any>
 #include <sstream>
 #include <string>
 
@@ -13,11 +12,11 @@ class StringExpression;
 class AstVisitor
 {
 public:
-  virtual std::any visit(BlockStatement *)       = 0;
-  virtual std::any visit(FunctionStatement *)    = 0;
-  virtual std::any visit(CallExpression *)       = 0;
-  virtual std::any visit(IdentifierExpression *) = 0;
-  virtual std::any visit(StringExpression *)     = 0;
+  virtual void *visit(BlockStatement *)       = 0;
+  virtual void *visit(FunctionStatement *)    = 0;
+  virtual void *visit(CallExpression *)       = 0;
+  virtual void *visit(IdentifierExpression *) = 0;
+  virtual void *visit(StringExpression *)     = 0;
 
   virtual ~AstVisitor() = default;
 };
@@ -25,11 +24,11 @@ public:
 class AstInspector : public AstVisitor
 {
 public:
-  std::any visit(BlockStatement *) override;
-  std::any visit(FunctionStatement *) override;
-  std::any visit(CallExpression *) override;
-  std::any visit(IdentifierExpression *) override;
-  std::any visit(StringExpression *) override;
+  void *visit(BlockStatement *) override;
+  void *visit(FunctionStatement *) override;
+  void *visit(CallExpression *) override;
+  void *visit(IdentifierExpression *) override;
+  void *visit(StringExpression *) override;
 
   AstInspector() : TabSize(0), TabRate(4) {};
 

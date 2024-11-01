@@ -1,0 +1,2 @@
+CompileFlags:
+  Add: ["-isystem", "/usr/lib/llvm-18/include/"]

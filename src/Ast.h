@@ -3,7 +3,6 @@
 #include "AstVisitor.h"
 #include "Token.h"
 
-#include <any>
 #include <vector>
 
 enum class AstNodeType
@@ -20,7 +19,7 @@ class AstNode
 public:
   AstNodeType Type;
 
-  virtual std::any accept(AstVisitor *) = 0;
+  virtual void *accept(AstVisitor *) = 0;
 
   virtual ~AstNode() = default;
 
@@ -37,30 +36,6 @@ protected:
   Statement(AstNodeType type) : AstNode(type) {};
 };
 
-class BlockStatement : public Statement
-{
-public:
-  std::vector<Statement *> Statements;
-
-  BlockStatement(std::vector<Statement *> statements)
-      : Statement(AstNodeType::BlockStatement), Statements(statements) {};
-
-  std::any accept(AstVisitor *visitor) override;
-};
-
-class FunctionStatement : public Statement
-{
-public:
-  Token Identifier;
-  BlockStatement Body;
-
-  FunctionStatement(Token identifier, BlockStatement body)
-      : Statement(AstNodeType::FunctionStatement), Identifier(identifier), Body(body) {};
-
-  std::string GetName() const;
-  std::any accept(AstVisitor *visitor) override;
-};
-
 class Expression : public Statement
 {
 protected:
@@ -75,7 +50,7 @@ public:
   IdentifierExpression(Token identifier) : Expression(AstNodeType::IdentifierExpression), Identifier(identifier) {};
 
   std::string GetValue() const;
-  std::any accept(AstVisitor *visitor) override;
+  void *accept(AstVisitor *visitor) override;
 };
 
 class StringExpression : public Expression
@@ -86,7 +61,7 @@ public:
   StringExpression(Token string) : Expression(AstNodeType::StringExpression), String(string) {};
 
   std::string GetValue() const;
-  std::any accept(AstVisitor *visitor) override;
+  void *accept(AstVisitor *visitor) override;
 };
 
 class CallExpression : public Expression
@@ -98,7 +73,30 @@ public:
   CallExpression(Expression *callee, std::vector<Expression *> args)
       : Expression(AstNodeType::CallExpression), Callee(callee), Args(args) {};
 
-  std::any accept(AstVisitor *visitor) override;
+  void *accept(AstVisitor *visitor) override;
+};
+
+class BlockStatement : public Statement
+{
+public:
+  std::vector<Statement *> Statements;
+
+  BlockStatement(std::vector<Statement *> statements)
+      : Statement(AstNodeType::BlockStatement), Statements(statements) {};
+
+  void *accept(AstVisitor *visitor) override;
+};
+
+class FunctionStatement : public Statement
+{
+public:
+  IdentifierExpression *Identifier;
+  BlockStatement Body;
+
+  FunctionStatement(IdentifierExpression *identifier, BlockStatement body)
+      : Statement(AstNodeType::FunctionStatement), Identifier(identifier), Body(body) {};
+
+  void *accept(AstVisitor *visitor) override;
 };
 
 class AST
