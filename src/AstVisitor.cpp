@@ -38,6 +38,25 @@ void *AstInspector::visit(FunctionStatement *function)
   return 0;
 }
 
+void *AstInspector::visit(ReturnStatement *ret)
+{
+  Write("Return Statement:");
+  Tab();
+  Write("Value:");
+  Tab();
+  if (ret->Value.has_value())
+  {
+    ret->Value.value()->accept(this);
+  }
+  else
+  {
+    Write("<NO VALUE>");
+  }
+  UnTab();
+  UnTab();
+  return 0;
+}
+
 void *AstInspector::visit(CallExpression *call)
 {
   Write("Call Expression:");
@@ -70,5 +89,11 @@ void *AstInspector::visit(IdentifierExpression *ident)
 void *AstInspector::visit(StringExpression *string)
 {
   Write(std::format("String: \"{}\"", string->GetValue()));
+  return 0;
+}
+
+void *AstInspector::visit(IntegerExpression *integer)
+{
+  Write(std::format("Integer: {}", integer->GetValue()));
   return 0;
 }

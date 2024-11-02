@@ -14,11 +14,17 @@ std::string Token::ToString()
   case TokenType::Fn:
     oss << "Keyword: fn";
     break;
+  case TokenType::Return:
+    oss << "Keyword: return";
+    break;
   case TokenType::String:
-    oss << "String: \"" << std::get<std::string>(Data) << "\"";
+    oss << "String: \"" << Data.value() << "\"";
+    break;
+  case TokenType::Integer:
+    oss << "Integer: " << Data.value();
     break;
   case TokenType::Identifier:
-    oss << "Ident.: " << std::get<std::string>(Data);
+    oss << "Ident.: " << Data.value();
     break;
   case TokenType::LeftParent:
     oss << "Punct.: (";
@@ -34,6 +40,12 @@ std::string Token::ToString()
     break;
   case TokenType::Semicolon:
     oss << "Punct.: ;";
+    break;
+  case TokenType::Colon:
+    oss << "Punct.: :";
+    break;
+  case TokenType::TypeInt:
+    oss << "Type: int";
     break;
   }
 

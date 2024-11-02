@@ -1,5 +1,7 @@
 #include "Parser.h"
 #include "Ast.h"
+#include "Token.h"
+#include "TypeSystem.h"
 
 #include <iostream>
 
@@ -8,7 +10,7 @@ AST Parser::Parse()
   Bump();
   Bump();
 
-  AST ast;
+  AST ast(lexer.FilePath);
 
   while (CurrentToken.Type != TokenType::Eof)
   {
@@ -36,9 +38,14 @@ void Parser::BumpExpected(TokenType expectedType)
 
 Statement *Parser::ParseStatement()
 {
-  if (CurrentToken.Type == TokenType::Fn)
+  if (TokenType::Fn == CurrentToken.Type)
   {
     return ParseFunctionStatement();
+  }
+
+  if (TokenType::Return == CurrentToken.Type)
+  {
+    return ParseReturnStatement();
   }
 
   auto expression = ParseExpressionStatement(Precedence::Lowest);
@@ -64,9 +71,26 @@ FunctionStatement *Parser::ParseFunctionStatement()
   BumpExpected(TokenType::LeftParent);
   BumpExpected(TokenType::RightParent);
 
+  Type returnType = ParseTypeAnnotation();
+
   auto body = ParseBlockStatement();
 
-  return new FunctionStatement(identifier, body);
+  return new FunctionStatement(identifier, body, returnType);
+}
+
+ReturnStatement *Parser::ParseReturnStatement()
+{
+  TokenSpan span = CurrentToken.Span;
+  Bump();
+
+  if (TokenType::Semicolon == CurrentToken.Type)
+  {
+    return new ReturnStatement(span);
+  }
+
+  Expression *value = ParseExpressionStatement(Precedence::Lowest);
+  BumpExpected(TokenType::Semicolon);
+  return new ReturnStatement(span, value);
 }
 
 BlockStatement Parser::ParseBlockStatement()
@@ -107,6 +131,10 @@ Expression *Parser::ParseExpressionStatement(Precedence precedence)
   else if (CurrentToken.Type == TokenType::String)
   {
     leftHandSide = new StringExpression(CurrentToken);
+  }
+  else if (TokenType::Integer == CurrentToken.Type)
+  {
+    leftHandSide = new IntegerExpression(CurrentToken);
   }
   else
   {
@@ -156,3 +184,18 @@ Precedence Parser::TokenToPrecedence(Token &t)
 }
 
 Precedence Parser::GetCurrentTokenPrecedence() { return TokenToPrecedence(CurrentToken); }
+
+Type Parser::ParseTypeAnnotation()
+{
+  BumpExpected(TokenType::Colon);
+
+  switch (CurrentToken.Type)
+  {
+  case TokenType::TypeInt:
+    Bump();
+    return Type(TypeOfType::Int);
+  default:
+    std::cerr << "[ERROR] Expect type annotation but got " << CurrentToken.ToString() << std::endl;
+    std::exit(1);
+  }
+}

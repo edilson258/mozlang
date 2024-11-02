@@ -2,12 +2,15 @@
 
 #include "Token.h"
 
+#include <filesystem>
+
 class Lexer
 {
 public:
   const std::string &FileContent;
+  const std::filesystem::path FilePath;
 
-  Lexer(std::string &fileContent) : FileContent(fileContent)
+  Lexer(std::string &fileContent, std::filesystem::path filePath) : FileContent(fileContent), FilePath(filePath)
   {
     Cursor     = 0;
     Line       = 1;

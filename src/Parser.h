@@ -3,6 +3,7 @@
 #include "Ast.h"
 #include "Lexer.h"
 #include "Token.h"
+#include "TypeSystem.h"
 
 enum class Precedence
 {
@@ -35,4 +36,8 @@ private:
   FunctionStatement *ParseFunctionStatement();
   Expression *ParseExpressionStatement(Precedence);
   CallExpression *ParseCallExpression(Expression *);
+  ReturnStatement *ParseReturnStatement();
+
+  // Helpers
+  Type ParseTypeAnnotation();
 };

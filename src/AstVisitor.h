@@ -5,18 +5,22 @@
 
 class BlockStatement;
 class FunctionStatement;
+class ReturnStatement;
 class CallExpression;
 class IdentifierExpression;
 class StringExpression;
+class IntegerExpression;
 
 class AstVisitor
 {
 public:
   virtual void *visit(BlockStatement *)       = 0;
   virtual void *visit(FunctionStatement *)    = 0;
+  virtual void *visit(ReturnStatement *)      = 0;
   virtual void *visit(CallExpression *)       = 0;
   virtual void *visit(IdentifierExpression *) = 0;
   virtual void *visit(StringExpression *)     = 0;
+  virtual void *visit(IntegerExpression *)    = 0;
 
   virtual ~AstVisitor() = default;
 };
@@ -26,9 +30,11 @@ class AstInspector : public AstVisitor
 public:
   void *visit(BlockStatement *) override;
   void *visit(FunctionStatement *) override;
+  void *visit(ReturnStatement *) override;
   void *visit(CallExpression *) override;
   void *visit(IdentifierExpression *) override;
   void *visit(StringExpression *) override;
+  void *visit(IntegerExpression *) override;
 
   AstInspector() : TabSize(0), TabRate(4) {};
 

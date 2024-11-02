@@ -6,7 +6,7 @@ project (Mozlang
     DESCRIPTION "A programing language developed by Mozambicans"
 )
 
-set(CMAKE_CXX_COMPILER clang)
+set(CMAKE_C_COMPILER clang)
 set(CMAKE_CXX_COMPILER clang++)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -45,22 +45,25 @@ else()
   set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -DNDEBUG")
 endif()
 
-add_executable (mozlang 
-    "src/Mozlang.cpp"
-    "src/Lexer.cpp"
-    "src/Lexer.h"
-    "src/Token.h"
-    "src/Token.cpp"
-    "src/Parser.h"
-    "src/Parser.cpp"
-    "src/Ast.h"
-    "src/AstVisitor.h"
-    "src/Ast.cpp"
-    "src/AstVisitor.cpp"
-    "src/CodeGen.h"
-    "src/CodeGen.cpp"
+file(GLOB_RECURSE files "src/*.cpp")
+add_executable(mozlang ${files})
+
+set(LLVM_LINK_COMPONENTS
+  Core
+  Analysis
+  AsmParser
+  BitReader
+  BitWriter
+  CodeGen
+  ExecutionEngine
+  IRReader
+  LTO
+  MC
+  MCJIT
+  Support
+  nativecodegen
+  Interpreter
 )
 
-set(LLVM_LINK_COMPONENTS Core Support nativecodegen)
 llvm_map_components_to_libnames(llvmLibs ${LLVM_LINK_COMPONENTS})
 target_link_libraries(mozlang PUBLIC ${llvmLibs})

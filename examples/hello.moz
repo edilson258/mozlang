@@ -1,3 +1,4 @@
-fn main() {
-  print("Hello Mozambique!");
+fn main(): int {
+  print("Hello Mozambique!\n");
+  return 69;
 }

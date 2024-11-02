@@ -1,5 +1,7 @@
 #include "Lexer.h"
+#include "Token.h"
 
+#include <cctype>
 #include <iostream>
 
 bool Lexer::IsEof() { return FileContent.length() <= Cursor; }
@@ -111,6 +113,8 @@ Token Lexer::GetNextToken()
     return MakeSimpleToken(TokenType::RightBrace);
   case ';':
     return MakeSimpleToken(TokenType::Semicolon);
+  case ':':
+    return MakeSimpleToken(TokenType::Colon);
   case '"':
     return MakeStringToken();
   }
@@ -132,8 +136,31 @@ Token Lexer::GetNextToken()
     {
       return Token(TokenType::Fn, identifierSpan);
     }
+    else if ("return" == identifierLabel)
+    {
+      return Token(TokenType::Return, identifierSpan);
+    }
+    else if ("int" == identifierLabel)
+    {
+      return Token(TokenType::TypeInt, identifierSpan);
+    }
 
     return Token(TokenType::Identifier, identifierSpan, identifierLabel);
+  }
+
+  if (std::isdigit(currentChar))
+  {
+    unsigned long intBeginIndex  = Cursor;
+    unsigned long intBeginColumn = Column;
+
+    while (!IsEof() && std::isdigit(PeekOne()))
+    {
+      AdvanceOne();
+    }
+
+    TokenSpan intSpan  = TokenSpan(Line, intBeginColumn, RangeBegin, Cursor - 1);
+    std::string intRaw = FileContent.substr(intBeginIndex, Cursor - intBeginIndex);
+    return Token(TokenType::Integer, intSpan, intRaw);
   }
 
   std::cerr << "[ERROR]: Unknown token: " << currentChar << std::endl;

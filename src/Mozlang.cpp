@@ -1,10 +1,12 @@
 ﻿#include "CodeGen.h"
+#include "ExecutableBuilder.h"
 #include "Lexer.h"
 #include "Parser.h"
 
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <string>
 
 #include <llvm-18/llvm/IR/Module.h>
 #include <llvm-18/llvm/Support/raw_ostream.h>
@@ -19,17 +21,19 @@ int main(int argc, char *argv[])
     return 1;
   }
 
-  std::string code = readFile(argv[1]);
+  std::filesystem::path sourcePath = argv[1];
+  std::string code                 = readFile(sourcePath);
 
-  Lexer lexer(code);
+  Lexer lexer(code, sourcePath);
   Parser parser(lexer);
 
   AST ast = parser.Parse();
 
-  CodeGen gen;
-  llvm::Module *module = gen.Generate(ast);
+  CodeGen gen(ast);
+  llvm::Module *module = gen.Generate();
 
-  llvm::outs() << *module;
+  // llvm::outs() << *module;
+  ExecutableBuilder::Build(module);
 
   return 0;
 }

@@ -2,16 +2,21 @@
 
 #include "AstVisitor.h"
 #include "Token.h"
+#include "TypeSystem.h"
 
+#include <filesystem>
+#include <optional>
 #include <vector>
 
 enum class AstNodeType
 {
   BlockStatement,
   FunctionStatement,
+  ReturnStatement,
   CallExpression,
   IdentifierExpression,
   StringExpression,
+  IntegerExpression,
 };
 
 class AstNode
@@ -64,6 +69,18 @@ public:
   void *accept(AstVisitor *visitor) override;
 };
 
+class IntegerExpression : public Expression
+{
+public:
+  Token Integer;
+
+  IntegerExpression(Token integer) : Expression(AstNodeType::IntegerExpression), Integer(integer) {};
+
+  long long GetValue() const;
+  std::string GetRawValue() const;
+  void *accept(AstVisitor *visitor) override;
+};
+
 class CallExpression : public Expression
 {
 public:
@@ -92,9 +109,23 @@ class FunctionStatement : public Statement
 public:
   IdentifierExpression *Identifier;
   BlockStatement Body;
+  class Type ReturnType;
 
-  FunctionStatement(IdentifierExpression *identifier, BlockStatement body)
-      : Statement(AstNodeType::FunctionStatement), Identifier(identifier), Body(body) {};
+  FunctionStatement(IdentifierExpression *identifier, BlockStatement body, class Type returnType)
+      : Statement(AstNodeType::FunctionStatement), Identifier(identifier), Body(body), ReturnType(returnType) {};
+
+  void *accept(AstVisitor *visitor) override;
+};
+
+class ReturnStatement : public Statement
+{
+public:
+  TokenSpan Span;
+  std::optional<Expression *> Value;
+
+  ReturnStatement(TokenSpan span) : Statement(AstNodeType::ReturnStatement), Span(span), Value(std::nullopt) {};
+  ReturnStatement(TokenSpan span, Expression *value)
+      : Statement(AstNodeType::ReturnStatement), Span(span), Value(value) {};
 
   void *accept(AstVisitor *visitor) override;
 };
@@ -103,8 +134,9 @@ class AST
 {
 public:
   std::vector<AstNode *> Nodes;
+  const std::filesystem::path SourceFilePath;
 
-  AST() : Nodes() {};
+  AST(std::filesystem::path sourcePath) : Nodes(), SourceFilePath(sourcePath) {};
 
   std::string ToStrng();
 };

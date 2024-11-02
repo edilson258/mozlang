@@ -1,6 +1,13 @@
 #include "CodeGen.h"
 #include "Ast.h"
 
+#include <cstdint>
+#include <cstdlib>
+#include <memory>
+#include <regex>
+#include <string>
+#include <vector>
+
 #include <llvm-18/llvm/ADT/Any.h>
 #include <llvm-18/llvm/IR/BasicBlock.h>
 #include <llvm-18/llvm/IR/DerivedTypes.h>
@@ -12,14 +19,10 @@
 #include <llvm-18/llvm/Support/Casting.h>
 #include <llvm-18/llvm/Support/raw_ostream.h>
 
-#include <cstdlib>
-#include <memory>
-#include <vector>
-
 llvm::Function *makePrintf(llvm::LLVMContext &c, llvm::Module *m);
 void CodeGen::SetupBuiltIns() { Store["print"] = makePrintf(Context, Module.get()); }
 
-llvm::Module *CodeGen::Generate(AST &ast)
+llvm::Module *CodeGen::Generate()
 {
   SetupBuiltIns();
   for (auto &node : ast.Nodes)
@@ -36,9 +39,27 @@ void *CodeGen::visit(FunctionStatement *fnStmt)
   llvm::Function *fn =
       llvm::Function::Create(fnType, llvm::Function::ExternalLinkage, fnStmt->Identifier->GetValue(), Module.get());
   llvm::BasicBlock *fnBody = llvm::BasicBlock::Create(Context, "entry", fn);
+
+  Store[fnStmt->Identifier->GetValue()] = fn;
+
   Builder.SetInsertPoint(fnBody);
+
   fnStmt->Body.accept(this);
-  Builder.CreateRetVoid();
+
+  return nullptr;
+}
+
+void *CodeGen::visit(ReturnStatement *retStmt)
+{
+  if (retStmt->Value.has_value())
+  {
+    llvm::Value *value = static_cast<llvm::Value *>(retStmt->Value.value()->accept(this));
+    Builder.CreateRet(value);
+  }
+  else
+  {
+    Builder.CreateRetVoid();
+  }
   return nullptr;
 }
 
@@ -86,7 +107,16 @@ void *CodeGen::visit(IdentifierExpression *ident)
   std::exit(1);
 }
 
-void *CodeGen::visit(StringExpression *strExpr) { return Builder.CreateGlobalStringPtr(strExpr->GetValue()); }
+void *CodeGen::visit(StringExpression *strExpr)
+{
+  std::string newLineScapedStr = std::regex_replace(strExpr->GetValue(), std::regex(R"(\\n)"), "\n");
+  return Builder.CreateGlobalStringPtr(newLineScapedStr);
+}
+
+void *CodeGen::visit(IntegerExpression *intExpr)
+{
+  return Builder.getInt32(static_cast<uint32_t>(intExpr->GetValue()));
+}
 
 llvm::Function *makePrintf(llvm::LLVMContext &c, llvm::Module *m)
 {

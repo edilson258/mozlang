@@ -1,29 +1,37 @@
+#pragma once
+
 #include "Ast.h"
 #include "AstVisitor.h"
+
+#include <memory>
+#include <string>
+#include <unordered_map>
 
 #include <llvm-18/llvm/IR/Value.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 
-#include <memory>
-#include <string>
-#include <unordered_map>
-
 class CodeGen : public AstVisitor
 {
 public:
-  CodeGen() : Module(std::make_unique<llvm::Module>("mzlang", Context)), Builder(Context) {};
+  CodeGen(AST &ast)
+      : ast(ast), Module(std::make_unique<llvm::Module>(ast.SourceFilePath.stem().string(), Context)),
+        Builder(Context) {};
 
   void *visit(BlockStatement *) override;
   void *visit(FunctionStatement *) override;
+  void *visit(ReturnStatement *) override;
   void *visit(CallExpression *) override;
   void *visit(IdentifierExpression *) override;
   void *visit(StringExpression *) override;
+  void *visit(IntegerExpression *) override;
 
-  llvm::Module *Generate(AST &ast);
+  llvm::Module *Generate();
 
 private:
+  AST &ast;
+
   llvm::LLVMContext Context;
   std::unique_ptr<llvm::Module> Module;
   llvm::IRBuilder<> Builder;

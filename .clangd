@@ -1,2 +1,3 @@
+# Note: change to point to the llvm include path in you system
 CompileFlags:
   Add: ["-isystem", "/usr/lib/llvm-18/include/"]

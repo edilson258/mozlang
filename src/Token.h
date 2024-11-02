@@ -1,7 +1,7 @@
 #pragma once
 
+#include <optional>
 #include <string>
-#include <variant>
 
 enum class TokenType
 {
@@ -9,9 +9,13 @@ enum class TokenType
 
   // Keywords
   Fn,
+  Return,
+
+  TypeInt,
 
   // Literals
   String,
+  Integer,
 
   // Symbols
   Identifier,
@@ -22,6 +26,7 @@ enum class TokenType
   LeftBrace,
   RightBrace,
   Semicolon,
+  Colon,
 };
 
 class TokenSpan
@@ -44,11 +49,11 @@ class Token
 public:
   TokenType Type;
   TokenSpan Span;
-  std::variant<std::monostate, std::string> Data;
+  std::optional<std::string> Data;
 
   std::string ToString();
 
   Token() = default;
-  Token(TokenType type, TokenSpan span) : Type(type), Span(span) {};
+  Token(TokenType type, TokenSpan span) : Type(type), Span(span), Data(std::nullopt) {};
   Token(TokenType type, TokenSpan span, std::string data) : Type(type), Span(span), Data(data) {};
 };
