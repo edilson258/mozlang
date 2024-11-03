@@ -4,6 +4,7 @@
 #include "Lexer.h"
 #include "Token.h"
 #include "TypeSystem.h"
+#include <vector>
 
 enum class Precedence
 {
@@ -40,4 +41,5 @@ private:
 
   // Helpers
   Type ParseTypeAnnotation();
+  std::vector<Expression *> ParseCallExpressionArgs();
 };

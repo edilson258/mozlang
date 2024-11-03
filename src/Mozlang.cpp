@@ -29,10 +29,12 @@ int main(int argc, char *argv[])
 
   AST ast = parser.Parse();
 
+  std::cout << ast.ToStrng() << std::endl;
+
   CodeGen gen(ast);
   llvm::Module *module = gen.Generate();
 
-  // llvm::outs() << *module;
+  llvm::outs() << *module;
   ExecutableBuilder::Build(module);
 
   return 0;

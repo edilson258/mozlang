@@ -44,8 +44,14 @@ std::string Token::ToString()
   case TokenType::Colon:
     oss << "Punct.: :";
     break;
+  case TokenType::Comma:
+    oss << "Punct.: ,";
+    break;
   case TokenType::TypeInt:
     oss << "Type: int";
+    break;
+  case TokenType::TypeStr:
+    oss << "Type: str";
     break;
   }
 

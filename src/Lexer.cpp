@@ -115,6 +115,8 @@ Token Lexer::GetNextToken()
     return MakeSimpleToken(TokenType::Semicolon);
   case ':':
     return MakeSimpleToken(TokenType::Colon);
+  case ',':
+    return MakeSimpleToken(TokenType::Comma);
   case '"':
     return MakeStringToken();
   }
@@ -143,6 +145,10 @@ Token Lexer::GetNextToken()
     else if ("int" == identifierLabel)
     {
       return Token(TokenType::TypeInt, identifierSpan);
+    }
+    else if ("str" == identifierLabel)
+    {
+      return Token(TokenType::TypeStr, identifierSpan);
     }
 
     return Token(TokenType::Identifier, identifierSpan, identifierLabel);

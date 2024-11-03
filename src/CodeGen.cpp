@@ -1,5 +1,6 @@
 #include "CodeGen.h"
 #include "Ast.h"
+#include "TypeSystem.h"
 
 #include <cstdint>
 #include <cstdlib>
@@ -32,10 +33,23 @@ llvm::Module *CodeGen::Generate()
   return Module.get();
 }
 
+llvm::Type *CodeGen::MozToLLVMType(Type type)
+{
+  switch (type.TypeOf)
+  {
+  case TypeOfType::Integer:
+    return Builder.getInt32Ty();
+  case TypeOfType::String:
+    return Builder.getInt8Ty()->getPointerTo();
+  default:
+    llvm::errs() << "[ERROR]: Cannot convert provided type to llvm\n";
+    std::exit(1);
+  }
+}
+
 void *CodeGen::visit(FunctionStatement *fnStmt)
 {
-  // TODO: support function params
-  llvm::FunctionType *fnType = llvm::FunctionType::get(Builder.getVoidTy(), {}, false);
+  llvm::FunctionType *fnType = llvm::FunctionType::get(MozToLLVMType(fnStmt->ReturnType), {}, false);
   llvm::Function *fn =
       llvm::Function::Create(fnType, llvm::Function::ExternalLinkage, fnStmt->Identifier->GetValue(), Module.get());
   llvm::BasicBlock *fnBody = llvm::BasicBlock::Create(Context, "entry", fn);

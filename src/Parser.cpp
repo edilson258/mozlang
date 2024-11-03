@@ -4,6 +4,7 @@
 #include "TypeSystem.h"
 
 #include <iostream>
+#include <vector>
 
 AST Parser::Parse()
 {
@@ -152,7 +153,7 @@ Expression *Parser::ParseExpressionStatement(Precedence precedence)
       leftHandSide = ParseCallExpression(std::move(leftHandSide));
       break;
     default:
-      break;
+      return leftHandSide;
     }
   }
 
@@ -161,15 +162,39 @@ Expression *Parser::ParseExpressionStatement(Precedence precedence)
 
 CallExpression *Parser::ParseCallExpression(Expression *callee)
 {
+  return new CallExpression(callee, ParseCallExpressionArgs());
+}
+
+std::vector<Expression *> Parser::ParseCallExpressionArgs()
+{
   Bump(); // eat '('
 
-  // TODO: parse args
   std::vector<Expression *> args;
-  args.push_back(ParseExpressionStatement(Precedence::Call));
 
-  BumpExpected(TokenType::RightParent);
+  while (1)
+  {
+    if (TokenType::Eof == CurrentToken.Type)
+    {
+      std::cerr << "[ERROR]: Early EOF\n";
+      std::exit(1);
+    }
 
-  return new CallExpression(callee, args);
+    if (TokenType::RightParent == CurrentToken.Type)
+    {
+      break;
+    }
+
+    args.push_back(ParseExpressionStatement(Precedence::Lowest));
+
+    if (CurrentToken.Type == TokenType::Comma)
+    {
+      Bump();
+    }
+  }
+
+  Bump(); // eat ')'
+
+  return args;
 }
 
 Precedence Parser::TokenToPrecedence(Token &t)
@@ -194,6 +219,9 @@ Type Parser::ParseTypeAnnotation()
   case TokenType::TypeInt:
     Bump();
     return Type(TypeOfType::Integer);
+  case TokenType::TypeStr:
+    Bump();
+    return Type(TypeOfType::String);
   default:
     std::cerr << "[ERROR] Expect type annotation but got " << CurrentToken.ToString() << std::endl;
     std::exit(1);

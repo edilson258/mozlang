@@ -1,4 +1,8 @@
+fn getCountryName(): str {
+  return "Mozambique";
+}
+
 fn main(): int {
-  print("Hello Mozambique!\n");
+  print("Hello %s!\n", getCountryName());
   return 69;
 }

@@ -12,6 +12,7 @@ enum class TokenType
   Return,
 
   TypeInt,
+  TypeStr,
 
   // Literals
   String,
@@ -27,6 +28,7 @@ enum class TokenType
   RightBrace,
   Semicolon,
   Colon,
+  Comma,
 };
 
 class TokenSpan
