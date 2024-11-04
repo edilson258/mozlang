@@ -13,6 +13,7 @@ enum class TokenType
 
   TypeInt,
   TypeStr,
+  TypeVoid,
 
   // Literals
   String,

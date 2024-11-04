@@ -13,7 +13,7 @@ AST Parser::Parse()
 
   AST ast(lexer.FilePath);
 
-  while (CurrentToken.Type != TokenType::Eof)
+  while (TokenType::Eof != CurrentToken.Type)
   {
     ast.Nodes.push_back(ParseStatement());
   }
@@ -72,7 +72,7 @@ FunctionStatement *Parser::ParseFunctionStatement()
   BumpExpected(TokenType::LeftParent);
   BumpExpected(TokenType::RightParent);
 
-  Type returnType = ParseTypeAnnotation();
+  TypeAnnotation returnType = ParseTypeAnnotation();
 
   auto body = ParseBlockStatement();
 
@@ -81,17 +81,18 @@ FunctionStatement *Parser::ParseFunctionStatement()
 
 ReturnStatement *Parser::ParseReturnStatement()
 {
-  TokenSpan span = CurrentToken.Span;
-  Bump();
+  Token returnLexeme = CurrentToken;
+  Bump(); // eat 'return'
 
   if (TokenType::Semicolon == CurrentToken.Type)
   {
-    return new ReturnStatement(span);
+    Bump(); // eat ';'
+    return new ReturnStatement(returnLexeme);
   }
 
   Expression *value = ParseExpressionStatement(Precedence::Lowest);
   BumpExpected(TokenType::Semicolon);
-  return new ReturnStatement(span, value);
+  return new ReturnStatement(returnLexeme, value);
 }
 
 BlockStatement Parser::ParseBlockStatement()
@@ -210,20 +211,31 @@ Precedence Parser::TokenToPrecedence(Token &t)
 
 Precedence Parser::GetCurrentTokenPrecedence() { return TokenToPrecedence(CurrentToken); }
 
-Type Parser::ParseTypeAnnotation()
+TypeAnnotation Parser::ParseTypeAnnotation()
 {
   BumpExpected(TokenType::Colon);
 
-  switch (CurrentToken.Type)
+  if (TokenType::TypeInt == CurrentToken.Type)
   {
-  case TokenType::TypeInt:
+    auto typeAnnotation = TypeAnnotation(new Type(BaseType::Integer), CurrentToken);
     Bump();
-    return Type(BaseType::Integer);
-  case TokenType::TypeStr:
-    Bump();
-    return Type(BaseType::String);
-  default:
-    std::cerr << "[ERROR] Expect type annotation but got " << CurrentToken.ToString() << std::endl;
-    std::exit(1);
+    return typeAnnotation;
   }
+
+  if (TokenType::TypeStr == CurrentToken.Type)
+  {
+    auto typeAnnotation = TypeAnnotation(new Type(BaseType::String), CurrentToken);
+    Bump();
+    return typeAnnotation;
+  }
+
+  if (TokenType::TypeVoid == CurrentToken.Type)
+  {
+    auto typeAnnotation = TypeAnnotation(new Type(BaseType::Void), CurrentToken);
+    Bump();
+    return typeAnnotation;
+  }
+
+  std::cerr << "[ERROR] Expect type annotation but got " << CurrentToken.ToString() << std::endl;
+  std::exit(1);
 }

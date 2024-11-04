@@ -51,7 +51,7 @@ llvm::Type *CodeGen::MozToLLVMType(Type type)
 
 void *CodeGen::visit(FunctionStatement *fnStmt)
 {
-  llvm::FunctionType *fnType = llvm::FunctionType::get(MozToLLVMType(fnStmt->ReturnType), {}, false);
+  llvm::FunctionType *fnType = llvm::FunctionType::get(MozToLLVMType(*fnStmt->ReturnType.Type), {}, false);
   llvm::Function *fn =
       llvm::Function::Create(fnType, llvm::Function::ExternalLinkage, fnStmt->Identifier->GetValue(), Module.get());
   llvm::BasicBlock *fnBody = llvm::BasicBlock::Create(Context, "entry", fn);

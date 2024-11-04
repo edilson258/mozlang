@@ -50,9 +50,9 @@ protected:
 class IdentifierExpression : public Expression
 {
 public:
-  Token Identifier;
+  Token Lexeme;
 
-  IdentifierExpression(Token identifier) : Expression(AstNodeType::IdentifierExpression), Identifier(identifier) {};
+  IdentifierExpression(Token lexeme) : Expression(AstNodeType::IdentifierExpression), Lexeme(lexeme) {};
 
   std::string GetValue() const;
   void *accept(AstVisitor *visitor) override;
@@ -61,9 +61,9 @@ public:
 class StringExpression : public Expression
 {
 public:
-  Token String;
+  Token Lexeme;
 
-  StringExpression(Token string) : Expression(AstNodeType::StringExpression), String(string) {};
+  StringExpression(Token lexeme) : Expression(AstNodeType::StringExpression), Lexeme(lexeme) {};
 
   std::string GetValue() const;
   void *accept(AstVisitor *visitor) override;
@@ -72,9 +72,9 @@ public:
 class IntegerExpression : public Expression
 {
 public:
-  Token Integer;
+  Token Lexeme;
 
-  IntegerExpression(Token integer) : Expression(AstNodeType::IntegerExpression), Integer(integer) {};
+  IntegerExpression(Token lexeme) : Expression(AstNodeType::IntegerExpression), Lexeme(lexeme) {};
 
   long long GetValue() const;
   std::string GetRawValue() const;
@@ -104,14 +104,23 @@ public:
   void *accept(AstVisitor *visitor) override;
 };
 
+class TypeAnnotation
+{
+public:
+  Type *Type;
+  Token Lexeme;
+
+  TypeAnnotation(class Type *type, Token lexeme) : Type(type), Lexeme(lexeme) {};
+};
+
 class FunctionStatement : public Statement
 {
 public:
   IdentifierExpression *Identifier;
   BlockStatement Body;
-  class Type ReturnType;
+  TypeAnnotation ReturnType;
 
-  FunctionStatement(IdentifierExpression *identifier, BlockStatement body, class Type returnType)
+  FunctionStatement(IdentifierExpression *identifier, BlockStatement body, TypeAnnotation returnType)
       : Statement(AstNodeType::FunctionStatement), Identifier(identifier), Body(body), ReturnType(returnType) {};
 
   void *accept(AstVisitor *visitor) override;
@@ -120,12 +129,12 @@ public:
 class ReturnStatement : public Statement
 {
 public:
-  TokenSpan Span;
+  Token Lexeme;
   std::optional<Expression *> Value;
 
-  ReturnStatement(TokenSpan span) : Statement(AstNodeType::ReturnStatement), Span(span), Value(std::nullopt) {};
-  ReturnStatement(TokenSpan span, Expression *value)
-      : Statement(AstNodeType::ReturnStatement), Span(span), Value(value) {};
+  ReturnStatement(Token lexeme) : Statement(AstNodeType::ReturnStatement), Lexeme(lexeme), Value(std::nullopt) {};
+  ReturnStatement(Token lexeme, Expression *value)
+      : Statement(AstNodeType::ReturnStatement), Lexeme(lexeme), Value(value) {};
 
   void *accept(AstVisitor *visitor) override;
 };

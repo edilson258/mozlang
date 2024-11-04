@@ -53,6 +53,9 @@ std::string Token::ToString()
   case TokenType::TypeStr:
     oss << "Type: str";
     break;
+  case TokenType::TypeVoid:
+    oss << "Type: void";
+    break;
   }
 
   oss << " " << Span.Line << ":" << Span.Column << ":" << Span.RangeBegin << ":" << Span.RangeEnd << std::endl;

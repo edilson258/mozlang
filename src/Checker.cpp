@@ -106,7 +106,7 @@ void *Checker::visit(FunctionStatement *fnStmt)
     return nullptr;
   }
 
-  DeclareFunction(fnStmt->Identifier->GetValue(), fnStmt->ReturnType, {}, false);
+  DeclareFunction(fnStmt->Identifier->GetValue(), *fnStmt->ReturnType.Type, {}, false);
   EnterScope(ScopeType::Function);
 
   void *xs                       = fnStmt->Body.accept(this);
@@ -128,7 +128,7 @@ void *Checker::visit(FunctionStatement *fnStmt)
 
     if (ObjectSource::ReturnValue == result->Source)
     {
-      if (fnStmt->ReturnType != *result->Type)
+      if (*fnStmt->ReturnType.Type != *result->Type)
       {
         ErrorsCount++;
         std::cerr << "[ERROR]: Return type miss match\n";

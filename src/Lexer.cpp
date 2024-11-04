@@ -134,21 +134,29 @@ Token Lexer::GetNextToken()
     TokenSpan identifierSpan    = TokenSpan(Line, identifierBeginColumn, RangeBegin, Cursor - 1);
     std::string identifierLabel = FileContent.substr(identifierBeginIndex, Cursor - identifierBeginIndex);
 
-    if (identifierLabel == "fn")
+    if ("fn" == identifierLabel)
     {
       return Token(TokenType::Fn, identifierSpan);
     }
-    else if ("return" == identifierLabel)
+
+    if ("return" == identifierLabel)
     {
       return Token(TokenType::Return, identifierSpan);
     }
-    else if ("int" == identifierLabel)
+
+    if ("int" == identifierLabel)
     {
       return Token(TokenType::TypeInt, identifierSpan);
     }
-    else if ("str" == identifierLabel)
+
+    if ("str" == identifierLabel)
     {
       return Token(TokenType::TypeStr, identifierSpan);
+    }
+
+    if ("void" == identifierLabel)
+    {
+      return Token(TokenType::TypeVoid, identifierSpan);
     }
 
     return Token(TokenType::Identifier, identifierSpan, identifierLabel);

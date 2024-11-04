@@ -40,6 +40,6 @@ private:
   ReturnStatement *ParseReturnStatement();
 
   // Helpers
-  Type ParseTypeAnnotation();
+  TypeAnnotation ParseTypeAnnotation();
   std::vector<Expression *> ParseCallExpressionArgs();
 };
