@@ -2,7 +2,7 @@
 
 #include <vector>
 
-enum class TypeOfType
+enum class BaseType
 {
   Void,
   String,
@@ -13,9 +13,9 @@ enum class TypeOfType
 class Type
 {
 public:
-  TypeOfType TypeOf;
+  BaseType Base;
 
-  Type(TypeOfType type) : TypeOf(type) {};
+  Type(BaseType base) : Base(base) {};
   virtual ~Type() = default;
 
   virtual bool operator==(const Type &other) const;
@@ -30,7 +30,7 @@ public:
   bool IsVarArgs;
 
   TypeFunction(Type returnType, std::vector<Type> paramTypes, bool isVarArgs)
-      : Type(TypeOfType::Function), ReturnType(returnType), ParamTypes(paramTypes), IsVarArgs(isVarArgs)
+      : Type(BaseType::Function), ReturnType(returnType), ParamTypes(paramTypes), IsVarArgs(isVarArgs)
   {
   }
   ~TypeFunction() = default;

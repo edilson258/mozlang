@@ -35,12 +35,14 @@ llvm::Module *CodeGen::Generate()
 
 llvm::Type *CodeGen::MozToLLVMType(Type type)
 {
-  switch (type.TypeOf)
+  switch (type.Base)
   {
-  case TypeOfType::Integer:
+  case BaseType::Integer:
     return Builder.getInt32Ty();
-  case TypeOfType::String:
+  case BaseType::String:
     return Builder.getInt8Ty()->getPointerTo();
+  case BaseType::Void:
+    return Builder.getVoidTy();
   default:
     llvm::errs() << "[ERROR]: Cannot convert provided type to llvm\n";
     std::exit(1);

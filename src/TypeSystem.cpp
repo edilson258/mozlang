@@ -1,11 +1,11 @@
 #include "TypeSystem.h"
 
-bool Type::operator==(const Type &other) const { return TypeOf == other.TypeOf; }
+bool Type::operator==(const Type &other) const { return Base == other.Base; }
 bool Type::operator!=(const Type &other) const { return !(*this == other); }
 
 bool TypeFunction::operator==(const Type &other) const
 {
-  if (TypeOfType::Function != other.TypeOf)
+  if (Base != other.Base)
   {
     return false;
   }

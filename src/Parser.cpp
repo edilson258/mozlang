@@ -218,10 +218,10 @@ Type Parser::ParseTypeAnnotation()
   {
   case TokenType::TypeInt:
     Bump();
-    return Type(TypeOfType::Integer);
+    return Type(BaseType::Integer);
   case TokenType::TypeStr:
     Bump();
-    return Type(TypeOfType::String);
+    return Type(BaseType::String);
   default:
     std::cerr << "[ERROR] Expect type annotation but got " << CurrentToken.ToString() << std::endl;
     std::exit(1);

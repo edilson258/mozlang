@@ -13,7 +13,7 @@ void Checker::Check(AST &ast)
   EnterScope(ScopeType::Global);
 
   // Setup builtins
-  DeclareFunction("print", Type(TypeOfType::Void), {Type(TypeOfType::String)}, true);
+  DeclareFunction("print", Type(BaseType::Void), {Type(BaseType::String)}, true);
 
   for (AstNode *node : ast.Nodes)
   {
@@ -75,7 +75,7 @@ void Checker::ValidateEntryPoint()
 
   Object *main = GetCurrentScope()->Store["main"];
 
-  if (TypeOfType::Function != main->Type->TypeOf)
+  if (BaseType::Function != main->Type->Base)
   {
     ErrorsCount++;
     std::cerr << "[ERROR]: `main` must be callable\n";
@@ -84,7 +84,7 @@ void Checker::ValidateEntryPoint()
 
   TypeFunction *mainFnType = static_cast<TypeFunction *>(main->Type);
 
-  if (TypeOfType::Integer != mainFnType->ReturnType.TypeOf)
+  if (BaseType::Integer != mainFnType->ReturnType.Base)
   {
     ErrorsCount++;
     std::cerr << "[ERROR]: `main` must return `int`\n";
@@ -190,7 +190,7 @@ void *Checker::visit(CallExpression *callExpr)
 
   Object *calleeObj = static_cast<Object *>(callee);
 
-  if (TypeOfType::Function != calleeObj->Type->TypeOf)
+  if (BaseType::Function != calleeObj->Type->Base)
   {
     ErrorsCount++;
     std::cerr << "[ERROR]: Object has no callable signature\n";
@@ -244,7 +244,7 @@ void *Checker::visit(CallExpression *callExpr)
     }
   }
 
-  if (TypeOfType::Void == calleeFnType->ReturnType.TypeOf)
+  if (BaseType::Void == calleeFnType->ReturnType.Base)
   {
     return nullptr;
   }
@@ -266,5 +266,5 @@ void *Checker::visit(IdentifierExpression *identExpr)
   return nullptr;
 }
 
-void *Checker::visit(StringExpression *) { return new Object(new Type(TypeOfType::String), ObjectSource::Expession); }
-void *Checker::visit(IntegerExpression *) { return new Object(new Type(TypeOfType::Integer), ObjectSource::Expession); }
+void *Checker::visit(StringExpression *) { return new Object(new Type(BaseType::String), ObjectSource::Expession); }
+void *Checker::visit(IntegerExpression *) { return new Object(new Type(BaseType::Integer), ObjectSource::Expession); }
