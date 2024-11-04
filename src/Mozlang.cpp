@@ -1,4 +1,5 @@
-﻿#include "CodeGen.h"
+﻿#include "Checker.h"
+#include "CodeGen.h"
 #include "ExecutableBuilder.h"
 #include "Lexer.h"
 #include "Parser.h"
@@ -29,12 +30,15 @@ int main(int argc, char *argv[])
 
   AST ast = parser.Parse();
 
-  std::cout << ast.ToStrng() << std::endl;
+  // std::cout << ast.ToStrng() << std::endl;
+
+  Checker c;
+  c.Check(ast);
 
   CodeGen gen(ast);
   llvm::Module *module = gen.Generate();
 
-  llvm::outs() << *module;
+  // llvm::outs() << *module;
   ExecutableBuilder::Build(module);
 
   return 0;
