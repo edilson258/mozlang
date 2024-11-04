@@ -2,6 +2,9 @@ fn getCountryName(): str {
   return "Mozambique";
 }
 
+fn other() {
+}
+
 fn main(): int {
   print("Hello %s!\n", getCountryName());
   return 69;

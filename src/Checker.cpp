@@ -6,6 +6,7 @@
 #include <iostream>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 void Checker::Check(AST &ast)
@@ -33,7 +34,25 @@ void Checker::Check(AST &ast)
 
 void Checker::EnterScope(ScopeType type) { Scopes.push_back(new Scope(type)); }
 
-void Checker::LeaveScope() { Scopes.pop_back(); }
+void Checker::LeaveScope()
+{
+  for (std::pair<std::string, Object *> pair : GetCurrentScope()->Store)
+  {
+    if (pair.second->IsUsed)
+    {
+      continue;
+    }
+
+    if (ScopeType::Global == GetCurrentScope()->Type && "main" == pair.first)
+    {
+      continue;
+    }
+
+    ErrorsCount++;
+    std::cerr << "[ERROR]: Unused name " << pair.first << std::endl;
+  }
+  Scopes.pop_back();
+}
 
 bool Checker::InScope(ScopeType type)
 {
@@ -109,8 +128,9 @@ void *Checker::visit(FunctionStatement *fnStmt)
   DeclareFunction(fnStmt->Identifier->GetValue(), *fnStmt->ReturnType.Type, {}, false);
   EnterScope(ScopeType::Function);
 
-  void *xs                       = fnStmt->Body.accept(this);
-  std::vector<Object *> *results = static_cast<std::vector<Object *> *>(xs);
+  std::vector<Object *> *results = static_cast<std::vector<Object *> *>(fnStmt->Body.accept(this));
+
+  bool returnedSomething = false;
 
   for (Object *result : *results)
   {
@@ -128,11 +148,26 @@ void *Checker::visit(FunctionStatement *fnStmt)
 
     if (ObjectSource::ReturnValue == result->Source)
     {
+      returnedSomething = true;
+
       if (*fnStmt->ReturnType.Type != *result->Type)
       {
         ErrorsCount++;
         std::cerr << "[ERROR]: Return type miss match\n";
       }
+    }
+  }
+
+  if (!returnedSomething)
+  {
+    if (BaseType::Void == fnStmt->ReturnType.Type->Base)
+    {
+      fnStmt->Body.Statements.push_back(new ReturnStatement(Token()));
+    }
+    else
+    {
+      ErrorsCount++;
+      std::cerr << "[ERROR]: Non-void function does not return a value\n";
     }
   }
 
@@ -168,6 +203,7 @@ void *Checker::visit(BlockStatement *blockStmt)
     {
       ErrorsCount++;
       std::cerr << "[ERROR]: Dead code detected\n";
+      break;
     }
 
     void *x = stmt->accept(this);
@@ -258,6 +294,7 @@ void *Checker::visit(IdentifierExpression *identExpr)
   {
     if ((*scopeIterator)->Store.find(identExpr->GetValue()) != (*scopeIterator)->Store.end())
     {
+      (*scopeIterator)->Store[identExpr->GetValue()]->IsUsed = true;
       return (*scopeIterator)->Store[identExpr->GetValue()];
     }
   }

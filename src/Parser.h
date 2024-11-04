@@ -3,7 +3,7 @@
 #include "Ast.h"
 #include "Lexer.h"
 #include "Token.h"
-#include "TypeSystem.h"
+
 #include <vector>
 
 enum class Precedence
@@ -41,5 +41,6 @@ private:
 
   // Helpers
   TypeAnnotation ParseTypeAnnotation();
+  TypeAnnotation ParseFunctionStatementReturnType();
   std::vector<Expression *> ParseCallExpressionArgs();
 };

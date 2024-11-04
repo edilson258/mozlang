@@ -108,8 +108,9 @@ class TypeAnnotation
 {
 public:
   Type *Type;
-  Token Lexeme;
+  std::optional<Token> Lexeme;
 
+  TypeAnnotation(class Type *type) : Type(type), Lexeme(std::nullopt) {};
   TypeAnnotation(class Type *type, Token lexeme) : Type(type), Lexeme(lexeme) {};
 };
 

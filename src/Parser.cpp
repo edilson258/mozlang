@@ -72,11 +72,20 @@ FunctionStatement *Parser::ParseFunctionStatement()
   BumpExpected(TokenType::LeftParent);
   BumpExpected(TokenType::RightParent);
 
-  TypeAnnotation returnType = ParseTypeAnnotation();
-
-  auto body = ParseBlockStatement();
+  TypeAnnotation returnType = ParseFunctionStatementReturnType();
+  BlockStatement body       = ParseBlockStatement();
 
   return new FunctionStatement(identifier, body, returnType);
+}
+
+TypeAnnotation Parser::ParseFunctionStatementReturnType()
+{
+  if (TokenType::LeftBrace == CurrentToken.Type)
+  {
+    return TypeAnnotation(new Type(BaseType::Void));
+  }
+
+  return ParseTypeAnnotation();
 }
 
 ReturnStatement *Parser::ParseReturnStatement()
@@ -97,7 +106,7 @@ ReturnStatement *Parser::ParseReturnStatement()
 
 BlockStatement Parser::ParseBlockStatement()
 {
-  Bump(); // eat '{'
+  BumpExpected(TokenType::LeftBrace);
 
   std::vector<Statement *> block;
 
