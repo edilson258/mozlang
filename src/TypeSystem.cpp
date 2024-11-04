@@ -17,6 +17,11 @@ bool TypeFunction::operator==(const Type &other) const
     return false;
   }
 
+  if (IsVarArgs != otherFnType.IsVarArgs)
+  {
+    return false;
+  }
+
   if (ParamTypes.size() != otherFnType.ParamTypes.size())
   {
     return false;

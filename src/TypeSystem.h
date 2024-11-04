@@ -27,9 +27,10 @@ class TypeFunction : public Type
 public:
   Type ReturnType;
   std::vector<Type> ParamTypes;
+  bool IsVarArgs;
 
-  TypeFunction(Type returnType, std::vector<Type> paramTypes)
-      : Type(TypeOfType::Function), ReturnType(returnType), ParamTypes(paramTypes)
+  TypeFunction(Type returnType, std::vector<Type> paramTypes, bool isVarArgs)
+      : Type(TypeOfType::Function), ReturnType(returnType), ParamTypes(paramTypes), IsVarArgs(isVarArgs)
   {
   }
   ~TypeFunction() = default;
