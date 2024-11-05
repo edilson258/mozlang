@@ -17,8 +17,8 @@
 class CodeGen : public AstVisitor
 {
 public:
-  CodeGen(AST &ast)
-      : ast(ast), Module(std::make_unique<llvm::Module>(ast.SourceFilePath.stem().string(), Context)),
+  CodeGen(AST &tree)
+      : ast(tree), Module(std::make_unique<llvm::Module>(tree.SourceFilePath.stem().string(), Context)),
         Builder(Context) {};
 
   void *visit(BlockStatement *) override;

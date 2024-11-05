@@ -107,7 +107,7 @@ public:
 class TypeAnnotation
 {
 public:
-  Type *Type;
+  class Type *Type;
   std::optional<Token> Lexeme;
 
   TypeAnnotation(class Type *type) : Type(type), Lexeme(std::nullopt) {};
@@ -118,7 +118,7 @@ class FunctionParam
 {
 public:
   IdentifierExpression *Identifier;
-  TypeAnnotation TypeAnnotation;
+  class TypeAnnotation TypeAnnotation;
 
   FunctionParam(IdentifierExpression *identifier, class TypeAnnotation type)
       : Identifier(identifier), TypeAnnotation(type) {};

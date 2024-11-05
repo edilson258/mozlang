@@ -3,4 +3,4 @@
 build/
 .clangd
 compile_commands.json
-test.moz
+Testing/

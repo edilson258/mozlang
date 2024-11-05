@@ -52,7 +52,7 @@ enum class ObjectSource
 class Object
 {
 public:
-  Type *Type;
+  class Type *Type;
   bool IsUsed;
   ObjectSource Source;
 
