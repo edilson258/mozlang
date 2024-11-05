@@ -51,7 +51,12 @@ llvm::Type *CodeGen::MozToLLVMType(Type type)
 
 void *CodeGen::visit(FunctionStatement *fnStmt)
 {
-  llvm::FunctionType *fnType = llvm::FunctionType::get(MozToLLVMType(*fnStmt->ReturnType.Type), {}, false);
+  std::vector<llvm::Type *> paramTypes;
+  for (auto &param : fnStmt->Params)
+  {
+    paramTypes.push_back(MozToLLVMType(*param.TypeAnnotation.Type));
+  }
+  llvm::FunctionType *fnType = llvm::FunctionType::get(MozToLLVMType(*fnStmt->ReturnType.Type), paramTypes, false);
   llvm::Function *fn =
       llvm::Function::Create(fnType, llvm::Function::ExternalLinkage, fnStmt->Identifier->GetValue(), Module.get());
   llvm::BasicBlock *fnBody = llvm::BasicBlock::Create(Context, "entry", fn);
@@ -59,6 +64,11 @@ void *CodeGen::visit(FunctionStatement *fnStmt)
   Store[fnStmt->Identifier->GetValue()] = fn;
 
   Builder.SetInsertPoint(fnBody);
+
+  for (unsigned int i = 0; i < fn->arg_size(); ++i)
+  {
+    Store[fnStmt->Params.at(i).Identifier->GetValue()] = fn->getArg(i);
+  }
 
   fnStmt->Body.accept(this);
 

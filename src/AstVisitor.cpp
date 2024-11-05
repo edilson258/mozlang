@@ -30,6 +30,14 @@ void *AstInspector::visit(FunctionStatement *function)
   Write("Function Statement:");
   Tab();
   Write(std::format("Name: \"{}\"", function->Identifier->GetValue()));
+  Write("Parameters: [");
+  Tab();
+  for (FunctionParam &p : function->Params)
+  {
+    Write(p.Identifier->GetValue());
+  }
+  UnTab();
+  Write("]");
   Write("Body:");
   Tab();
   function->Body.accept(this);

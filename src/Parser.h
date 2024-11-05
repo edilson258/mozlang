@@ -43,4 +43,5 @@ private:
   TypeAnnotation ParseTypeAnnotation();
   TypeAnnotation ParseFunctionStatementReturnType();
   std::vector<Expression *> ParseCallExpressionArgs();
+  std::vector<FunctionParam> ParseFunctionStatementParams();
 };

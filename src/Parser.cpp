@@ -3,6 +3,7 @@
 #include "Token.h"
 #include "TypeSystem.h"
 
+#include <cstdlib>
 #include <iostream>
 #include <vector>
 
@@ -65,17 +66,66 @@ FunctionStatement *Parser::ParseFunctionStatement()
   }
 
   auto *identifier = new IdentifierExpression(CurrentToken);
-
   Bump(); // eat function's name
 
-  // TODO: parse params
+  std::vector<FunctionParam> params = ParseFunctionStatementParams();
+  TypeAnnotation returnType         = ParseFunctionStatementReturnType();
+  BlockStatement body               = ParseBlockStatement();
+
+  return new FunctionStatement(identifier, body, returnType, params);
+}
+
+std::vector<FunctionParam> Parser::ParseFunctionStatementParams()
+{
   BumpExpected(TokenType::LeftParent);
-  BumpExpected(TokenType::RightParent);
 
-  TypeAnnotation returnType = ParseFunctionStatementReturnType();
-  BlockStatement body       = ParseBlockStatement();
+  // case 1: ()
+  if (TokenType::RightParent == CurrentToken.Type)
+  {
+    Bump();
+    return {};
+  }
 
-  return new FunctionStatement(identifier, body, returnType);
+  std::vector<FunctionParam> params;
+
+  // case 2: (x: int)
+  if (TokenType::Identifier != CurrentToken.Type)
+  {
+    std::cerr << "[ERROR]: Expected parameter name or `)` but got " << CurrentToken.ToString() << std::endl;
+    std::exit(1);
+  }
+
+  auto *identifier = new IdentifierExpression(CurrentToken);
+  Bump();
+  TypeAnnotation type = ParseTypeAnnotation();
+  params.push_back(FunctionParam(identifier, type));
+
+  // case 3: (x: int, y: str, ...)
+  while (TokenType::RightParent != CurrentToken.Type)
+  {
+    if (TokenType::Eof == CurrentToken.Type)
+    {
+      std::cerr << "[ERROR]: Early EOF\n";
+      std::exit(1);
+    }
+
+    if (TokenType::Comma != CurrentToken.Type)
+    {
+      std::cerr << "[ERROR]: Expect `)` or `,` to separate fn params but got " << CurrentToken.ToString() << std::endl;
+      std::exit(1);
+    }
+
+    Bump(); // eat `,`
+
+    identifier = new IdentifierExpression(CurrentToken);
+    Bump();
+    type = ParseTypeAnnotation();
+    params.push_back(FunctionParam(identifier, type));
+  }
+
+  Bump();
+
+  return params;
 }
 
 TypeAnnotation Parser::ParseFunctionStatementReturnType()

@@ -27,7 +27,7 @@ void Checker::Check(AST &ast)
 
   if (ErrorsCount > 0)
   {
-    std::cerr << "[ABORT]: Aborting due to the " << ErrorsCount << " previuos errors\n";
+    std::cerr << "[ABORT]: Aborting due to the " << ErrorsCount << " previous errors\n";
     std::exit(1);
   }
 }
@@ -125,8 +125,24 @@ void *Checker::visit(FunctionStatement *fnStmt)
     return nullptr;
   }
 
-  DeclareFunction(fnStmt->Identifier->GetValue(), *fnStmt->ReturnType.Type, {}, false);
+  std::vector<Type> paramTypes;
+  for (FunctionParam &param : fnStmt->Params)
+  {
+    if (BaseType::Void == param.TypeAnnotation.Type->Base)
+    {
+      ErrorsCount++;
+      std::cerr << "[ERROR]: Param can't be of type `void`\n";
+    }
+    paramTypes.push_back(*param.TypeAnnotation.Type);
+  }
+
+  DeclareFunction(fnStmt->Identifier->GetValue(), *fnStmt->ReturnType.Type, paramTypes, false);
   EnterScope(ScopeType::Function);
+
+  for (FunctionParam &p : fnStmt->Params)
+  {
+    GetCurrentScope()->Store[p.Identifier->GetValue()] = new Object(p.TypeAnnotation.Type, ObjectSource::Parameter);
+  }
 
   std::vector<Object *> *results = static_cast<std::vector<Object *> *>(fnStmt->Body.accept(this));
 

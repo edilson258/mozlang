@@ -114,15 +114,28 @@ public:
   TypeAnnotation(class Type *type, Token lexeme) : Type(type), Lexeme(lexeme) {};
 };
 
+class FunctionParam
+{
+public:
+  IdentifierExpression *Identifier;
+  TypeAnnotation TypeAnnotation;
+
+  FunctionParam(IdentifierExpression *identifier, class TypeAnnotation type)
+      : Identifier(identifier), TypeAnnotation(type) {};
+};
+
 class FunctionStatement : public Statement
 {
 public:
   IdentifierExpression *Identifier;
   BlockStatement Body;
   TypeAnnotation ReturnType;
+  std::vector<FunctionParam> Params;
 
-  FunctionStatement(IdentifierExpression *identifier, BlockStatement body, TypeAnnotation returnType)
-      : Statement(AstNodeType::FunctionStatement), Identifier(identifier), Body(body), ReturnType(returnType) {};
+  FunctionStatement(IdentifierExpression *identifier, BlockStatement body, TypeAnnotation returnType,
+                    std::vector<FunctionParam> params)
+      : Statement(AstNodeType::FunctionStatement), Identifier(identifier), Body(body), ReturnType(returnType),
+        Params(params) {};
 
   void *accept(AstVisitor *visitor) override;
 };

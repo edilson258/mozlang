@@ -2,10 +2,12 @@ fn getCountryName(): str {
   return "Mozambique";
 }
 
-fn other() {
+fn sayHello(name: str) {
+  print("Hello %s!\n", name);
 }
 
 fn main(): int {
+  sayHello("Edilson");
   print("Hello %s!\n", getCountryName());
   return 69;
 }

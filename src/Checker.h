@@ -45,6 +45,8 @@ enum class ObjectSource
   //    ...
   //
   Declaration,
+
+  Parameter,
 };
 
 class Object
