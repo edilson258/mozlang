@@ -1,13 +1,7 @@
 enable_testing()
+
+add_executable(lexer_test lexer_test.cpp ${CMAKE_SOURCE_DIR}/src/Lexer.cpp)
+target_link_libraries(lexer_test GTest::gtest_main)
+
 include(GoogleTest)
-
-file(GLOB TestSources "*.cpp")
-foreach(TestSource ${TestSources})
-  get_filename_component(TestFileName ${TestSource} NAME_WE)
-  add_executable(${TestFileName} ${TestSource})
-
-  target_link_libraries(${TestFileName} GTest::gtest_main)
-
-  add_test(NAME ${TestFileName} COMMAND ${TestFileName})
-  gtest_discover_tests(${TestFileName})
-endforeach()
+gtest_discover_tests(lexer_test)
