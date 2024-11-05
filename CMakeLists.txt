@@ -3,7 +3,7 @@
 project (Mozlang
     VERSION 0.1.0
     LANGUAGES C CXX
-    DESCRIPTION "A programing language developed by Mozambicans"
+    DESCRIPTION "A programming language developed by Mozambicans"
 )
 
 # Testing with google test
@@ -16,8 +16,6 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 add_subdirectory(test)
 
-# set(CMAKE_C_COMPILER clang)
-# set(CMAKE_CXX_COMPILER clang++)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
