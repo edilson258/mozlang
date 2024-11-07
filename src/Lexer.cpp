@@ -3,6 +3,7 @@
 
 #include <cctype>
 #include <iostream>
+#include <string>
 
 bool Lexer::IsEof() { return FileContent.length() <= Cursor; }
 
@@ -52,7 +53,7 @@ TokenSpan Lexer::MakeTokenSpan() { return TokenSpan(Line, Column, RangeBegin, Cu
 
 Token Lexer::MakeSimpleToken(TokenType type)
 {
-  Token simpleToken(type, MakeTokenSpan());
+  Token simpleToken(type, MakeTokenSpan(), std::string(1, PeekOne()));
   AdvanceOne();
   return simpleToken;
 }
@@ -136,27 +137,27 @@ Token Lexer::GetNextToken()
 
     if ("fn" == identifierLabel)
     {
-      return Token(TokenType::Fn, identifierSpan);
+      return Token(TokenType::Fn, identifierSpan, identifierLabel);
     }
 
     if ("return" == identifierLabel)
     {
-      return Token(TokenType::Return, identifierSpan);
+      return Token(TokenType::Return, identifierSpan, identifierLabel);
     }
 
     if ("int" == identifierLabel)
     {
-      return Token(TokenType::TypeInt, identifierSpan);
+      return Token(TokenType::TypeInt, identifierSpan, identifierLabel);
     }
 
     if ("str" == identifierLabel)
     {
-      return Token(TokenType::TypeStr, identifierSpan);
+      return Token(TokenType::TypeStr, identifierSpan, identifierLabel);
     }
 
     if ("void" == identifierLabel)
     {
-      return Token(TokenType::TypeVoid, identifierSpan);
+      return Token(TokenType::TypeVoid, identifierSpan, identifierLabel);
     }
 
     return Token(TokenType::Identifier, identifierSpan, identifierLabel);

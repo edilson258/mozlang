@@ -12,49 +12,31 @@ std::string Token::ToString()
     oss << "EOF: Eof";
     break;
   case TokenType::Fn:
-    oss << "Keyword: fn";
-    break;
   case TokenType::Return:
-    oss << "Keyword: return";
+    oss << "Keyword: " << Data;
     break;
   case TokenType::String:
-    oss << "String: \"" << Data.value() << "\"";
+    oss << "String: \"" << Data << "\"";
     break;
   case TokenType::Integer:
-    oss << "Integer: " << Data.value();
+    oss << "Integer: " << Data;
     break;
   case TokenType::Identifier:
-    oss << "Ident.: " << Data.value();
+    oss << "Ident.: " << Data;
     break;
   case TokenType::LeftParent:
-    oss << "Punct.: (";
-    break;
   case TokenType::RightParent:
-    oss << "Punct.: )";
-    break;
   case TokenType::LeftBrace:
-    oss << "Punct.: {";
-    break;
   case TokenType::RightBrace:
-    oss << "Punct.: }";
-    break;
   case TokenType::Semicolon:
-    oss << "Punct.: ;";
-    break;
   case TokenType::Colon:
-    oss << "Punct.: :";
-    break;
   case TokenType::Comma:
-    oss << "Punct.: ,";
+    oss << "Punct.: " << Data;
     break;
   case TokenType::TypeInt:
-    oss << "Type: int";
-    break;
   case TokenType::TypeStr:
-    oss << "Type: str";
-    break;
   case TokenType::TypeVoid:
-    oss << "Type: void";
+    oss << "Type: " << Data;
     break;
   }
 
