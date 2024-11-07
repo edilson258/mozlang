@@ -1,8 +1,10 @@
 #include "Lexer.h"
+#include "DiagnosticEngine.h"
 #include "Token.h"
 
 #include <cctype>
-#include <iostream>
+#include <cstdlib>
+#include <format>
 #include <string>
 
 bool Lexer::IsEof() { return FileContent.length() <= Cursor; }
@@ -72,8 +74,8 @@ Token Lexer::MakeStringToken()
   {
     if (IsEof() || PeekOne() == '\n')
     {
-      std::cerr << "[ERROR]: Unquoted string\n";
-      std::exit(1);
+      DiagnosticEngine::ErrorAndDie(FilePath, FileContent, ErrorCode::UnquotedStringLiteral, "Unquoted string literal",
+                                    TokenSpan(Line - 1, stringBeginColumn, stringBeginIndex - 1, Cursor));
     }
 
     if (PeekOne() == '"')
@@ -178,6 +180,8 @@ Token Lexer::GetNextToken()
     return Token(TokenType::Integer, intSpan, intRaw);
   }
 
-  std::cerr << "[ERROR]: Unknown token: " << currentChar << std::endl;
+  DiagnosticEngine::ErrorAndDie(FilePath, FileContent, ErrorCode::UnknownToken,
+                                std::format("Unknown token '{}'", currentChar),
+                                TokenSpan(Line, Column, Cursor, Cursor));
   std::exit(1);
 }
