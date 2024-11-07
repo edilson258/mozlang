@@ -11,6 +11,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+    - name: Install dependecies
+      run: sudo apt install -y cmake llvm-18 \
+        libpolly-18-dev                      \
+        libgtest-dev                         \
+        libcurl4-openssl-dev                 \
+        libedit-dev                          \
+        libzstd-dev                          \
+        zlib1g-dev
     - name: Configure Cmake
       run: cmake -B build
     - name: Build
