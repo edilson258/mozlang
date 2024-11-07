@@ -1,6 +1,5 @@
 #pragma once
 
-#include <optional>
 #include <string>
 
 enum class TokenType
@@ -45,6 +44,15 @@ public:
       : Line(line), Column(column), RangeBegin(begin), RangeEnd(end)
   {
   }
+
+  bool operator==(const TokenSpan &other) const
+  {
+    if (Line == other.Line && Column == other.Column && RangeBegin == other.RangeBegin && RangeEnd == other.RangeEnd)
+    {
+      return true;
+    }
+    return false;
+  }
 };
 
 class Token
@@ -52,11 +60,10 @@ class Token
 public:
   TokenType Type;
   TokenSpan Span;
-  std::optional<std::string> Data;
+  std::string Data;
 
   std::string ToString();
 
   Token() = default;
-  Token(TokenType type, TokenSpan span) : Type(type), Span(span), Data(std::nullopt) {};
   Token(TokenType type, TokenSpan span, std::string data) : Type(type), Span(span), Data(data) {};
 };

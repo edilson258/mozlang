@@ -6,22 +6,16 @@ project (Mozlang
     DESCRIPTION "A programming language developed by Mozambicans"
 )
 
-# Testing with google test
-include(FetchContent)
-FetchContent_Declare(
-  googletest
-  URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
-)
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(googletest)
-add_subdirectory(test)
-
+set(CMAKE_C_COMPILER cc)
+set(CMAKE_CXX_COMPILER g++)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+find_package(GTest REQUIRED CONFIG)
+add_subdirectory(test)
+
 find_package(LLVM REQUIRED CONFIG)
-message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION} at ${LLVM_INSTALL_PREFIX}")
 list(APPEND CMAKE_MODULE_PATH ${LLVM_CMAKE_DIR})
 include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
 include(AddLLVM)
