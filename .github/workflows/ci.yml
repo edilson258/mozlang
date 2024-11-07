@@ -1,0 +1,19 @@
+name: Mozlang basic CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Configure Cmake
+      run: cmake -B build
+    - name: Build
+      run: cmake --build build
+    - name: Test
+      run: ctest --test-dir build/test --verbose
