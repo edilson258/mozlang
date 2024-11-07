@@ -12,7 +12,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Install dependecies
-      run: sudo apt install -y cmake llvm-18 \
+      run: sudo apt update && sudo apt upgrade -y && sudo apt install -y cmake llvm \
         libpolly-18-dev                      \
         libgtest-dev                         \
         libcurl4-openssl-dev                 \
