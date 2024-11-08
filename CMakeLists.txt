@@ -6,9 +6,11 @@ project (Mozlang
     DESCRIPTION "A programming language developed by Mozambicans"
 )
 
-set(CMAKE_C_COMPILER cc)
-set(CMAKE_CXX_COMPILER g++)
+cmake_policy(SET CMP0075 NEW)
+
+set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -20,10 +22,6 @@ list(APPEND CMAKE_MODULE_PATH ${LLVM_CMAKE_DIR})
 include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
 include(AddLLVM)
 add_definitions(${LLVM_DEFINITIONS})
-
-if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE Debug)
-endif()
 
 add_compile_options(
   -Wall                 # Enable most warnings
@@ -40,12 +38,6 @@ add_compile_options(
   -Wsign-conversion     # Warn on implicit conversions between signed and unsigned integers
   -Wnull-dereference    # Warn if a null pointer dereference is detected
 )
-
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0")
-else()
-  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -DNDEBUG")
-endif()
 
 file(GLOB_RECURSE files "src/*.cpp")
 add_executable(mozlang ${files})
