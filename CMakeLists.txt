@@ -14,9 +14,6 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-find_package(GTest REQUIRED CONFIG)
-add_subdirectory(test)
-
 find_package(LLVM REQUIRED CONFIG)
 list(APPEND CMAKE_MODULE_PATH ${LLVM_CMAKE_DIR})
 include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
@@ -39,8 +36,9 @@ add_compile_options(
   -Wnull-dereference    # Warn if a null pointer dereference is detected
 )
 
-file(GLOB_RECURSE files "src/*.cpp")
-add_executable(mozlang ${files})
+file(GLOB_RECURSE moz_sources "src/*.cpp")
+add_executable(mozlang ${moz_sources})
+add_library(mozlib ${moz_sources})
 
 set(LLVM_LINK_COMPONENTS
   Core
@@ -59,5 +57,5 @@ set(LLVM_LINK_COMPONENTS
   Interpreter
 )
 
-llvm_map_components_to_libnames(llvmLibs ${LLVM_LINK_COMPONENTS})
-target_link_libraries(mozlang PUBLIC ${llvmLibs})
+llvm_map_components_to_libnames(llvm_libs ${LLVM_LINK_COMPONENTS})
+target_link_libraries(mozlang PUBLIC ${llvm_libs})
