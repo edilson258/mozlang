@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Span.h"
+#include "Location.h"
 
 #include <string>
 
@@ -37,11 +37,11 @@ class Token
 {
 public:
   TokenType Type;
-  Span Spn;
+  Location Loc;
   std::string Data;
 
   std::string ToString();
 
   Token() = default;
-  Token(TokenType type, Span span, std::string data) : Type(type), Spn(span), Data(data) {};
+  Token(TokenType type, Location loc, std::string data) : Type(type), Loc(loc), Data(data) {};
 };

@@ -3,7 +3,7 @@
 #include "Ast.h"
 #include "AstVisitor.h"
 #include "DiagnosticEngine.h"
-#include "Span.h"
+#include "Location.h"
 #include "TypeSystem.h"
 
 #include <string>
@@ -57,10 +57,10 @@ public:
   class Type *Type;
   bool IsUsed;
   ObjectSource Source;
-  Span Spn;
+  Location Loc;
 
-  Object(class Type *type, ObjectSource objectSource, Span spn)
-      : Type(type), IsUsed(false), Source(objectSource), Spn(spn) {};
+  Object(class Type *type, ObjectSource objectSource, Location loc)
+      : Type(type), IsUsed(false), Source(objectSource), Loc(loc) {};
 };
 
 enum class ScopeType

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Span.h"
+#include "Location.h"
 
 #include <filesystem>
 #include <string>
@@ -31,7 +31,7 @@ public:
   DiagnosticEngine(std::filesystem::path &filePath, std::string &fileContent)
       : FilePath(filePath), FileContent(fileContent) {};
 
-  void Error(ErrorCode, std::string, Span);
+  void Error(ErrorCode, std::string, Location);
 
 private:
   const std::filesystem::path &FilePath;
