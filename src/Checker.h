@@ -2,6 +2,8 @@
 
 #include "Ast.h"
 #include "AstVisitor.h"
+#include "DiagnosticEngine.h"
+#include "Span.h"
 #include "TypeSystem.h"
 
 #include <string>
@@ -55,8 +57,10 @@ public:
   class Type *Type;
   bool IsUsed;
   ObjectSource Source;
+  Span Spn;
 
-  Object(class Type *type, ObjectSource objectSource) : Type(type), IsUsed(false), Source(objectSource) {};
+  Object(class Type *type, ObjectSource objectSource, Span spn)
+      : Type(type), IsUsed(false), Source(objectSource), Spn(spn) {};
 };
 
 enum class ScopeType
@@ -77,11 +81,13 @@ public:
 class Checker : AstVisitor
 {
 public:
-  Checker() = default;
+  Checker(DiagnosticEngine &diagnostic) : Diagnostic(diagnostic) {};
 
   void Check(AST &ast);
 
 private:
+  DiagnosticEngine &Diagnostic;
+
   unsigned long ErrorsCount = 0;
 
   std::vector<Scope *> Scopes;
@@ -91,7 +97,6 @@ private:
   bool InScope(ScopeType);
   bool ExistInCurrentScope(std::string);
   Scope *GetCurrentScope();
-  void DeclareFunction(std::string, Type, std::vector<Type>, bool);
 
   void ValidateEntryPoint();
 

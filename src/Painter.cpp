@@ -1,5 +1,6 @@
 #include "Painter.h"
 
+#include <format>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -68,13 +69,13 @@ std::string Painter::Highlight(const std::string &code, unsigned long begin, uns
 
   std::ostringstream oss;
 
-  unsigned long xs = std::to_string(lineNumberWhereSliceEnd).length();
-  oss << std::string(3 + xs, ' ') + "|\n";
+  unsigned long maxLineLen = std::to_string(lineNumberWhereSliceEnd).length();
+  oss << std::string(3 + maxLineLen, ' ') + "|\n";
 
   cursor = indexWhereSliceBegin;
-  for (size_t i = lineNumberWhereSliceBegin; i < lineNumberWhereSliceEnd; ++i)
+  for (unsigned long i = lineNumberWhereSliceBegin; i < lineNumberWhereSliceEnd; ++i)
   {
-    oss << "  " << i << " | ";
+    oss << std::format("{}{} | ", std::string(2 + (maxLineLen - std::to_string(i).length()), ' '), i);
 
     while (code[cursor] != '\n')
     {
@@ -92,7 +93,7 @@ std::string Painter::Highlight(const std::string &code, unsigned long begin, uns
     oss << code[cursor++];
   }
 
-  oss << std::string(3 + xs, ' ') + "|\n";
+  oss << std::string(3 + maxLineLen, ' ') + "|\n";
 
   return oss.str();
 }

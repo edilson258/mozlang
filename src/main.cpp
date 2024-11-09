@@ -1,5 +1,6 @@
 ﻿#include "Checker.h"
 #include "CodeGen.h"
+#include "DiagnosticEngine.h"
 #include "ExecutableBuilder.h"
 #include "Lexer.h"
 #include "Parser.h"
@@ -22,20 +23,22 @@ int main(int argc, char *argv[])
     return 1;
   }
 
-  std::filesystem::path sourcePath = argv[1];
-  std::string code                 = readFile(sourcePath);
+  std::filesystem::path sourceFilePath = argv[1];
+  std::string sourceFileContent        = readFile(sourceFilePath);
 
-  Lexer lexer(code, sourcePath);
-  Parser parser(lexer);
+  DiagnosticEngine diagnostic(sourceFilePath, sourceFileContent);
+
+  Lexer lexer(sourceFilePath, sourceFileContent, diagnostic);
+  Parser parser(lexer, diagnostic);
 
   AST ast = parser.Parse();
 
   // std::cout << ast.ToStrng() << std::endl;
 
-  Checker c;
+  Checker c(diagnostic);
   c.Check(ast);
 
-  CodeGen gen(ast);
+  CodeGen gen(ast, sourceFilePath);
   llvm::Module *module = gen.Generate();
 
   // llvm::outs() << *module;

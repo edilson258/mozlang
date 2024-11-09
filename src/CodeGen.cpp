@@ -101,7 +101,7 @@ void *CodeGen::visit(BlockStatement *blockStmt)
 void *CodeGen::visit(CallExpression *callExpr)
 {
   std::vector<llvm::Value *> args;
-  for (auto &arg : callExpr->Args)
+  for (auto &arg : callExpr->Args.Args)
   {
     // TODO: validate the value before push
     args.push_back(static_cast<llvm::Value *>(arg->accept(this)));
