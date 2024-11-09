@@ -1,5 +1,7 @@
 #include "TypeSystem.h"
 
+#include <cstdlib>
+#include <iostream>
 #include <string>
 
 std::string Type::ToString() const
@@ -15,6 +17,9 @@ std::string Type::ToString() const
   case BaseType::Function:
     return "fn";
   }
+
+  std::cerr << "Unreachable\n";
+  std::exit(1);
 }
 
 bool Type::operator==(const Type &other) const { return Base == other.Base; }
