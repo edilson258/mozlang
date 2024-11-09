@@ -19,7 +19,7 @@ void Checker::Check(AST &ast)
 
   // Setup builtins
   GetCurrentScope()->Store["print"] = new Object(new TypeFunction(Type(BaseType::Void), {Type(BaseType::String)}, true),
-                                                 ObjectSource::Declaration, Location());
+                                                 ObjectSource::Declaration, Location(), true);
 
   for (AstNode *node : ast.Nodes)
   {
@@ -30,10 +30,14 @@ void Checker::Check(AST &ast)
 
   LeaveScope();
 
-  if (ErrorsCount > 0)
+  if (Diagnostic.Errors.size() > 0)
   {
-    std::cerr << Painter::Paint(std::format("[ABORT]: Aborting due to the {} previous errors\n", ErrorsCount),
-                                Color::Brown);
+    for (std::string &err : Diagnostic.Errors)
+    {
+      std::cerr << err;
+    }
+    std::cerr << Painter::Paint(
+        std::format("[ABORT]: Aborting due to the {} previous errors\n", Diagnostic.Errors.size()), Color::Brown);
     std::exit(1);
   }
 }
@@ -54,9 +58,8 @@ void Checker::LeaveScope()
       continue;
     }
 
-    ErrorsCount++;
-    Diagnostic.Error(ErrorCode::UnusedName, std::format("Unused name '{}', try to prefix it with '_'", pair.first),
-                     pair.second->Loc);
+    Diagnostic.PushErr(ErrorCode::UnusedName, std::format("Unused name '{}', try to prefix it with '_'", pair.first),
+                       pair.second->Loc);
   }
   Scopes.pop_back();
 }
@@ -88,7 +91,7 @@ void Checker::ValidateEntryPoint()
 {
   if (!ExistInCurrentScope("main"))
   {
-    ErrorsCount++;
+
     std::cerr << "[ERROR]: Missing main function\n";
     return;
   }
@@ -97,7 +100,7 @@ void Checker::ValidateEntryPoint()
 
   if (BaseType::Function != main->Type->Base)
   {
-    ErrorsCount++;
+
     std::cerr << "[ERROR]: `main` must be callable\n";
     return;
   }
@@ -106,13 +109,13 @@ void Checker::ValidateEntryPoint()
 
   if (BaseType::Integer != mainFnType->ReturnType.Base)
   {
-    ErrorsCount++;
+
     std::cerr << "[ERROR]: `main` must return `int`\n";
   }
 
   if (mainFnType->IsVarArgs || mainFnType->ParamTypes.size() != 0)
   {
-    ErrorsCount++;
+
     std::cerr << "[ERROR]: `main` cannot accept any argument\n";
   }
 }
@@ -121,10 +124,17 @@ void *Checker::visit(FunctionStatement *fnStmt)
 {
   if (ExistInCurrentScope(fnStmt->Identifier->GetValue()))
   {
-    ErrorsCount++;
-    Diagnostic.Error(ErrorCode::NameAlreadyBound,
-                     std::format("Name '{}' is already in use.", fnStmt->Identifier->GetValue()),
-                     fnStmt->Identifier->Loc);
+
+    Diagnostic.PushErr(ErrorCode::NameAlreadyBound,
+                       std::format("Name '{}' is already in use.", fnStmt->Identifier->GetValue()),
+                       fnStmt->Identifier->Loc);
+    return nullptr;
+  }
+
+  if (ScopeType::Global != GetCurrentScope()->Type)
+  {
+
+    Diagnostic.PushErr(ErrorCode::BadFnDecl, "Functions can oly be declared at global scope.", fnStmt->Loc);
     return nullptr;
   }
 
@@ -133,8 +143,8 @@ void *Checker::visit(FunctionStatement *fnStmt)
   {
     if (BaseType::Void == param.TypeAnnotation.Type->Base)
     {
-      ErrorsCount++;
-      Diagnostic.Error(ErrorCode::InvalidTypeAnnotation, "Parameter can't be of type void.", param.Loc);
+
+      Diagnostic.PushErr(ErrorCode::InvalidTypeAnnotation, "Parameter can't be of type void.", param.Loc);
     }
     paramTypes.push_back(*param.TypeAnnotation.Type);
   }
@@ -158,14 +168,14 @@ void *Checker::visit(FunctionStatement *fnStmt)
   {
     if (ObjectSource::Expession == result->Source)
     {
-      ErrorsCount++;
-      Diagnostic.Error(ErrorCode::UnusedValue, "Expression results to unused value", result->Loc);
+
+      Diagnostic.PushErr(ErrorCode::UnusedValue, "Expression results to unused value", result->Loc);
     }
 
     if (ObjectSource::FunctionCallResult == result->Source)
     {
-      ErrorsCount++;
-      Diagnostic.Error(ErrorCode::UnusedValue, "Function's return value is not used.", result->Loc);
+
+      Diagnostic.PushErr(ErrorCode::UnusedValue, "Function's return value is not used.", result->Loc);
     }
 
     if (ObjectSource::ReturnValue == result->Source)
@@ -174,12 +184,12 @@ void *Checker::visit(FunctionStatement *fnStmt)
 
       if (*fnStmt->ReturnType.Type != *result->Type)
       {
-        ErrorsCount++;
-        Diagnostic.Error(ErrorCode::TypesNoMatch,
-                         std::format("Function '{}' expects value of type '{}' but returned value of type '{}'",
-                                     fnStmt->Identifier->GetValue(), fnStmt->ReturnType.Type->ToString(),
-                                     result->Type->ToString()),
-                         result->Loc);
+
+        Diagnostic.PushErr(ErrorCode::TypesNoMatch,
+                           std::format("Function '{}' expects value of type '{}' but returned value of type '{}'",
+                                       fnStmt->Identifier->GetValue(), fnStmt->ReturnType.Type->ToString(),
+                                       result->Type->ToString()),
+                           result->Loc);
       }
     }
   }
@@ -192,8 +202,8 @@ void *Checker::visit(FunctionStatement *fnStmt)
     }
     else
     {
-      ErrorsCount++;
-      Diagnostic.Error(ErrorCode::MissingValue, "Non-void function does not return value.", fnStmt->Loc);
+
+      Diagnostic.PushErr(ErrorCode::MissingValue, "Non-void function does not return value.", fnStmt->Loc);
     }
   }
 
@@ -227,10 +237,10 @@ void *Checker::visit(BlockStatement *blockStmt)
     Statement *stmt = blockStmt->Statements.at(i);
     if (stmt->Type == AstNodeType::ReturnStatement && ((blockStmt->Statements.size() - i - 1) > 0))
     {
-      ErrorsCount++;
+
       Location loc = blockStmt->Statements.at(i + 1)->Loc;
       loc.End      = blockStmt->Loc.End - 1;
-      Diagnostic.Error(ErrorCode::DeadCode, "Unreachable code detected.", loc);
+      Diagnostic.PushErr(ErrorCode::DeadCode, "Unreachable code detected.", loc);
 
       void *x = stmt->accept(this);
       if (x)
@@ -262,8 +272,8 @@ void *Checker::visit(CallExpression *callExpr)
 
   if (BaseType::Function != calleeObj->Type->Base)
   {
-    ErrorsCount++;
-    Diagnostic.Error(ErrorCode::CallNotCallable, "Callee is not callable.", calleeObj->Loc);
+
+    Diagnostic.PushErr(ErrorCode::CallNotCallable, "Callee is not callable.", calleeObj->Loc);
     return nullptr;
   }
 
@@ -273,21 +283,21 @@ void *Checker::visit(CallExpression *callExpr)
   {
     if (!calleeFnType->IsVarArgs)
     {
-      ErrorsCount++;
-      Diagnostic.Error(ErrorCode::ArgsCountNoMatch,
-                       std::format("Callee expects '{}' args but got '{}'.", calleeFnType->ParamTypes.size(),
-                                   callExpr->Args.Args.size()),
-                       callExpr->Args.Loc);
+
+      Diagnostic.PushErr(ErrorCode::ArgsCountNoMatch,
+                         std::format("Callee expects '{}' args but got '{}'.", calleeFnType->ParamTypes.size(),
+                                     callExpr->Args.Args.size()),
+                         callExpr->Args.Loc);
       return nullptr;
     }
 
     if (callExpr->Args.Args.size() < calleeFnType->ParamTypes.size())
     {
-      ErrorsCount++;
-      Diagnostic.Error(ErrorCode::ArgsCountNoMatch,
-                       std::format("Callee expects '{}' required args but got '{}'.", calleeFnType->ParamTypes.size(),
-                                   callExpr->Args.Args.size()),
-                       callExpr->Args.Loc);
+
+      Diagnostic.PushErr(ErrorCode::ArgsCountNoMatch,
+                         std::format("Callee expects '{}' required args but got '{}'.", calleeFnType->ParamTypes.size(),
+                                     callExpr->Args.Args.size()),
+                         callExpr->Args.Loc);
       return nullptr;
     }
   }
@@ -318,11 +328,11 @@ void *Checker::visit(CallExpression *callExpr)
 
     if (argType != paramType)
     {
-      ErrorsCount++;
-      Diagnostic.Error(ErrorCode::TypesNoMatch,
-                       std::format("Argument of type '{}' is not assignable to param of type '{}'.", argType.ToString(),
-                                   paramType.ToString()),
-                       argObjects.at(i)->Loc);
+
+      Diagnostic.PushErr(ErrorCode::TypesNoMatch,
+                         std::format("Argument of type '{}' is not assignable to param of type '{}'.",
+                                     argType.ToString(), paramType.ToString()),
+                         argObjects.at(i)->Loc);
     }
   }
 
@@ -344,9 +354,9 @@ void *Checker::visit(IdentifierExpression *identExpr)
       return (*scopeIterator)->Store[identExpr->GetValue()];
     }
   }
-  ErrorsCount++;
-  Diagnostic.Error(ErrorCode::UnboundName, std::format("Name '{}' is not defined.", identExpr->GetValue()),
-                   identExpr->Loc);
+
+  Diagnostic.PushErr(ErrorCode::UnboundName, std::format("Name '{}' is not defined.", identExpr->GetValue()),
+                     identExpr->Loc);
   return nullptr;
 }
 
@@ -354,6 +364,7 @@ void *Checker::visit(StringExpression *strExpr)
 {
   return new Object(new Type(BaseType::String), ObjectSource::Expession, strExpr->Loc);
 }
+
 void *Checker::visit(IntegerExpression *intExpr)
 {
   return new Object(new Type(BaseType::Integer), ObjectSource::Expession, intExpr->Loc);
