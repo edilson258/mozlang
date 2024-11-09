@@ -38,7 +38,6 @@ add_compile_options(
 
 file(GLOB_RECURSE moz_sources "src/*.cpp")
 add_executable(mozlang ${moz_sources})
-add_library(mozlib ${moz_sources})
 
 set(LLVM_LINK_COMPONENTS
   Core
