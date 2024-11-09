@@ -34,9 +34,9 @@ private:
   void SkipWhitespace();
   char PeekOne();
   void AdvanceOne();
-  void UpdateTokenSpan();
+  void UpdateTokenLoc();
 
-  Span MakeTokenSpan();
+  Location MakeTokenLocation();
   Token MakeStringToken();
   Token MakeSimpleToken(TokenType);
 };

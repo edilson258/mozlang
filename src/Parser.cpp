@@ -1,7 +1,7 @@
 #include "Parser.h"
 #include "Ast.h"
 #include "DiagnosticEngine.h"
-#include "Span.h"
+#include "Location.h"
 #include "Token.h"
 #include "TypeSystem.h"
 
@@ -45,7 +45,7 @@ Statement *Parser::ParseStatement()
   Expression *expression = ParseExpressionStatement(Precedence::Lowest);
   if (TokenType::Semicolon != CurrentToken.Type)
   {
-    Diagnostic.Error(ErrorCode::UnexpectedToken, "Expressions must end with ';'.", expression->Spn);
+    Diagnostic.Error(ErrorCode::UnexpectedToken, "Expressions must end with ';'.", expression->Loc);
     std::exit(1);
   }
   Bump();
@@ -54,12 +54,12 @@ Statement *Parser::ParseStatement()
 
 FunctionStatement *Parser::ParseFunctionStatement()
 {
-  Span spn = CurrentToken.Spn;
+  Location loc = CurrentToken.Loc;
   Bump(); // eat 'fn'
 
   if (CurrentToken.Type != TokenType::Identifier)
   {
-    Diagnostic.Error(ErrorCode::UnexpectedToken, "Expect function's name after 'fn' keyword.", CurrentToken.Spn);
+    Diagnostic.Error(ErrorCode::UnexpectedToken, "Expect function's name after 'fn' keyword.", CurrentToken.Loc);
     std::exit(1);
   }
 
@@ -70,8 +70,8 @@ FunctionStatement *Parser::ParseFunctionStatement()
   TypeAnnotation returnType         = ParseFunctionStatementReturnType();
   BlockStatement body               = ParseBlockStatement();
 
-  spn.RangeEnd = body.Spn.RangeEnd;
-  return new FunctionStatement(spn, identifier, body, returnType, params);
+  loc.End = body.Loc.End;
+  return new FunctionStatement(loc, identifier, body, returnType, params);
 }
 
 std::vector<FunctionParam> Parser::ParseFunctionStatementParams()
@@ -79,7 +79,7 @@ std::vector<FunctionParam> Parser::ParseFunctionStatementParams()
 
   if (TokenType::LeftParent != CurrentToken.Type)
   {
-    Diagnostic.Error(ErrorCode::UnexpectedToken, "Expect '(' after function's name.", CurrentToken.Spn);
+    Diagnostic.Error(ErrorCode::UnexpectedToken, "Expect '(' after function's name.", CurrentToken.Loc);
     std::exit(1);
   }
   Bump();
@@ -96,30 +96,30 @@ std::vector<FunctionParam> Parser::ParseFunctionStatementParams()
   // case 2: (x: int)
   if (TokenType::Identifier != CurrentToken.Type)
   {
-    Diagnostic.Error(ErrorCode::UnexpectedToken, "Invalid parameter's name.", CurrentToken.Spn);
+    Diagnostic.Error(ErrorCode::UnexpectedToken, "Invalid parameter's name.", CurrentToken.Loc);
     std::exit(1);
   }
-  Span spn         = CurrentToken.Spn;
+  Location loc     = CurrentToken.Loc;
   auto *identifier = new IdentifierExpression(CurrentToken);
   Bump();
   TypeAnnotation type = ParseTypeAnnotation();
-  spn.RangeEnd        = CurrentToken.Spn.RangeEnd;
+  loc.End             = CurrentToken.Loc.End;
   Bump();
-  params.push_back(FunctionParam(spn, identifier, type));
+  params.push_back(FunctionParam(loc, identifier, type));
 
   // case 3: (x: int, y: str, ...)
   while (TokenType::RightParent != CurrentToken.Type)
   {
     if (TokenType::Eof == CurrentToken.Type)
     {
-      Diagnostic.Error(ErrorCode::UnexpectedToken, "Unexpected EOF.", CurrentToken.Spn);
+      Diagnostic.Error(ErrorCode::UnexpectedToken, "Unexpected EOF.", CurrentToken.Loc);
       std::exit(1);
     }
 
     if (TokenType::Comma != CurrentToken.Type)
     {
       Diagnostic.Error(ErrorCode::UnexpectedToken, "Expect `)` or `,` to separate function's params.",
-                       CurrentToken.Spn);
+                       CurrentToken.Loc);
       std::exit(1);
     }
 
@@ -127,16 +127,16 @@ std::vector<FunctionParam> Parser::ParseFunctionStatementParams()
 
     if (TokenType::Identifier != CurrentToken.Type)
     {
-      Diagnostic.Error(ErrorCode::UnexpectedToken, "Invalid parameter's name.", CurrentToken.Spn);
+      Diagnostic.Error(ErrorCode::UnexpectedToken, "Invalid parameter's name.", CurrentToken.Loc);
       std::exit(1);
     }
-    spn        = CurrentToken.Spn;
+    loc        = CurrentToken.Loc;
     identifier = new IdentifierExpression(CurrentToken);
     Bump();
-    type         = ParseTypeAnnotation();
-    spn.RangeEnd = CurrentToken.Spn.RangeEnd;
+    type    = ParseTypeAnnotation();
+    loc.End = CurrentToken.Loc.End;
     Bump();
-    params.push_back(FunctionParam(spn, identifier, type));
+    params.push_back(FunctionParam(loc, identifier, type));
   }
 
   Bump();
@@ -158,34 +158,34 @@ TypeAnnotation Parser::ParseFunctionStatementReturnType()
 
 ReturnStatement *Parser::ParseReturnStatement()
 {
-  Span spn = CurrentToken.Spn;
+  Location loc = CurrentToken.Loc;
   Bump(); // eat 'return'
 
   if (TokenType::Semicolon == CurrentToken.Type)
   {
-    spn.RangeEnd = CurrentToken.Spn.RangeEnd;
+    loc.End = CurrentToken.Loc.End;
     Bump(); // eat ';'
-    return new ReturnStatement(spn);
+    return new ReturnStatement(loc);
   }
 
   Expression *value = ParseExpressionStatement(Precedence::Lowest);
   if (TokenType::Semicolon != CurrentToken.Type)
   {
-    Diagnostic.Error(ErrorCode::UnexpectedToken, "Expressions must end with ';'.", CurrentToken.Spn);
+    Diagnostic.Error(ErrorCode::UnexpectedToken, "Expressions must end with ';'.", CurrentToken.Loc);
     std::exit(1);
   }
   Bump();
-  return new ReturnStatement(spn, value);
+  return new ReturnStatement(loc, value);
 }
 
 BlockStatement Parser::ParseBlockStatement()
 {
   if (TokenType::LeftBrace != CurrentToken.Type)
   {
-    Diagnostic.Error(ErrorCode::UnexpectedToken, "Expect '{' to open block.", CurrentToken.Spn);
+    Diagnostic.Error(ErrorCode::UnexpectedToken, "Expect '{' to open block.", CurrentToken.Loc);
     std::exit(1);
   }
-  Span spn = CurrentToken.Spn;
+  Location loc = CurrentToken.Loc;
   Bump();
 
   std::vector<Statement *> block;
@@ -194,7 +194,7 @@ BlockStatement Parser::ParseBlockStatement()
   {
     if (CurrentToken.Type == TokenType::Eof)
     {
-      Diagnostic.Error(ErrorCode::UnexpectedToken, "Unexpected EOF.", CurrentToken.Spn);
+      Diagnostic.Error(ErrorCode::UnexpectedToken, "Unexpected EOF.", CurrentToken.Loc);
       std::exit(1);
     }
 
@@ -206,10 +206,10 @@ BlockStatement Parser::ParseBlockStatement()
     block.push_back(ParseStatement());
   }
 
-  spn.RangeEnd = CurrentToken.Spn.RangeEnd;
+  loc.End = CurrentToken.Loc.End;
   Bump(); // eat '}'
 
-  return BlockStatement(spn, block);
+  return BlockStatement(loc, block);
 }
 
 Expression *Parser::ParseExpressionStatement(Precedence precedence)
@@ -230,7 +230,7 @@ Expression *Parser::ParseExpressionStatement(Precedence precedence)
   }
   else
   {
-    Diagnostic.Error(ErrorCode::UnexpectedToken, "Unexpected expression.", CurrentToken.Spn);
+    Diagnostic.Error(ErrorCode::UnexpectedToken, "Unexpected expression.", CurrentToken.Loc);
     std::exit(1);
   }
 
@@ -254,22 +254,22 @@ Expression *Parser::ParseExpressionStatement(Precedence precedence)
 CallExpression *Parser::ParseCallExpression(Expression *callee)
 {
   CallExpressionArgs args = ParseCallExpressionArgs();
-  Span spn                = callee->Spn;
-  spn.RangeEnd            = args.Spn.RangeEnd;
-  return new CallExpression(spn, callee, args);
+  Location loc            = callee->Loc;
+  loc.End                 = args.Loc.End;
+  return new CallExpression(loc, callee, args);
 }
 
 CallExpressionArgs Parser::ParseCallExpressionArgs()
 {
-  Span spn = CurrentToken.Spn;
+  Location loc = CurrentToken.Loc;
   Bump();
 
   // case 1: ()
   if (TokenType::RightParent == CurrentToken.Type)
   {
-    spn.RangeEnd = CurrentToken.Spn.RangeEnd;
+    loc.End = CurrentToken.Loc.End;
     Bump();
-    return CallExpressionArgs(spn, {});
+    return CallExpressionArgs(loc, {});
   }
 
   std::vector<Expression *> args;
@@ -282,14 +282,14 @@ CallExpressionArgs Parser::ParseCallExpressionArgs()
   {
     if (TokenType::Eof == CurrentToken.Type)
     {
-      Diagnostic.Error(ErrorCode::UnexpectedToken, "Unexpected EOF.", CurrentToken.Spn);
+      Diagnostic.Error(ErrorCode::UnexpectedToken, "Unexpected EOF.", CurrentToken.Loc);
       std::exit(1);
     }
 
     if (TokenType::Comma != CurrentToken.Type)
     {
       Diagnostic.Error(ErrorCode::UnexpectedToken, "Expect `)` or `,` to separate function's arguments.",
-                       CurrentToken.Spn);
+                       CurrentToken.Loc);
       std::exit(1);
     }
 
@@ -297,10 +297,10 @@ CallExpressionArgs Parser::ParseCallExpressionArgs()
     args.push_back(ParseExpressionStatement(Precedence::Lowest));
   }
 
-  spn.RangeEnd = CurrentToken.Spn.RangeEnd;
+  loc.End = CurrentToken.Loc.End;
   Bump();
 
-  return CallExpressionArgs(spn, args);
+  return CallExpressionArgs(loc, args);
 }
 
 Precedence Parser::TokenToPrecedence(Token &t)
@@ -320,7 +320,7 @@ TypeAnnotation Parser::ParseTypeAnnotation()
 {
   if (TokenType::Colon != CurrentToken.Type)
   {
-    Diagnostic.Error(ErrorCode::UnexpectedToken, "Expect ':' before type specifier.", CurrentToken.Spn);
+    Diagnostic.Error(ErrorCode::UnexpectedToken, "Expect ':' before type specifier.", CurrentToken.Loc);
     std::exit(1);
   }
   Bump();
@@ -343,6 +343,6 @@ TypeAnnotation Parser::ParseTypeAnnotation()
     return typeAnnotation;
   }
 
-  Diagnostic.Error(ErrorCode::UnexpectedToken, "Invalid type annotation", CurrentToken.Spn);
+  Diagnostic.Error(ErrorCode::UnexpectedToken, "Invalid type annotation", CurrentToken.Loc);
   std::exit(1);
 }

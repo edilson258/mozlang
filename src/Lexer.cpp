@@ -49,13 +49,13 @@ void Lexer::AdvanceOne()
   }
 }
 
-void Lexer::UpdateTokenSpan() { RangeBegin = Cursor; }
+void Lexer::UpdateTokenLoc() { RangeBegin = Cursor; }
 
-Span Lexer::MakeTokenSpan() { return Span(Line, Column, RangeBegin, Cursor); }
+Location Lexer::MakeTokenLocation() { return Location(Line, Column, RangeBegin, Cursor); }
 
 Token Lexer::MakeSimpleToken(TokenType type)
 {
-  Token simpleToken(type, MakeTokenSpan(), std::string(1, PeekOne()));
+  Token simpleToken(type, MakeTokenLocation(), std::string(1, PeekOne()));
   AdvanceOne();
   return simpleToken;
 }
@@ -75,7 +75,7 @@ Token Lexer::MakeStringToken()
     if (IsEof() || PeekOne() == '\n')
     {
       Diagnostic.Error(ErrorCode::UnquotedString, "Unquoted string literal",
-                       Span(Line - 1, stringBeginColumn, stringBeginIndex - 1, Cursor));
+                       Location(Line - 1, stringBeginColumn, stringBeginIndex - 1, Cursor));
       std::exit(1);
     }
 
@@ -89,14 +89,14 @@ Token Lexer::MakeStringToken()
 
   AdvanceOne(); // eat right '"'
 
-  Span stringSpan = Span(Line, stringBeginColumn, RangeBegin, Cursor - 1);
-  return Token(TokenType::String, stringSpan, FileContent.substr(stringBeginIndex, Cursor - stringBeginIndex - 1));
+  Location stringLoc = Location(Line, stringBeginColumn, RangeBegin, Cursor - 1);
+  return Token(TokenType::String, stringLoc, FileContent.substr(stringBeginIndex, Cursor - stringBeginIndex - 1));
 }
 
 Token Lexer::GetNextToken()
 {
   SkipWhitespace();
-  UpdateTokenSpan();
+  UpdateTokenLoc();
 
   if (IsEof())
   {
@@ -135,35 +135,35 @@ Token Lexer::GetNextToken()
       AdvanceOne();
     }
 
-    Span identifierSpan         = Span(Line, identifierBeginColumn, RangeBegin, Cursor - 1);
+    Location identifierLoc      = Location(Line, identifierBeginColumn, RangeBegin, Cursor - 1);
     std::string identifierLabel = FileContent.substr(identifierBeginIndex, Cursor - identifierBeginIndex);
 
     if ("fn" == identifierLabel)
     {
-      return Token(TokenType::Fn, identifierSpan, identifierLabel);
+      return Token(TokenType::Fn, identifierLoc, identifierLabel);
     }
 
     if ("return" == identifierLabel)
     {
-      return Token(TokenType::Return, identifierSpan, identifierLabel);
+      return Token(TokenType::Return, identifierLoc, identifierLabel);
     }
 
     if ("int" == identifierLabel)
     {
-      return Token(TokenType::TypeInt, identifierSpan, identifierLabel);
+      return Token(TokenType::TypeInt, identifierLoc, identifierLabel);
     }
 
     if ("str" == identifierLabel)
     {
-      return Token(TokenType::TypeStr, identifierSpan, identifierLabel);
+      return Token(TokenType::TypeStr, identifierLoc, identifierLabel);
     }
 
     if ("void" == identifierLabel)
     {
-      return Token(TokenType::TypeVoid, identifierSpan, identifierLabel);
+      return Token(TokenType::TypeVoid, identifierLoc, identifierLabel);
     }
 
-    return Token(TokenType::Identifier, identifierSpan, identifierLabel);
+    return Token(TokenType::Identifier, identifierLoc, identifierLabel);
   }
 
   if (std::isdigit(currentChar))
@@ -176,12 +176,12 @@ Token Lexer::GetNextToken()
       AdvanceOne();
     }
 
-    Span intSpan       = Span(Line, intBeginColumn, RangeBegin, Cursor - 1);
+    Location intLoc    = Location(Line, intBeginColumn, RangeBegin, Cursor - 1);
     std::string intRaw = FileContent.substr(intBeginIndex, Cursor - intBeginIndex);
-    return Token(TokenType::Integer, intSpan, intRaw);
+    return Token(TokenType::Integer, intLoc, intRaw);
   }
 
   Diagnostic.Error(ErrorCode::UnknownToken, std::format("Unknown token '{}'", currentChar),
-                   Span(Line, Column, Cursor, Cursor));
+                   Location(Line, Column, Cursor, Cursor));
   std::exit(1);
 }
