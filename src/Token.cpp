@@ -40,7 +40,7 @@ std::string Token::ToString()
     break;
   }
 
-  oss << " " << Span.Line << ":" << Span.Column << ":" << Span.RangeBegin << ":" << Span.RangeEnd << std::endl;
+  oss << " " << Spn.Line << ":" << Spn.Column << ":" << Spn.RangeBegin << ":" << Spn.RangeEnd << std::endl;
 
   return oss.str();
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "DiagnosticEngine.h"
 #include "Token.h"
 
 #include <filesystem>
@@ -7,10 +8,11 @@
 class Lexer
 {
 public:
-  const std::string &FileContent;
   const std::filesystem::path FilePath;
+  const std::string &FileContent;
 
-  Lexer(std::string &fileContent, std::filesystem::path filePath) : FileContent(fileContent), FilePath(filePath)
+  Lexer(std::filesystem::path filePath, std::string &fileContent, DiagnosticEngine &diagnostic)
+      : FilePath(filePath), FileContent(fileContent), Diagnostic(diagnostic)
   {
     Cursor     = 0;
     Line       = 1;
@@ -21,6 +23,8 @@ public:
   Token GetNextToken();
 
 private:
+  DiagnosticEngine &Diagnostic;
+
   unsigned long Cursor;
   unsigned long Line;
   unsigned long Column;
@@ -32,7 +36,7 @@ private:
   void AdvanceOne();
   void UpdateTokenSpan();
 
-  TokenSpan MakeTokenSpan();
+  Span MakeTokenSpan();
   Token MakeStringToken();
   Token MakeSimpleToken(TokenType);
 };

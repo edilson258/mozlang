@@ -1,10 +1,12 @@
 #include "Parser.h"
 #include "Ast.h"
+#include "DiagnosticEngine.h"
+#include "Span.h"
 #include "Token.h"
 #include "TypeSystem.h"
 
 #include <cstdlib>
-#include <iostream>
+#include <string>
 #include <vector>
 
 AST Parser::Parse()
@@ -12,7 +14,7 @@ AST Parser::Parse()
   Bump();
   Bump();
 
-  AST ast(lexer.FilePath);
+  AST ast;
 
   while (TokenType::Eof != CurrentToken.Type)
   {
@@ -28,16 +30,6 @@ void Parser::Bump()
   NextToken    = lexer.GetNextToken();
 }
 
-void Parser::BumpExpected(TokenType expectedType)
-{
-  if (expectedType != CurrentToken.Type)
-  {
-    std::cerr << "[ERROR]: Unexpected token: " << CurrentToken.ToString() << std::endl;
-    std::exit(1);
-  }
-  Bump();
-}
-
 Statement *Parser::ParseStatement()
 {
   if (TokenType::Fn == CurrentToken.Type)
@@ -50,18 +42,24 @@ Statement *Parser::ParseStatement()
     return ParseReturnStatement();
   }
 
-  auto expression = ParseExpressionStatement(Precedence::Lowest);
-  BumpExpected(TokenType::Semicolon);
+  Expression *expression = ParseExpressionStatement(Precedence::Lowest);
+  if (TokenType::Semicolon != CurrentToken.Type)
+  {
+    Diagnostic.Error(ErrorCode::UnexpectedToken, "Expressions must end with ';'.", expression->Spn);
+    std::exit(1);
+  }
+  Bump();
   return expression;
 }
 
 FunctionStatement *Parser::ParseFunctionStatement()
 {
+  Span spn = CurrentToken.Spn;
   Bump(); // eat 'fn'
 
   if (CurrentToken.Type != TokenType::Identifier)
   {
-    std::cerr << "[ERROR]: Expected identifier after 'fn' but got: " << CurrentToken.ToString() << std::endl;
+    Diagnostic.Error(ErrorCode::UnexpectedToken, "Expect function's name after 'fn' keyword.", CurrentToken.Spn);
     std::exit(1);
   }
 
@@ -72,12 +70,19 @@ FunctionStatement *Parser::ParseFunctionStatement()
   TypeAnnotation returnType         = ParseFunctionStatementReturnType();
   BlockStatement body               = ParseBlockStatement();
 
-  return new FunctionStatement(identifier, body, returnType, params);
+  spn.RangeEnd = body.Spn.RangeEnd;
+  return new FunctionStatement(spn, identifier, body, returnType, params);
 }
 
 std::vector<FunctionParam> Parser::ParseFunctionStatementParams()
 {
-  BumpExpected(TokenType::LeftParent);
+
+  if (TokenType::LeftParent != CurrentToken.Type)
+  {
+    Diagnostic.Error(ErrorCode::UnexpectedToken, "Expect '(' after function's name.", CurrentToken.Spn);
+    std::exit(1);
+  }
+  Bump();
 
   // case 1: ()
   if (TokenType::RightParent == CurrentToken.Type)
@@ -91,36 +96,47 @@ std::vector<FunctionParam> Parser::ParseFunctionStatementParams()
   // case 2: (x: int)
   if (TokenType::Identifier != CurrentToken.Type)
   {
-    std::cerr << "[ERROR]: Expected parameter name or `)` but got " << CurrentToken.ToString() << std::endl;
+    Diagnostic.Error(ErrorCode::UnexpectedToken, "Invalid parameter's name.", CurrentToken.Spn);
     std::exit(1);
   }
-
+  Span spn         = CurrentToken.Spn;
   auto *identifier = new IdentifierExpression(CurrentToken);
   Bump();
   TypeAnnotation type = ParseTypeAnnotation();
-  params.push_back(FunctionParam(identifier, type));
+  spn.RangeEnd        = CurrentToken.Spn.RangeEnd;
+  Bump();
+  params.push_back(FunctionParam(spn, identifier, type));
 
   // case 3: (x: int, y: str, ...)
   while (TokenType::RightParent != CurrentToken.Type)
   {
     if (TokenType::Eof == CurrentToken.Type)
     {
-      std::cerr << "[ERROR]: Early EOF\n";
+      Diagnostic.Error(ErrorCode::UnexpectedToken, "Unexpected EOF.", CurrentToken.Spn);
       std::exit(1);
     }
 
     if (TokenType::Comma != CurrentToken.Type)
     {
-      std::cerr << "[ERROR]: Expect `)` or `,` to separate fn params but got " << CurrentToken.ToString() << std::endl;
+      Diagnostic.Error(ErrorCode::UnexpectedToken, "Expect `)` or `,` to separate function's params.",
+                       CurrentToken.Spn);
       std::exit(1);
     }
 
     Bump(); // eat `,`
 
+    if (TokenType::Identifier != CurrentToken.Type)
+    {
+      Diagnostic.Error(ErrorCode::UnexpectedToken, "Invalid parameter's name.", CurrentToken.Spn);
+      std::exit(1);
+    }
+    spn        = CurrentToken.Spn;
     identifier = new IdentifierExpression(CurrentToken);
     Bump();
-    type = ParseTypeAnnotation();
-    params.push_back(FunctionParam(identifier, type));
+    type         = ParseTypeAnnotation();
+    spn.RangeEnd = CurrentToken.Spn.RangeEnd;
+    Bump();
+    params.push_back(FunctionParam(spn, identifier, type));
   }
 
   Bump();
@@ -135,28 +151,42 @@ TypeAnnotation Parser::ParseFunctionStatementReturnType()
     return TypeAnnotation(new Type(BaseType::Void));
   }
 
-  return ParseTypeAnnotation();
+  TypeAnnotation type = ParseTypeAnnotation();
+  Bump();
+  return type;
 }
 
 ReturnStatement *Parser::ParseReturnStatement()
 {
-  Token returnLexeme = CurrentToken;
+  Span spn = CurrentToken.Spn;
   Bump(); // eat 'return'
 
   if (TokenType::Semicolon == CurrentToken.Type)
   {
+    spn.RangeEnd = CurrentToken.Spn.RangeEnd;
     Bump(); // eat ';'
-    return new ReturnStatement(returnLexeme);
+    return new ReturnStatement(spn);
   }
 
   Expression *value = ParseExpressionStatement(Precedence::Lowest);
-  BumpExpected(TokenType::Semicolon);
-  return new ReturnStatement(returnLexeme, value);
+  if (TokenType::Semicolon != CurrentToken.Type)
+  {
+    Diagnostic.Error(ErrorCode::UnexpectedToken, "Expressions must end with ';'.", CurrentToken.Spn);
+    std::exit(1);
+  }
+  Bump();
+  return new ReturnStatement(spn, value);
 }
 
 BlockStatement Parser::ParseBlockStatement()
 {
-  BumpExpected(TokenType::LeftBrace);
+  if (TokenType::LeftBrace != CurrentToken.Type)
+  {
+    Diagnostic.Error(ErrorCode::UnexpectedToken, "Expect '{' to open block.", CurrentToken.Spn);
+    std::exit(1);
+  }
+  Span spn = CurrentToken.Spn;
+  Bump();
 
   std::vector<Statement *> block;
 
@@ -164,7 +194,7 @@ BlockStatement Parser::ParseBlockStatement()
   {
     if (CurrentToken.Type == TokenType::Eof)
     {
-      std::cerr << "[ERROR]: Unexpected EOF\n";
+      Diagnostic.Error(ErrorCode::UnexpectedToken, "Unexpected EOF.", CurrentToken.Spn);
       std::exit(1);
     }
 
@@ -176,9 +206,10 @@ BlockStatement Parser::ParseBlockStatement()
     block.push_back(ParseStatement());
   }
 
+  spn.RangeEnd = CurrentToken.Spn.RangeEnd;
   Bump(); // eat '}'
 
-  return BlockStatement(block);
+  return BlockStatement(spn, block);
 }
 
 Expression *Parser::ParseExpressionStatement(Precedence precedence)
@@ -199,7 +230,7 @@ Expression *Parser::ParseExpressionStatement(Precedence precedence)
   }
   else
   {
-    std::cerr << "[ERROR}: Unexpected left side expression: " << CurrentToken.ToString();
+    Diagnostic.Error(ErrorCode::UnexpectedToken, "Unexpected expression.", CurrentToken.Spn);
     std::exit(1);
   }
 
@@ -222,39 +253,54 @@ Expression *Parser::ParseExpressionStatement(Precedence precedence)
 
 CallExpression *Parser::ParseCallExpression(Expression *callee)
 {
-  return new CallExpression(callee, ParseCallExpressionArgs());
+  CallExpressionArgs args = ParseCallExpressionArgs();
+  Span spn                = callee->Spn;
+  spn.RangeEnd            = args.Spn.RangeEnd;
+  return new CallExpression(spn, callee, args);
 }
 
-std::vector<Expression *> Parser::ParseCallExpressionArgs()
+CallExpressionArgs Parser::ParseCallExpressionArgs()
 {
-  Bump(); // eat '('
+  Span spn = CurrentToken.Spn;
+  Bump();
+
+  // case 1: ()
+  if (TokenType::RightParent == CurrentToken.Type)
+  {
+    spn.RangeEnd = CurrentToken.Spn.RangeEnd;
+    Bump();
+    return CallExpressionArgs(spn, {});
+  }
 
   std::vector<Expression *> args;
 
-  while (1)
+  // case 2: (x)
+  args.push_back(ParseExpressionStatement(Precedence::Lowest));
+
+  // case 3: (x, y, ...)
+  while (TokenType::RightParent != CurrentToken.Type)
   {
     if (TokenType::Eof == CurrentToken.Type)
     {
-      std::cerr << "[ERROR]: Early EOF\n";
+      Diagnostic.Error(ErrorCode::UnexpectedToken, "Unexpected EOF.", CurrentToken.Spn);
       std::exit(1);
     }
 
-    if (TokenType::RightParent == CurrentToken.Type)
+    if (TokenType::Comma != CurrentToken.Type)
     {
-      break;
+      Diagnostic.Error(ErrorCode::UnexpectedToken, "Expect `)` or `,` to separate function's arguments.",
+                       CurrentToken.Spn);
+      std::exit(1);
     }
 
+    Bump(); // eat `,`
     args.push_back(ParseExpressionStatement(Precedence::Lowest));
-
-    if (CurrentToken.Type == TokenType::Comma)
-    {
-      Bump();
-    }
   }
 
-  Bump(); // eat ')'
+  spn.RangeEnd = CurrentToken.Spn.RangeEnd;
+  Bump();
 
-  return args;
+  return CallExpressionArgs(spn, args);
 }
 
 Precedence Parser::TokenToPrecedence(Token &t)
@@ -272,29 +318,31 @@ Precedence Parser::GetCurrentTokenPrecedence() { return TokenToPrecedence(Curren
 
 TypeAnnotation Parser::ParseTypeAnnotation()
 {
-  BumpExpected(TokenType::Colon);
+  if (TokenType::Colon != CurrentToken.Type)
+  {
+    Diagnostic.Error(ErrorCode::UnexpectedToken, "Expect ':' before type specifier.", CurrentToken.Spn);
+    std::exit(1);
+  }
+  Bump();
 
   if (TokenType::TypeInt == CurrentToken.Type)
   {
     auto typeAnnotation = TypeAnnotation(new Type(BaseType::Integer), CurrentToken);
-    Bump();
     return typeAnnotation;
   }
 
   if (TokenType::TypeStr == CurrentToken.Type)
   {
     auto typeAnnotation = TypeAnnotation(new Type(BaseType::String), CurrentToken);
-    Bump();
     return typeAnnotation;
   }
 
   if (TokenType::TypeVoid == CurrentToken.Type)
   {
     auto typeAnnotation = TypeAnnotation(new Type(BaseType::Void), CurrentToken);
-    Bump();
     return typeAnnotation;
   }
 
-  std::cerr << "[ERROR] Expect type annotation but got " << CurrentToken.ToString() << std::endl;
+  Diagnostic.Error(ErrorCode::UnexpectedToken, "Invalid type annotation", CurrentToken.Spn);
   std::exit(1);
 }

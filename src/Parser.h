@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Ast.h"
+#include "DiagnosticEngine.h"
 #include "Lexer.h"
 #include "Token.h"
 
@@ -19,14 +20,15 @@ public:
 
   AST Parse();
 
-  Parser(Lexer &lex) : lexer(lex) {};
+  Parser(Lexer &lex, DiagnosticEngine &diagnostic) : lexer(lex), Diagnostic(diagnostic) {};
 
 private:
+  DiagnosticEngine &Diagnostic;
+
   Token CurrentToken;
   Token NextToken;
 
   void Bump();
-  void BumpExpected(TokenType);
 
   Precedence TokenToPrecedence(Token &);
   Precedence GetCurrentTokenPrecedence();
@@ -42,6 +44,6 @@ private:
   // Helpers
   TypeAnnotation ParseTypeAnnotation();
   TypeAnnotation ParseFunctionStatementReturnType();
-  std::vector<Expression *> ParseCallExpressionArgs();
+  CallExpressionArgs ParseCallExpressionArgs();
   std::vector<FunctionParam> ParseFunctionStatementParams();
 };
