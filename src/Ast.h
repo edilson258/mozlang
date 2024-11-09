@@ -1,11 +1,12 @@
 #pragma once
 
 #include "AstVisitor.h"
+#include "Span.h"
 #include "Token.h"
 #include "TypeSystem.h"
 
-#include <filesystem>
 #include <optional>
+#include <string>
 #include <vector>
 
 enum class AstNodeType
@@ -22,14 +23,14 @@ enum class AstNodeType
 class AstNode
 {
 public:
+  Span Spn;
   AstNodeType Type;
 
   virtual void *accept(AstVisitor *) = 0;
-
-  virtual ~AstNode() = default;
+  virtual ~AstNode()                 = default;
 
 protected:
-  AstNode(AstNodeType type) : Type(type) {};
+  AstNode(Span spn, AstNodeType type) : Spn(spn), Type(type) {};
 };
 
 class Statement : public AstNode
@@ -38,13 +39,13 @@ public:
   virtual ~Statement() = default;
 
 protected:
-  Statement(AstNodeType type) : AstNode(type) {};
+  Statement(Span spn, AstNodeType type) : AstNode(spn, type) {};
 };
 
 class Expression : public Statement
 {
 protected:
-  Expression(AstNodeType type) : Statement(type) {};
+  Expression(Span spn, AstNodeType type) : Statement(spn, type) {};
 };
 
 class IdentifierExpression : public Expression
@@ -52,7 +53,7 @@ class IdentifierExpression : public Expression
 public:
   Token Lexeme;
 
-  IdentifierExpression(Token lexeme) : Expression(AstNodeType::IdentifierExpression), Lexeme(lexeme) {};
+  IdentifierExpression(Token lexeme) : Expression(lexeme.Spn, AstNodeType::IdentifierExpression), Lexeme(lexeme) {};
 
   std::string GetValue() const;
   void *accept(AstVisitor *visitor) override;
@@ -63,7 +64,7 @@ class StringExpression : public Expression
 public:
   Token Lexeme;
 
-  StringExpression(Token lexeme) : Expression(AstNodeType::StringExpression), Lexeme(lexeme) {};
+  StringExpression(Token lexeme) : Expression(lexeme.Spn, AstNodeType::StringExpression), Lexeme(lexeme) {};
 
   std::string GetValue() const;
   void *accept(AstVisitor *visitor) override;
@@ -74,21 +75,30 @@ class IntegerExpression : public Expression
 public:
   Token Lexeme;
 
-  IntegerExpression(Token lexeme) : Expression(AstNodeType::IntegerExpression), Lexeme(lexeme) {};
+  IntegerExpression(Token lexeme) : Expression(lexeme.Spn, AstNodeType::IntegerExpression), Lexeme(lexeme) {};
 
   long long GetValue() const;
   std::string GetRawValue() const;
   void *accept(AstVisitor *visitor) override;
 };
 
+class CallExpressionArgs
+{
+public:
+  Span Spn;
+  std::vector<Expression *> Args;
+
+  CallExpressionArgs(Span spn, std::vector<Expression *> args) : Spn(spn), Args(args) {};
+};
+
 class CallExpression : public Expression
 {
 public:
   Expression *Callee;
-  std::vector<Expression *> Args;
+  CallExpressionArgs Args;
 
-  CallExpression(Expression *callee, std::vector<Expression *> args)
-      : Expression(AstNodeType::CallExpression), Callee(callee), Args(args) {};
+  CallExpression(Span spn, Expression *callee, CallExpressionArgs args)
+      : Expression(spn, AstNodeType::CallExpression), Callee(callee), Args(args) {};
 
   void *accept(AstVisitor *visitor) override;
 };
@@ -98,8 +108,8 @@ class BlockStatement : public Statement
 public:
   std::vector<Statement *> Statements;
 
-  BlockStatement(std::vector<Statement *> statements)
-      : Statement(AstNodeType::BlockStatement), Statements(statements) {};
+  BlockStatement(Span spn, std::vector<Statement *> statements)
+      : Statement(spn, AstNodeType::BlockStatement), Statements(statements) {};
 
   void *accept(AstVisitor *visitor) override;
 };
@@ -117,11 +127,12 @@ public:
 class FunctionParam
 {
 public:
+  Span Spn;
   IdentifierExpression *Identifier;
   class TypeAnnotation TypeAnnotation;
 
-  FunctionParam(IdentifierExpression *identifier, class TypeAnnotation type)
-      : Identifier(identifier), TypeAnnotation(type) {};
+  FunctionParam(Span spn, IdentifierExpression *identifier, class TypeAnnotation type)
+      : Spn(spn), Identifier(identifier), TypeAnnotation(type) {};
 };
 
 class FunctionStatement : public Statement
@@ -132,9 +143,9 @@ public:
   TypeAnnotation ReturnType;
   std::vector<FunctionParam> Params;
 
-  FunctionStatement(IdentifierExpression *identifier, BlockStatement body, TypeAnnotation returnType,
+  FunctionStatement(Span spn, IdentifierExpression *identifier, BlockStatement body, TypeAnnotation returnType,
                     std::vector<FunctionParam> params)
-      : Statement(AstNodeType::FunctionStatement), Identifier(identifier), Body(body), ReturnType(returnType),
+      : Statement(spn, AstNodeType::FunctionStatement), Identifier(identifier), Body(body), ReturnType(returnType),
         Params(params) {};
 
   void *accept(AstVisitor *visitor) override;
@@ -143,12 +154,10 @@ public:
 class ReturnStatement : public Statement
 {
 public:
-  Token Lexeme;
   std::optional<Expression *> Value;
 
-  ReturnStatement(Token lexeme) : Statement(AstNodeType::ReturnStatement), Lexeme(lexeme), Value(std::nullopt) {};
-  ReturnStatement(Token lexeme, Expression *value)
-      : Statement(AstNodeType::ReturnStatement), Lexeme(lexeme), Value(value) {};
+  ReturnStatement(Span spn) : Statement(spn, AstNodeType::ReturnStatement), Value(std::nullopt) {};
+  ReturnStatement(Span spn, Expression *value) : Statement(spn, AstNodeType::ReturnStatement), Value(value) {};
 
   void *accept(AstVisitor *visitor) override;
 };
@@ -157,9 +166,8 @@ class AST
 {
 public:
   std::vector<AstNode *> Nodes;
-  const std::filesystem::path SourceFilePath;
 
-  AST(std::filesystem::path sourcePath) : Nodes(), SourceFilePath(sourcePath) {};
+  AST() : Nodes() {};
 
   std::string ToStrng();
 };

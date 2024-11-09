@@ -51,7 +51,7 @@ void Lexer::AdvanceOne()
 
 void Lexer::UpdateTokenSpan() { RangeBegin = Cursor; }
 
-TokenSpan Lexer::MakeTokenSpan() { return TokenSpan(Line, Column, RangeBegin, Cursor); }
+Span Lexer::MakeTokenSpan() { return Span(Line, Column, RangeBegin, Cursor); }
 
 Token Lexer::MakeSimpleToken(TokenType type)
 {
@@ -74,8 +74,9 @@ Token Lexer::MakeStringToken()
   {
     if (IsEof() || PeekOne() == '\n')
     {
-      DiagnosticEngine::ErrorAndDie(FilePath, FileContent, ErrorCode::UnquotedStringLiteral, "Unquoted string literal",
-                                    TokenSpan(Line - 1, stringBeginColumn, stringBeginIndex - 1, Cursor));
+      Diagnostic.Error(ErrorCode::UnquotedString, "Unquoted string literal",
+                       Span(Line - 1, stringBeginColumn, stringBeginIndex - 1, Cursor));
+      std::exit(1);
     }
 
     if (PeekOne() == '"')
@@ -88,7 +89,7 @@ Token Lexer::MakeStringToken()
 
   AdvanceOne(); // eat right '"'
 
-  TokenSpan stringSpan = TokenSpan(Line, stringBeginColumn, RangeBegin, Cursor - 1);
+  Span stringSpan = Span(Line, stringBeginColumn, RangeBegin, Cursor - 1);
   return Token(TokenType::String, stringSpan, FileContent.substr(stringBeginIndex, Cursor - stringBeginIndex - 1));
 }
 
@@ -134,7 +135,7 @@ Token Lexer::GetNextToken()
       AdvanceOne();
     }
 
-    TokenSpan identifierSpan    = TokenSpan(Line, identifierBeginColumn, RangeBegin, Cursor - 1);
+    Span identifierSpan         = Span(Line, identifierBeginColumn, RangeBegin, Cursor - 1);
     std::string identifierLabel = FileContent.substr(identifierBeginIndex, Cursor - identifierBeginIndex);
 
     if ("fn" == identifierLabel)
@@ -175,13 +176,12 @@ Token Lexer::GetNextToken()
       AdvanceOne();
     }
 
-    TokenSpan intSpan  = TokenSpan(Line, intBeginColumn, RangeBegin, Cursor - 1);
+    Span intSpan       = Span(Line, intBeginColumn, RangeBegin, Cursor - 1);
     std::string intRaw = FileContent.substr(intBeginIndex, Cursor - intBeginIndex);
     return Token(TokenType::Integer, intSpan, intRaw);
   }
 
-  DiagnosticEngine::ErrorAndDie(FilePath, FileContent, ErrorCode::UnknownToken,
-                                std::format("Unknown token '{}'", currentChar),
-                                TokenSpan(Line, Column, Cursor, Cursor));
+  Diagnostic.Error(ErrorCode::UnknownToken, std::format("Unknown token '{}'", currentChar),
+                   Span(Line, Column, Cursor, Cursor));
   std::exit(1);
 }
