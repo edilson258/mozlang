@@ -1,5 +1,6 @@
 #pragma once
 
+#include <string>
 #include <vector>
 
 enum class BaseType
@@ -20,6 +21,8 @@ public:
 
   virtual bool operator==(const Type &other) const;
   bool operator!=(const Type &other) const;
+
+  std::string ToString() const;
 };
 
 class TypeFunction : public Type

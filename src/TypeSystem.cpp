@@ -1,5 +1,22 @@
 #include "TypeSystem.h"
 
+#include <string>
+
+std::string Type::ToString() const
+{
+  switch (Base)
+  {
+  case BaseType::Void:
+    return "void";
+  case BaseType::Integer:
+    return "int";
+  case BaseType::String:
+    return "str";
+  case BaseType::Function:
+    return "fn";
+  }
+}
+
 bool Type::operator==(const Type &other) const { return Base == other.Base; }
 bool Type::operator!=(const Type &other) const { return !(*this == other); }
 
