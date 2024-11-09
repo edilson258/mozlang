@@ -1,8 +1,12 @@
 #include "Checker.h"
 #include "Ast.h"
+#include "DiagnosticEngine.h"
+#include "Painter.h"
+#include "Span.h"
 #include "TypeSystem.h"
 
 #include <cstdlib>
+#include <format>
 #include <iostream>
 #include <set>
 #include <string>
@@ -14,7 +18,8 @@ void Checker::Check(AST &ast)
   EnterScope(ScopeType::Global);
 
   // Setup builtins
-  DeclareFunction("print", Type(BaseType::Void), {Type(BaseType::String)}, true);
+  GetCurrentScope()->Store["print"] = new Object(new TypeFunction(Type(BaseType::Void), {Type(BaseType::String)}, true),
+                                                 ObjectSource::Declaration, Span());
 
   for (AstNode *node : ast.Nodes)
   {
@@ -27,7 +32,8 @@ void Checker::Check(AST &ast)
 
   if (ErrorsCount > 0)
   {
-    std::cerr << "[ABORT]: Aborting due to the " << ErrorsCount << " previous errors\n";
+    std::cerr << Painter::Paint(std::format("[ABORT]: Aborting due to the {} previous errors\n", ErrorsCount),
+                                Color::Brown);
     std::exit(1);
   }
 }
@@ -38,7 +44,7 @@ void Checker::LeaveScope()
 {
   for (std::pair<std::string, Object *> pair : GetCurrentScope()->Store)
   {
-    if (pair.second->IsUsed)
+    if (pair.second->IsUsed || pair.first.starts_with("_"))
     {
       continue;
     }
@@ -49,7 +55,8 @@ void Checker::LeaveScope()
     }
 
     ErrorsCount++;
-    std::cerr << "[ERROR]: Unused name " << pair.first << std::endl;
+    Diagnostic.Error(ErrorCode::UnusedName, std::format("Unused name '{}', try to prefix it with '_'", pair.first),
+                     pair.second->Spn);
   }
   Scopes.pop_back();
 }
@@ -75,12 +82,6 @@ bool Checker::ExistInCurrentScope(std::string name)
     return false;
   }
   return true;
-}
-
-void Checker::DeclareFunction(std::string name, Type returnType, std::vector<Type> paramType, bool isVarArgs)
-{
-  GetCurrentScope()->Store[name] =
-      new Object(new TypeFunction(returnType, paramType, isVarArgs), ObjectSource::Declaration);
 }
 
 void Checker::ValidateEntryPoint()
@@ -121,7 +122,9 @@ void *Checker::visit(FunctionStatement *fnStmt)
   if (ExistInCurrentScope(fnStmt->Identifier->GetValue()))
   {
     ErrorsCount++;
-    std::cerr << "[ERROR]: Name is already bound: " << fnStmt->Identifier->GetValue() << std::endl;
+    Diagnostic.Error(ErrorCode::NameAlreadyBound,
+                     std::format("Name '{}' is already in use.", fnStmt->Identifier->GetValue()),
+                     fnStmt->Identifier->Spn);
     return nullptr;
   }
 
@@ -131,17 +134,20 @@ void *Checker::visit(FunctionStatement *fnStmt)
     if (BaseType::Void == param.TypeAnnotation.Type->Base)
     {
       ErrorsCount++;
-      std::cerr << "[ERROR]: Param can't be of type `void`\n";
+      Diagnostic.Error(ErrorCode::InvalidTypeAnnotation, "Parameter can't be of type void.", param.Spn);
     }
     paramTypes.push_back(*param.TypeAnnotation.Type);
   }
 
-  DeclareFunction(fnStmt->Identifier->GetValue(), *fnStmt->ReturnType.Type, paramTypes, false);
+  GetCurrentScope()->Store[fnStmt->Identifier->GetValue()] =
+      new Object(new TypeFunction(*fnStmt->ReturnType.Type, paramTypes, false), ObjectSource::Declaration,
+                 fnStmt->Identifier->Spn);
   EnterScope(ScopeType::Function);
 
-  for (FunctionParam &p : fnStmt->Params)
+  for (FunctionParam &param : fnStmt->Params)
   {
-    GetCurrentScope()->Store[p.Identifier->GetValue()] = new Object(p.TypeAnnotation.Type, ObjectSource::Parameter);
+    GetCurrentScope()->Store[param.Identifier->GetValue()] =
+        new Object(param.TypeAnnotation.Type, ObjectSource::Parameter, param.Identifier->Spn);
   }
 
   std::vector<Object *> *results = static_cast<std::vector<Object *> *>(fnStmt->Body.accept(this));
@@ -153,13 +159,13 @@ void *Checker::visit(FunctionStatement *fnStmt)
     if (ObjectSource::Expession == result->Source)
     {
       ErrorsCount++;
-      std::cerr << "[ERROR]: Expression results to unused value\n";
+      Diagnostic.Error(ErrorCode::UnusedValue, "Expression results to unused value", result->Spn);
     }
 
     if (ObjectSource::FunctionCallResult == result->Source)
     {
       ErrorsCount++;
-      std::cerr << "[ERROR]: Unused return value\n";
+      Diagnostic.Error(ErrorCode::UnusedValue, "Function's return value is not used.", result->Spn);
     }
 
     if (ObjectSource::ReturnValue == result->Source)
@@ -169,7 +175,11 @@ void *Checker::visit(FunctionStatement *fnStmt)
       if (*fnStmt->ReturnType.Type != *result->Type)
       {
         ErrorsCount++;
-        std::cerr << "[ERROR]: Return type miss match\n";
+        Diagnostic.Error(ErrorCode::TypesNoMatch,
+                         std::format("Function '{}' expects value of type '{}' but returned value of type '{}'",
+                                     fnStmt->Identifier->GetValue(), fnStmt->ReturnType.Type->ToString(),
+                                     result->Type->ToString()),
+                         result->Spn);
       }
     }
   }
@@ -178,12 +188,12 @@ void *Checker::visit(FunctionStatement *fnStmt)
   {
     if (BaseType::Void == fnStmt->ReturnType.Type->Base)
     {
-      fnStmt->Body.Statements.push_back(new ReturnStatement(Token()));
+      fnStmt->Body.Statements.push_back(new ReturnStatement(Span()));
     }
     else
     {
       ErrorsCount++;
-      std::cerr << "[ERROR]: Non-void function does not return a value\n";
+      Diagnostic.Error(ErrorCode::MissingValue, "Non-void function does not return value.", fnStmt->Spn);
     }
   }
 
@@ -218,7 +228,15 @@ void *Checker::visit(BlockStatement *blockStmt)
     if (stmt->Type == AstNodeType::ReturnStatement && ((blockStmt->Statements.size() - i - 1) > 0))
     {
       ErrorsCount++;
-      std::cerr << "[ERROR]: Dead code detected\n";
+      Span spn     = blockStmt->Statements.at(i + 1)->Spn;
+      spn.RangeEnd = blockStmt->Spn.RangeEnd - 1;
+      Diagnostic.Error(ErrorCode::DeadCode, "Unreachable code detected.", spn);
+
+      void *x = stmt->accept(this);
+      if (x)
+      {
+        xs->push_back(static_cast<Object *>(x));
+      }
       break;
     }
 
@@ -245,25 +263,31 @@ void *Checker::visit(CallExpression *callExpr)
   if (BaseType::Function != calleeObj->Type->Base)
   {
     ErrorsCount++;
-    std::cerr << "[ERROR]: Object has no callable signature\n";
+    Diagnostic.Error(ErrorCode::CallNotCallable, "Callee is not callable.", calleeObj->Spn);
     return nullptr;
   }
 
   TypeFunction *calleeFnType = static_cast<TypeFunction *>(calleeObj->Type);
 
-  if (callExpr->Args.size() != calleeFnType->ParamTypes.size())
+  if (callExpr->Args.Args.size() != calleeFnType->ParamTypes.size())
   {
     if (!calleeFnType->IsVarArgs)
     {
       ErrorsCount++;
-      std::cerr << "[ERROR]: Args count miss match\n";
+      Diagnostic.Error(ErrorCode::ArgsCountNoMatch,
+                       std::format("Callee expects '{}' args but got '{}'.", calleeFnType->ParamTypes.size(),
+                                   callExpr->Args.Args.size()),
+                       callExpr->Args.Spn);
       return nullptr;
     }
 
-    if (callExpr->Args.size() < calleeFnType->ParamTypes.size())
+    if (callExpr->Args.Args.size() < calleeFnType->ParamTypes.size())
     {
       ErrorsCount++;
-      std::cerr << "[ERROR]: Args count miss match, missing required ones\n";
+      Diagnostic.Error(ErrorCode::ArgsCountNoMatch,
+                       std::format("Callee expects '{}' required args but got '{}'.", calleeFnType->ParamTypes.size(),
+                                   callExpr->Args.Args.size()),
+                       callExpr->Args.Spn);
       return nullptr;
     }
   }
@@ -271,9 +295,9 @@ void *Checker::visit(CallExpression *callExpr)
   std::vector<Object *> argObjects;
   std::set<unsigned long> badArgPositions;
 
-  for (unsigned long i = 0; i < callExpr->Args.size(); ++i)
+  for (unsigned long i = 0; i < callExpr->Args.Args.size(); ++i)
   {
-    void *x = callExpr->Args.at(i)->accept(this);
+    void *x = callExpr->Args.Args.at(i)->accept(this);
     if (!x)
     {
       badArgPositions.insert(i);
@@ -289,10 +313,16 @@ void *Checker::visit(CallExpression *callExpr)
       continue;
     }
 
-    if (*argObjects.at(i)->Type != calleeFnType->ParamTypes.at(i))
+    Type argType   = *argObjects.at(i)->Type;
+    Type paramType = calleeFnType->ParamTypes.at(i);
+
+    if (argType != paramType)
     {
       ErrorsCount++;
-      std::cerr << "[ERROR]: Argument type does not match\n";
+      Diagnostic.Error(ErrorCode::TypesNoMatch,
+                       std::format("Argument of type '{}' is not assignable to param of type '{}'.", argType.ToString(),
+                                   paramType.ToString()),
+                       argObjects.at(i)->Spn);
     }
   }
 
@@ -301,7 +331,7 @@ void *Checker::visit(CallExpression *callExpr)
     return nullptr;
   }
 
-  return new Object(&calleeFnType->ReturnType, ObjectSource::FunctionCallResult);
+  return new Object(&calleeFnType->ReturnType, ObjectSource::FunctionCallResult, callExpr->Spn);
 }
 
 void *Checker::visit(IdentifierExpression *identExpr)
@@ -315,9 +345,16 @@ void *Checker::visit(IdentifierExpression *identExpr)
     }
   }
   ErrorsCount++;
-  std::cerr << "[ERROR]: Unbound name: " << identExpr->GetValue() << std::endl;
+  Diagnostic.Error(ErrorCode::UnboundName, std::format("Name '{}' is not defined.", identExpr->GetValue()),
+                   identExpr->Spn);
   return nullptr;
 }
 
-void *Checker::visit(StringExpression *) { return new Object(new Type(BaseType::String), ObjectSource::Expession); }
-void *Checker::visit(IntegerExpression *) { return new Object(new Type(BaseType::Integer), ObjectSource::Expession); }
+void *Checker::visit(StringExpression *strExpr)
+{
+  return new Object(new Type(BaseType::String), ObjectSource::Expession, strExpr->Spn);
+}
+void *Checker::visit(IntegerExpression *intExpr)
+{
+  return new Object(new Type(BaseType::Integer), ObjectSource::Expession, intExpr->Spn);
+}

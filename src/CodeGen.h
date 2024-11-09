@@ -4,6 +4,7 @@
 #include "AstVisitor.h"
 #include "TypeSystem.h"
 
+#include <filesystem>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -17,9 +18,8 @@
 class CodeGen : public AstVisitor
 {
 public:
-  CodeGen(AST &tree)
-      : ast(tree), Module(std::make_unique<llvm::Module>(tree.SourceFilePath.stem().string(), Context)),
-        Builder(Context) {};
+  CodeGen(AST &tree, std::filesystem::path &souceFilePath)
+      : ast(tree), Module(std::make_unique<llvm::Module>(souceFilePath.stem().string(), Context)), Builder(Context) {};
 
   void *visit(BlockStatement *) override;
   void *visit(FunctionStatement *) override;

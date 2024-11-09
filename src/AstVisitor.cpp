@@ -77,7 +77,7 @@ void *AstInspector::visit(CallExpression *call)
 
   Write("Arguments: [");
   Tab();
-  for (auto &x : call->Args)
+  for (auto &x : call->Args.Args)
   {
     x->accept(this);
   }
