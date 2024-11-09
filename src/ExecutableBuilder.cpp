@@ -65,6 +65,7 @@ void ExecutableBuilder::Build(llvm::Module *module)
   dest.flush();
 
   std::string command = "clang -o " + module->getName().str() + " " + ojectPath.string();
-  std::system(command.c_str());
+  int _               = std::system(command.c_str());
+  (void)_;
   std::filesystem::remove(ojectPath);
 }
