@@ -4,6 +4,7 @@
 
 #include <filesystem>
 #include <string>
+#include <vector>
 
 enum class ErrorCode
 {
@@ -23,15 +24,20 @@ enum class ErrorCode
   MissingValue          = 1014,
   DeadCode              = 1015,
   CallNotCallable       = 1016,
+  BadFnDecl             = 1017,
 };
 
 class DiagnosticEngine
 {
 public:
+  std::vector<std::string> Errors;
+
   DiagnosticEngine(std::filesystem::path &filePath, std::string &fileContent)
-      : FilePath(filePath), FileContent(fileContent) {};
+      : Errors(), FilePath(filePath), FileContent(fileContent) {};
 
   void Error(ErrorCode, std::string, Location);
+  void PushErr(ErrorCode, std::string, Location);
+  std::string HandleErr(ErrorCode, std::string, Location);
 
 private:
   const std::filesystem::path &FilePath;

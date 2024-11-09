@@ -55,12 +55,12 @@ class Object
 {
 public:
   class Type *Type;
-  bool IsUsed;
   ObjectSource Source;
   Location Loc;
+  bool IsUsed;
 
-  Object(class Type *type, ObjectSource objectSource, Location loc)
-      : Type(type), IsUsed(false), Source(objectSource), Loc(loc) {};
+  Object(class Type *type, ObjectSource objectSource, Location loc, bool isUsed = false)
+      : Type(type), Source(objectSource), Loc(loc), IsUsed(isUsed) {};
 };
 
 enum class ScopeType
@@ -87,8 +87,6 @@ public:
 
 private:
   DiagnosticEngine &Diagnostic;
-
-  unsigned long ErrorsCount = 0;
 
   std::vector<Scope *> Scopes;
 
