@@ -25,6 +25,7 @@ enum class ErrorCode
   DeadCode              = 1015,
   CallNotCallable       = 1016,
   BadFnDecl             = 1017,
+  DuplicatedParamName   = 1018,
 };
 
 class DiagnosticEngine

@@ -76,7 +76,6 @@ FunctionStatement *Parser::ParseFunctionStatement()
 
 std::vector<FunctionParam> Parser::ParseFunctionStatementParams()
 {
-
   if (TokenType::LeftParent != CurrentToken.Type)
   {
     Diagnostic.Error(ErrorCode::UnexpectedToken, "Expect '(' after function's name.", CurrentToken.Loc);
