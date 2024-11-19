@@ -91,7 +91,6 @@ void Checker::ValidateEntryPoint()
 {
   if (!ExistInCurrentScope("main"))
   {
-
     std::cerr << "[ERROR]: Missing main function\n";
     return;
   }
@@ -124,7 +123,6 @@ void *Checker::visit(FunctionStatement *fnStmt)
 {
   if (ExistInCurrentScope(fnStmt->Identifier->GetValue()))
   {
-
     Diagnostic.PushErr(ErrorCode::NameAlreadyBound,
                        std::format("Name '{}' is already in use.", fnStmt->Identifier->GetValue()),
                        fnStmt->Identifier->Loc);
@@ -133,7 +131,6 @@ void *Checker::visit(FunctionStatement *fnStmt)
 
   if (ScopeType::Global != GetCurrentScope()->Type)
   {
-
     Diagnostic.PushErr(ErrorCode::BadFnDecl, "Functions can oly be declared at global scope.", fnStmt->Loc);
     return nullptr;
   }
@@ -143,7 +140,6 @@ void *Checker::visit(FunctionStatement *fnStmt)
   {
     if (BaseType::Void == param.TypeAnnotation.Type->Base)
     {
-
       Diagnostic.PushErr(ErrorCode::InvalidTypeAnnotation, "Parameter can't be of type void.", param.Loc);
     }
     paramTypes.push_back(*param.TypeAnnotation.Type);
@@ -156,6 +152,10 @@ void *Checker::visit(FunctionStatement *fnStmt)
 
   for (FunctionParam &param : fnStmt->Params)
   {
+    if (GetCurrentScope()->Store.find(param.Identifier->GetValue()) != GetCurrentScope()->Store.end())
+    {
+      Diagnostic.PushErr(ErrorCode::DuplicatedParamName, "Parameter name is already used.", param.Identifier->Loc);
+    }
     GetCurrentScope()->Store[param.Identifier->GetValue()] =
         new Object(param.TypeAnnotation.Type, ObjectSource::Parameter, param.Identifier->Loc);
   }
@@ -168,13 +168,11 @@ void *Checker::visit(FunctionStatement *fnStmt)
   {
     if (ObjectSource::Expession == result->Source)
     {
-
       Diagnostic.PushErr(ErrorCode::UnusedValue, "Expression results to unused value", result->Loc);
     }
 
     if (ObjectSource::FunctionCallResult == result->Source)
     {
-
       Diagnostic.PushErr(ErrorCode::UnusedValue, "Function's return value is not used.", result->Loc);
     }
 
@@ -202,7 +200,6 @@ void *Checker::visit(FunctionStatement *fnStmt)
     }
     else
     {
-
       Diagnostic.PushErr(ErrorCode::MissingValue, "Non-void function does not return value.", fnStmt->Loc);
     }
   }
@@ -272,7 +269,6 @@ void *Checker::visit(CallExpression *callExpr)
 
   if (BaseType::Function != calleeObj->Type->Base)
   {
-
     Diagnostic.PushErr(ErrorCode::CallNotCallable, "Callee is not callable.", calleeObj->Loc);
     return nullptr;
   }
@@ -283,7 +279,6 @@ void *Checker::visit(CallExpression *callExpr)
   {
     if (!calleeFnType->IsVarArgs)
     {
-
       Diagnostic.PushErr(ErrorCode::ArgsCountNoMatch,
                          std::format("Callee expects '{}' args but got '{}'.", calleeFnType->ParamTypes.size(),
                                      callExpr->Args.Args.size()),
@@ -293,7 +288,6 @@ void *Checker::visit(CallExpression *callExpr)
 
     if (callExpr->Args.Args.size() < calleeFnType->ParamTypes.size())
     {
-
       Diagnostic.PushErr(ErrorCode::ArgsCountNoMatch,
                          std::format("Callee expects '{}' required args but got '{}'.", calleeFnType->ParamTypes.size(),
                                      callExpr->Args.Args.size()),
@@ -328,7 +322,6 @@ void *Checker::visit(CallExpression *callExpr)
 
     if (argType != paramType)
     {
-
       Diagnostic.PushErr(ErrorCode::TypesNoMatch,
                          std::format("Argument of type '{}' is not assignable to param of type '{}'.",
                                      argType.ToString(), paramType.ToString()),
