@@ -1,9 +1,9 @@
-﻿cmake_minimum_required (VERSION 3.8)
+﻿cmake_minimum_required(VERSION 3.8)
 
 project (Mozlang
-    VERSION 0.1.0
-    LANGUAGES C CXX
-    DESCRIPTION "A programming language developed by Mozambicans"
+  VERSION 0.1.0
+  LANGUAGES C CXX
+  DESCRIPTION "A programming language developed by Mozambicans"
 )
 
 cmake_policy(SET CMP0075 NEW)
@@ -14,7 +14,11 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+set(LLVM_MINIMUM_VERSION 18.0.0)
 find_package(LLVM REQUIRED CONFIG)
+if (LLVM_VERSION VERSION_LESS LLVM_MINIMUM_VERSION)
+  message(FATAL_ERROR "LLVM version ${LLVM_VERSION} is less than the required version ${LLVM_MINIMUM_VERSION}. Please install a newer version.")
+endif()
 list(APPEND CMAKE_MODULE_PATH ${LLVM_CMAKE_DIR})
 include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
 include(AddLLVM)
