@@ -173,6 +173,7 @@ ReturnStatement *Parser::ParseReturnStatement()
     Diagnostic.Error(ErrorCode::UnexpectedToken, "Expressions must end with ';'.", CurrentToken.Loc);
     std::exit(1);
   }
+  loc.End = CurrentToken.Loc.End;
   Bump();
   return new ReturnStatement(loc, value);
 }
