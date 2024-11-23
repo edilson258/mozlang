@@ -244,7 +244,7 @@ void *Checker::visit(BlockStatement *blockStmt)
       {
         xs->push_back(static_cast<Object *>(x));
       }
-      break;
+      continue;
     }
 
     void *x = stmt->accept(this);
