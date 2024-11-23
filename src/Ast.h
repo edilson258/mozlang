@@ -18,6 +18,7 @@ enum class AstNodeType
   IdentifierExpression,
   StringExpression,
   IntegerExpression,
+  BooleanExpression,
 };
 
 class AstNode
@@ -79,6 +80,18 @@ public:
 
   long long GetValue() const;
   std::string GetRawValue() const;
+  void *accept(AstVisitor *visitor) override;
+};
+
+class BooleanExpression : public Expression
+{
+public:
+  Token Lexeme;
+  bool Value;
+
+  BooleanExpression(Token lexeme, bool value)
+      : Expression(lexeme.Loc, AstNodeType::BooleanExpression), Lexeme(lexeme), Value(value) {};
+
   void *accept(AstVisitor *visitor) override;
 };
 

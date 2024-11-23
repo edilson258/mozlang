@@ -12,6 +12,8 @@ std::string Type::ToString() const
     return "void";
   case BaseType::Integer:
     return "int";
+  case BaseType::Boolean:
+    return "bool";
   case BaseType::String:
     return "str";
   case BaseType::Function:

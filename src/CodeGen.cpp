@@ -43,6 +43,8 @@ llvm::Type *CodeGen::MozToLLVMType(Type type)
     return Builder.getInt8Ty()->getPointerTo();
   case BaseType::Void:
     return Builder.getVoidTy();
+  case BaseType::Boolean:
+    return Builder.getFalse()->getType();
   default:
     llvm::errs() << "[ERROR]: Cannot convert provided type to llvm\n";
     std::exit(1);
@@ -142,6 +144,15 @@ void *CodeGen::visit(StringExpression *strExpr)
 void *CodeGen::visit(IntegerExpression *intExpr)
 {
   return Builder.getInt32(static_cast<uint32_t>(intExpr->GetValue()));
+}
+
+void *CodeGen::visit(BooleanExpression *boolExpr)
+{
+  if (boolExpr->Value)
+  {
+    return Builder.getTrue();
+  }
+  return Builder.getFalse();
 }
 
 llvm::Function *makePrintf(llvm::LLVMContext &c, llvm::Module *m)

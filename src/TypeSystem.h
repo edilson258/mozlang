@@ -8,6 +8,7 @@ enum class BaseType
   Void,
   String,
   Integer,
+  Boolean,
   Function,
 };
 

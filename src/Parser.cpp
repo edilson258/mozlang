@@ -66,9 +66,9 @@ FunctionStatement *Parser::ParseFunctionStatement()
   auto *identifier = new IdentifierExpression(CurrentToken);
   Bump(); // eat function's name
 
-  std::vector<FunctionParam> params = ParseFunctionStatementParams();
-  TypeAnnotation returnType         = ParseFunctionStatementReturnType();
-  BlockStatement body               = ParseBlockStatement();
+  auto params               = ParseFunctionStatementParams();
+  TypeAnnotation returnType = ParseFunctionStatementReturnType();
+  BlockStatement body       = ParseBlockStatement();
 
   loc.End = body.Loc.End;
   return new FunctionStatement(loc, identifier, body, returnType, params);
@@ -138,7 +138,7 @@ std::vector<FunctionParam> Parser::ParseFunctionStatementParams()
     params.push_back(FunctionParam(loc, identifier, type));
   }
 
-  Bump();
+  Bump(); // eat `)`
 
   return params;
 }
@@ -227,6 +227,14 @@ Expression *Parser::ParseExpressionStatement(Precedence precedence)
   else if (TokenType::Integer == CurrentToken.Type)
   {
     leftHandSide = new IntegerExpression(CurrentToken);
+  }
+  else if (TokenType::True == CurrentToken.Type)
+  {
+    leftHandSide = new BooleanExpression(CurrentToken, true);
+  }
+  else if (TokenType::False == CurrentToken.Type)
+  {
+    leftHandSide = new BooleanExpression(CurrentToken, false);
   }
   else
   {
@@ -340,6 +348,12 @@ TypeAnnotation Parser::ParseTypeAnnotation()
   if (TokenType::TypeVoid == CurrentToken.Type)
   {
     auto typeAnnotation = TypeAnnotation(new Type(BaseType::Void), CurrentToken);
+    return typeAnnotation;
+  }
+
+  if (TokenType::TypeBool == CurrentToken.Type)
+  {
+    auto typeAnnotation = TypeAnnotation(new Type(BaseType::Boolean), CurrentToken);
     return typeAnnotation;
   }
 

@@ -28,4 +28,6 @@ void *IntegerExpression::accept(AstVisitor *visitor) { return visitor->visit(thi
 std::string IntegerExpression::GetRawValue() const { return Lexeme.Data; }
 long long IntegerExpression::GetValue() const { return std::stoll(Lexeme.Data); }
 
+void *BooleanExpression::accept(AstVisitor *visitor) { return visitor->visit(this); }
+
 void *CallExpression::accept(AstVisitor *visitor) { return visitor->visit(this); }

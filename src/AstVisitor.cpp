@@ -105,3 +105,9 @@ void *AstInspector::visit(IntegerExpression *integer)
   Write(std::format("Integer: {}", integer->GetValue()));
   return 0;
 }
+
+void *AstInspector::visit(BooleanExpression *boolean)
+{
+  Write(std::format("Boolean: {}", boolean->Value));
+  return 0;
+}

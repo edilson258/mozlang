@@ -28,6 +28,7 @@ public:
   void *visit(IdentifierExpression *) override;
   void *visit(StringExpression *) override;
   void *visit(IntegerExpression *) override;
+  void *visit(BooleanExpression *) override;
 
   llvm::Module *Generate();
 
