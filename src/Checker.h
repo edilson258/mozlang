@@ -54,7 +54,7 @@ enum class ObjectSource
 class Object
 {
 public:
-  class Type *Type;
+  Type *Type;
   ObjectSource Source;
   Location Loc;
   bool IsUsed;
@@ -105,4 +105,5 @@ private:
   void *visit(IdentifierExpression *) override;
   void *visit(StringExpression *) override;
   void *visit(IntegerExpression *) override;
+  void *visit(BooleanExpression *) override;
 };

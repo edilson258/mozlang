@@ -36,7 +36,12 @@ std::string Token::ToString()
   case TokenType::TypeInt:
   case TokenType::TypeStr:
   case TokenType::TypeVoid:
+  case TokenType::TypeBool:
     oss << "Type: " << Data;
+    break;
+  case TokenType::True:
+  case TokenType::False:
+    oss << "Boolean: " << Data;
     break;
   }
 

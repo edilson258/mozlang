@@ -10,6 +10,7 @@ class CallExpression;
 class IdentifierExpression;
 class StringExpression;
 class IntegerExpression;
+class BooleanExpression;
 
 class AstVisitor
 {
@@ -21,6 +22,7 @@ public:
   virtual void *visit(IdentifierExpression *) = 0;
   virtual void *visit(StringExpression *)     = 0;
   virtual void *visit(IntegerExpression *)    = 0;
+  virtual void *visit(BooleanExpression *)    = 0;
 
   virtual ~AstVisitor() = default;
 };
@@ -35,6 +37,7 @@ public:
   void *visit(IdentifierExpression *) override;
   void *visit(StringExpression *) override;
   void *visit(IntegerExpression *) override;
+  void *visit(BooleanExpression *) override;
 
   AstInspector() : TabSize(0), TabRate(4) {};
 

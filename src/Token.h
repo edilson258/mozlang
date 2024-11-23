@@ -12,9 +12,13 @@ enum class TokenType
   Fn,
   Return,
 
+  True,
+  False,
+
   TypeInt,
   TypeStr,
   TypeVoid,
+  TypeBool,
 
   // Literals
   String,

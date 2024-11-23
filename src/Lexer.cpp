@@ -163,6 +163,21 @@ Token Lexer::GetNextToken()
       return Token(TokenType::TypeVoid, identifierLoc, identifierLabel);
     }
 
+    if ("bool" == identifierLabel)
+    {
+      return Token(TokenType::TypeBool, identifierLoc, identifierLabel);
+    }
+
+    if ("true" == identifierLabel)
+    {
+      return Token(TokenType::True, identifierLoc, identifierLabel);
+    }
+
+    if ("false" == identifierLabel)
+    {
+      return Token(TokenType::False, identifierLoc, identifierLabel);
+    }
+
     return Token(TokenType::Identifier, identifierLoc, identifierLabel);
   }
 

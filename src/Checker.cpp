@@ -362,3 +362,8 @@ void *Checker::visit(IntegerExpression *intExpr)
 {
   return new Object(new Type(BaseType::Integer), ObjectSource::Expession, intExpr->Loc);
 }
+
+void *Checker::visit(BooleanExpression *boolExpr)
+{
+  return new Object(new Type(BaseType::Boolean), ObjectSource::Expession, boolExpr->Loc);
+}
