@@ -99,7 +99,6 @@ void Checker::ValidateEntryPoint()
 
   if (BaseType::Function != main->Type->Base)
   {
-
     std::cerr << "[ERROR]: `main` must be callable\n";
     return;
   }
@@ -108,13 +107,11 @@ void Checker::ValidateEntryPoint()
 
   if (BaseType::Integer != mainFnType->ReturnType.Base)
   {
-
     std::cerr << "[ERROR]: `main` must return `int`\n";
   }
 
   if (mainFnType->IsVarArgs || mainFnType->ParamTypes.size() != 0)
   {
-
     std::cerr << "[ERROR]: `main` cannot accept any argument\n";
   }
 }
@@ -180,9 +177,12 @@ void *Checker::visit(FunctionStatement *fnStmt)
     {
       returnedSomething = true;
 
-      if (*fnStmt->ReturnType.Type != *result->Type)
+      if (BaseType::Void == fnStmt->ReturnType.Type->Base)
       {
-
+        Diagnostic.PushErr(ErrorCode::TypesNoMatch, "Cannot return a value from a void function.", result->Loc);
+      }
+      else if (*fnStmt->ReturnType.Type != *result->Type)
+      {
         Diagnostic.PushErr(ErrorCode::TypesNoMatch,
                            std::format("Function '{}' expects value of type '{}' but returned value of type '{}'",
                                        fnStmt->Identifier->GetValue(), fnStmt->ReturnType.Type->ToString(),
@@ -222,6 +222,7 @@ void *Checker::visit(ReturnStatement *retStmt)
   }
   Object *value = static_cast<Object *>(x);
   value->Source = ObjectSource::ReturnValue;
+  value->Loc    = retStmt->Loc;
   return value;
 }
 
@@ -234,7 +235,6 @@ void *Checker::visit(BlockStatement *blockStmt)
     Statement *stmt = blockStmt->Statements.at(i);
     if (stmt->Type == AstNodeType::ReturnStatement && ((blockStmt->Statements.size() - i - 1) > 0))
     {
-
       Location loc = blockStmt->Statements.at(i + 1)->Loc;
       loc.End      = blockStmt->Loc.End - 1;
       Diagnostic.PushErr(ErrorCode::DeadCode, "Unreachable code detected.", loc);
