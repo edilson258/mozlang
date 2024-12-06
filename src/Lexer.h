@@ -11,8 +11,8 @@ public:
   const std::filesystem::path FilePath;
   const std::string &FileContent;
 
-  Lexer(std::filesystem::path filePath, std::string &fileContent, DiagnosticEngine &diagnostic)
-      : FilePath(filePath), FileContent(fileContent), Diagnostic(diagnostic)
+  Lexer(std::filesystem::path &filePath, std::string &fileContent)
+      : FilePath(filePath), FileContent(fileContent), Diagnostic(DiagnosticEngine(filePath, fileContent))
   {
     Cursor     = 0;
     Line       = 1;
@@ -23,7 +23,7 @@ public:
   Token GetNextToken();
 
 private:
-  DiagnosticEngine &Diagnostic;
+  DiagnosticEngine Diagnostic;
 
   unsigned long Cursor;
   unsigned long Line;

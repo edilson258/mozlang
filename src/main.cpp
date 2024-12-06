@@ -1,6 +1,5 @@
 ﻿#include "Checker.h"
 #include "CodeGen.h"
-#include "DiagnosticEngine.h"
 #include "ExecutableBuilder.h"
 #include "Lexer.h"
 #include "Parser.h"
@@ -22,41 +21,29 @@ int main(int argc, char *argv[])
     std::cerr << "[ERROR] No input file provided\n";
     return 1;
   }
-
-  std::filesystem::path sourceFilePath = argv[1];
-  std::string sourceFileContent        = readFile(sourceFilePath);
-
-  DiagnosticEngine diagnostic(sourceFilePath, sourceFileContent);
-
-  Lexer lexer(sourceFilePath, sourceFileContent, diagnostic);
-  Parser parser(lexer, diagnostic);
-
+  std::filesystem::path filePath = argv[1];
+  std::string fileContent        = readFile(filePath);
+  Lexer lexer(filePath, fileContent);
+  Parser parser(lexer, filePath, fileContent);
   AST ast = parser.Parse();
-
   // std::cout << ast.ToStrng() << std::endl;
-
-  Checker c(diagnostic);
-  c.Check(ast);
-
-  CodeGen gen(ast, sourceFilePath);
+  Checker checker(filePath, fileContent);
+  checker.Check(ast);
+  CodeGen gen(ast, filePath);
   llvm::Module *module = gen.Generate();
-
   // llvm::outs() << *module;
   ExecutableBuilder::Build(module);
-
   return 0;
 }
 
 std::string readFile(std::filesystem::path path)
 {
   std::ifstream file(path);
-
   if (!file.is_open())
   {
     std::cerr << "Coudn't open source file" << std::endl;
     abort();
   }
-
   std::ostringstream oss;
   oss << file.rdbuf();
   return oss.str();

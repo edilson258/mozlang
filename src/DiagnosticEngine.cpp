@@ -6,17 +6,18 @@
 #include <sstream>
 #include <string>
 
-void DiagnosticEngine::Error(ErrorCode code, std::string message, Location loc)
+[[noreturn]] void DiagnosticEngine::ErrorAndExit(ErrorCode code, std::string message, Location loc)
 {
-  std::cerr << HandleErr(code, message, loc);
+  std::cerr << HandleError(code, message, loc);
+  std::exit(1);
 }
 
-void DiagnosticEngine::PushErr(ErrorCode code, std::string message, Location loc)
+void DiagnosticEngine::PushError(ErrorCode code, std::string message, Location loc)
 {
-  Errors.push_back(HandleErr(code, message, loc));
+  Errors.push_back(HandleError(code, message, loc));
 }
 
-std::string DiagnosticEngine::HandleErr(ErrorCode code, std::string message, Location loc)
+std::string DiagnosticEngine::HandleError(ErrorCode code, std::string message, Location loc)
 {
   std::ostringstream oss;
   oss << Painter::Paint(FilePath, Color::Cyan) << ":" << loc.Line << ":" << loc.Column << " ";

@@ -6,61 +6,29 @@
 #include "Location.h"
 #include "TypeSystem.h"
 
+#include <filesystem>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-/**
- *  Tell us how an object/value was created.
- *
- */
 enum class ObjectSource
 {
-  // The object is a result of a return statement
-  //
-  // Example:
-  //
-  //    fn main(): int {
-  //      ...
-  //      return 69; // The integer `69` has `ReturnValue` source.
-  //      ---------
-  //    }
-  //
   ReturnValue,
-
-  // The object is a result of
-  //
-  //    literal expression
-  //    binary expression
-  //    ...
-  //
   Expession,
-
-  // The object was returned by a function call expression
-  //
-  FunctionCallResult,
-
-  // The object was declared by the user
-  //
-  //    Function declaration,
-  //    Variable declaration,
-  //    ...
-  //
   Declaration,
-
   Parameter,
+  CallResult,
 };
 
 class Object
 {
 public:
-  Type *Type;
+  Type *Typ;
   ObjectSource Source;
+  bool IsUsed = false;
   Location Loc;
-  bool IsUsed;
 
-  Object(class Type *type, ObjectSource objectSource, Location loc, bool isUsed = false)
-      : Type(type), Source(objectSource), Loc(loc), IsUsed(isUsed) {};
+  Object(Type *type, ObjectSource source, Location loc) : Typ(type), Source(source), Loc(loc) {};
 };
 
 enum class ScopeType
@@ -81,12 +49,13 @@ public:
 class Checker : AstVisitor
 {
 public:
-  Checker(DiagnosticEngine &diagnostic) : Diagnostic(diagnostic) {};
+  Checker(std::filesystem::path &filePath, std::string &fileContent)
+      : Diagnostic(DiagnosticEngine(filePath, fileContent)) {};
 
   void Check(AST &ast);
 
 private:
-  DiagnosticEngine &Diagnostic;
+  DiagnosticEngine Diagnostic;
 
   std::vector<Scope *> Scopes;
 
