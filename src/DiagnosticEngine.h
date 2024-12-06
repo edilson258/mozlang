@@ -36,9 +36,9 @@ public:
   DiagnosticEngine(std::filesystem::path &filePath, std::string &fileContent)
       : Errors(), FilePath(filePath), FileContent(fileContent) {};
 
-  void Error(ErrorCode, std::string, Location);
-  void PushErr(ErrorCode, std::string, Location);
-  std::string HandleErr(ErrorCode, std::string, Location);
+  void PushError(ErrorCode, std::string, Location);
+  [[noreturn]] void ErrorAndExit(ErrorCode, std::string, Location);
+  std::string HandleError(ErrorCode, std::string, Location);
 
 private:
   const std::filesystem::path &FilePath;

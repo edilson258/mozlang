@@ -5,6 +5,7 @@
 #include "Lexer.h"
 #include "Token.h"
 
+#include <filesystem>
 #include <vector>
 
 enum class Precedence
@@ -20,10 +21,11 @@ public:
 
   AST Parse();
 
-  Parser(Lexer &lex, DiagnosticEngine &diagnostic) : lexer(lex), Diagnostic(diagnostic) {};
+  Parser(Lexer &lex, std::filesystem::path &filePath, std::string &fileContent)
+      : lexer(lex), Diagnostic(DiagnosticEngine(filePath, fileContent)) {};
 
 private:
-  DiagnosticEngine &Diagnostic;
+  DiagnosticEngine Diagnostic;
 
   Token CurrentToken;
   Token NextToken;

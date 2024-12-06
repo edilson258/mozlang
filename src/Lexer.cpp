@@ -74,9 +74,8 @@ Token Lexer::MakeStringToken()
   {
     if (IsEof() || PeekOne() == '\n')
     {
-      Diagnostic.Error(ErrorCode::UnquotedString, "Unquoted string literal",
-                       Location(Line - 1, stringBeginColumn, stringBeginIndex - 1, Cursor));
-      std::exit(1);
+      Diagnostic.ErrorAndExit(ErrorCode::UnquotedString, "Unquoted string literal",
+                              Location(Line - 1, stringBeginColumn, stringBeginIndex - 1, Cursor));
     }
 
     if (PeekOne() == '"')
@@ -196,7 +195,6 @@ Token Lexer::GetNextToken()
     return Token(TokenType::Integer, intLoc, intRaw);
   }
 
-  Diagnostic.Error(ErrorCode::UnknownToken, std::format("Unknown token '{}'", currentChar),
-                   Location(Line, Column, Cursor, Cursor));
-  std::exit(1);
+  Diagnostic.ErrorAndExit(ErrorCode::UnknownToken, std::format("Unknown token '{}'", currentChar),
+                          Location(Line, Column, Cursor, Cursor));
 }
