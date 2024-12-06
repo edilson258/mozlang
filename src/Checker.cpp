@@ -135,7 +135,7 @@ void *Checker::visit(FunctionStatement *fnStmt)
   {
     if (BaseType::Void == param.TypeAnnotation.Type->Base)
     {
-      Diagnostic.PushError(ErrorCode::InvalidTypeAnnotation, "Parameter can't be of type void.", param.Loc);
+      Diagnostic.PushError(ErrorCode::InvalidType, "Parameter can't be of type void.", param.Loc);
     }
     paramTypes.push_back(*param.TypeAnnotation.Type);
   }
@@ -149,7 +149,7 @@ void *Checker::visit(FunctionStatement *fnStmt)
   {
     if (GetCurrentScope()->Store.find(param.Identifier->GetValue()) != GetCurrentScope()->Store.end())
     {
-      Diagnostic.PushError(ErrorCode::DuplicatedParamName, "Parameter name is already used.", param.Identifier->Loc);
+      Diagnostic.PushError(ErrorCode::NameAlreadyBound, "Parameter name is already used.", param.Identifier->Loc);
     }
     GetCurrentScope()->Store[param.Identifier->GetValue()] =
         new Object(param.TypeAnnotation.Type, ObjectSource::Parameter, param.Identifier->Loc);
@@ -198,7 +198,7 @@ void *Checker::visit(FunctionStatement *fnStmt)
     }
     else
     {
-      Diagnostic.PushError(ErrorCode::MissingValue, "Non-void function does not return value.", fnStmt->Loc);
+      Diagnostic.PushError(ErrorCode::MissingReturnValue, "Non-void function does not return value.", fnStmt->Loc);
     }
   }
 

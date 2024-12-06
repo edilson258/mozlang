@@ -6,6 +6,7 @@
 #include "TypeSystem.h"
 
 #include <cstdlib>
+#include <format>
 #include <string>
 #include <vector>
 
@@ -38,7 +39,8 @@ Location Parser::BumpExpect(TokenType expected, std::string message)
   {
     return Bump();
   }
-  Diagnostic.ErrorAndExit(ErrorCode::UnexpectedToken, message, CurrentToken.Loc);
+  Diagnostic.ErrorAndExit(ErrorCode::UnexpectedToken, std::format("{} but got '{}'.", message, CurrentToken.Data),
+                          CurrentToken.Loc);
 }
 
 Statement *Parser::ParseStatement()
@@ -52,7 +54,7 @@ Statement *Parser::ParseStatement()
   default:
   {
     Expression *expression = ParseExpressionStatement(Precedence::Lowest);
-    BumpExpect(TokenType::Semicolon, "Expressions must end with ';'.");
+    BumpExpect(TokenType::Semicolon, "Expressions must end with ';'");
     return expression;
   }
   }
@@ -80,7 +82,7 @@ FunctionParam Parser::ParseFunctionStatementParam()
 
 std::vector<FunctionParam> Parser::ParseFunctionStatementParams()
 {
-  BumpExpect(TokenType::LeftParent, "Expect '(' after function's name.");
+  BumpExpect(TokenType::LeftParent, "Expect '(' after function's name");
 
   if (TokenType::RightParent == CurrentToken.Type)
   {
@@ -97,7 +99,7 @@ std::vector<FunctionParam> Parser::ParseFunctionStatementParams()
     {
       Diagnostic.ErrorAndExit(ErrorCode::UnexpectedToken, "Unexpected EOF.", CurrentToken.Loc);
     }
-    BumpExpect(TokenType::Comma, "Expect `)` or `,` to separate function's params.");
+    BumpExpect(TokenType::Comma, "Expect `)` or `,` to separate function's params");
     params.push_back(ParseFunctionStatementParam());
   }
 
@@ -123,13 +125,13 @@ ReturnStatement *Parser::ParseReturnStatement()
     return new ReturnStatement(location);
   }
   Expression *value = ParseExpressionStatement(Precedence::Lowest);
-  location.End      = BumpExpect(TokenType::Semicolon, "Expressions must end with ';'.").End;
+  location.End      = BumpExpect(TokenType::Semicolon, "Expressions must end with ';'").End;
   return new ReturnStatement(location, value);
 }
 
 BlockStatement Parser::ParseBlockStatement()
 {
-  Location location = BumpExpect(TokenType::LeftBrace, "Expect '{' to open block.");
+  Location location = BumpExpect(TokenType::LeftBrace, "Expect '{' to open block");
   std::vector<Statement *> block;
   while (1)
   {
@@ -209,7 +211,7 @@ CallExpressionArgs Parser::ParseCallExpressionArgs()
     {
       Diagnostic.ErrorAndExit(ErrorCode::UnexpectedToken, "Unexpected EOF.", CurrentToken.Loc);
     }
-    BumpExpect(TokenType::Comma, "Expect `)` or `,` to separate function's arguments.");
+    BumpExpect(TokenType::Comma, "Expect `)` or `,` to separate function's arguments");
     args.push_back(ParseExpressionStatement(Precedence::Lowest));
   }
   location.End = Bump().End;
@@ -219,7 +221,7 @@ CallExpressionArgs Parser::ParseCallExpressionArgs()
 IdentifierExpression *Parser::ParseIdentifierExpression()
 {
   auto *identifier = new IdentifierExpression(CurrentToken);
-  BumpExpect(TokenType::Identifier, "Expect an identifier.");
+  BumpExpect(TokenType::Identifier, "Expect an identifier");
   return identifier;
 }
 
@@ -238,7 +240,7 @@ Precedence Parser::GetCurrentTokenPrecedence() { return TokenToPrecedence(Curren
 
 TypeAnnotation Parser::ParseTypeAnnotation()
 {
-  BumpExpect(TokenType::Colon, "Expect ':' before type specifier.");
+  BumpExpect(TokenType::Colon, "Expect ':' before type specifier");
   switch (CurrentToken.Type)
   {
   case TokenType::TypeInt:
@@ -254,6 +256,7 @@ TypeAnnotation Parser::ParseTypeAnnotation()
     Bump();
     return TypeAnnotation(new Type(BaseType::Boolean));
   default:
-    Diagnostic.ErrorAndExit(ErrorCode::UnexpectedToken, "Invalid type annotation", CurrentToken.Loc);
+    Diagnostic.ErrorAndExit(ErrorCode::UnexpectedToken, std::format("Invalid type annotation '{}'.", CurrentToken.Data),
+                            CurrentToken.Loc);
   }
 }

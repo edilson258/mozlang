@@ -195,6 +195,6 @@ Token Lexer::GetNextToken()
     return Token(TokenType::Integer, intLoc, intRaw);
   }
 
-  Diagnostic.ErrorAndExit(ErrorCode::UnknownToken, std::format("Unknown token '{}'", currentChar),
+  Diagnostic.ErrorAndExit(ErrorCode::UnexpectedToken, std::format("Unknown token '{}'", currentChar),
                           Location(Line, Column, Cursor, Cursor));
 }
