@@ -7,6 +7,7 @@
 #include "Token.h"
 
 #include <filesystem>
+#include <string>
 #include <vector>
 
 enum class Precedence
@@ -32,6 +33,7 @@ private:
   Token NextToken;
 
   Location Bump();
+  Location BumpExpect(TokenType, std::string);
 
   Precedence TokenToPrecedence(Token &);
   Precedence GetCurrentTokenPrecedence();
@@ -43,10 +45,12 @@ private:
   Expression *ParseExpressionStatement(Precedence);
   CallExpression *ParseCallExpression(Expression *);
   ReturnStatement *ParseReturnStatement();
+  IdentifierExpression *ParseIdentifierExpression();
 
   // Helpers
   TypeAnnotation ParseTypeAnnotation();
   TypeAnnotation ParseFunctionStatementReturnType();
   CallExpressionArgs ParseCallExpressionArgs();
+  FunctionParam ParseFunctionStatementParam();
   std::vector<FunctionParam> ParseFunctionStatementParams();
 };

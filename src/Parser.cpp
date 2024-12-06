@@ -32,56 +32,56 @@ Location Parser::Bump()
   return currTokenLoc;
 }
 
+Location Parser::BumpExpect(TokenType expected, std::string message)
+{
+  if (CurrentToken.Type == expected)
+  {
+    return Bump();
+  }
+  Diagnostic.ErrorAndExit(ErrorCode::UnexpectedToken, message, CurrentToken.Loc);
+}
+
 Statement *Parser::ParseStatement()
 {
-  if (TokenType::Fn == CurrentToken.Type)
+  switch (CurrentToken.Type)
   {
+  case TokenType::Fn:
     return ParseFunctionStatement();
-  }
-
-  if (TokenType::Return == CurrentToken.Type)
-  {
+  case TokenType::Return:
     return ParseReturnStatement();
-  }
-
-  Expression *expression = ParseExpressionStatement(Precedence::Lowest);
-  if (TokenType::Semicolon != CurrentToken.Type)
+  default:
   {
-    Diagnostic.ErrorAndExit(ErrorCode::UnexpectedToken, "Expressions must end with ';'.", expression->Loc);
+    Expression *expression = ParseExpressionStatement(Precedence::Lowest);
+    BumpExpect(TokenType::Semicolon, "Expressions must end with ';'.");
+    return expression;
   }
-  Bump();
-  return expression;
+  }
 }
 
 FunctionStatement *Parser::ParseFunctionStatement()
 {
-  Location loc = Bump();
+  Location location = Bump();
+  auto *identifier  = ParseIdentifierExpression();
+  auto params       = ParseFunctionStatementParams();
+  auto returnType   = ParseFunctionStatementReturnType();
+  auto body         = ParseBlockStatement();
+  location.End      = body.Loc.End;
+  return new FunctionStatement(location, identifier, body, returnType, params);
+}
 
-  if (CurrentToken.Type != TokenType::Identifier)
-  {
-    Diagnostic.ErrorAndExit(ErrorCode::UnexpectedToken, "Expect function's name after 'fn' keyword.", CurrentToken.Loc);
-  }
-
-  auto *identifier = new IdentifierExpression(CurrentToken);
-  Bump(); // eat function's name
-
-  auto params               = ParseFunctionStatementParams();
-  TypeAnnotation returnType = ParseFunctionStatementReturnType();
-  BlockStatement body       = ParseBlockStatement();
-
-  loc.End = body.Loc.End;
-  return new FunctionStatement(loc, identifier, body, returnType, params);
+FunctionParam Parser::ParseFunctionStatementParam()
+{
+  Location location                = CurrentToken.Loc;
+  IdentifierExpression *identifier = ParseIdentifierExpression();
+  TypeAnnotation type              = ParseTypeAnnotation();
+  location.End                     = type.Lexeme->Loc.End;
+  return FunctionParam(location, identifier, type);
 }
 
 std::vector<FunctionParam> Parser::ParseFunctionStatementParams()
 {
-  if (TokenType::LeftParent != CurrentToken.Type)
-  {
-    Diagnostic.ErrorAndExit(ErrorCode::UnexpectedToken, "Expect '(' after function's name.", CurrentToken.Loc);
-  }
-  Bump();
+  BumpExpect(TokenType::LeftParent, "Expect '(' after function's name.");
 
-  // case 1: ()
   if (TokenType::RightParent == CurrentToken.Type)
   {
     Bump();
@@ -89,49 +89,19 @@ std::vector<FunctionParam> Parser::ParseFunctionStatementParams()
   }
 
   std::vector<FunctionParam> params;
+  params.push_back(ParseFunctionStatementParam());
 
-  // case 2: (x: int)
-  if (TokenType::Identifier != CurrentToken.Type)
-  {
-    Diagnostic.ErrorAndExit(ErrorCode::UnexpectedToken, "Invalid parameter's name.", CurrentToken.Loc);
-  }
-  Location loc     = CurrentToken.Loc;
-  auto *identifier = new IdentifierExpression(CurrentToken);
-  Bump();
-  TypeAnnotation type = ParseTypeAnnotation();
-  loc.End             = Bump().End;
-  params.push_back(FunctionParam(loc, identifier, type));
-
-  // case 3: (x: int, y: str, ...)
   while (TokenType::RightParent != CurrentToken.Type)
   {
     if (TokenType::Eof == CurrentToken.Type)
     {
       Diagnostic.ErrorAndExit(ErrorCode::UnexpectedToken, "Unexpected EOF.", CurrentToken.Loc);
     }
-
-    if (TokenType::Comma != CurrentToken.Type)
-    {
-      Diagnostic.ErrorAndExit(ErrorCode::UnexpectedToken, "Expect `)` or `,` to separate function's params.",
-                              CurrentToken.Loc);
-    }
-
-    Bump(); // eat `,`
-
-    if (TokenType::Identifier != CurrentToken.Type)
-    {
-      Diagnostic.ErrorAndExit(ErrorCode::UnexpectedToken, "Invalid parameter's name.", CurrentToken.Loc);
-    }
-    loc        = CurrentToken.Loc;
-    identifier = new IdentifierExpression(CurrentToken);
-    Bump();
-    type    = ParseTypeAnnotation();
-    loc.End = Bump().End;
-    params.push_back(FunctionParam(loc, identifier, type));
+    BumpExpect(TokenType::Comma, "Expect `)` or `,` to separate function's params.");
+    params.push_back(ParseFunctionStatementParam());
   }
 
-  Bump(); // eat `)`
-
+  Bump();
   return params;
 }
 
@@ -141,92 +111,66 @@ TypeAnnotation Parser::ParseFunctionStatementReturnType()
   {
     return TypeAnnotation(new Type(BaseType::Void));
   }
-
-  TypeAnnotation type = ParseTypeAnnotation();
-  Bump();
-  return type;
+  return ParseTypeAnnotation();
 }
 
 ReturnStatement *Parser::ParseReturnStatement()
 {
-  Location loc = Bump();
-
+  Location location = Bump();
   if (TokenType::Semicolon == CurrentToken.Type)
   {
-    loc.End = Bump().End;
-    return new ReturnStatement(loc);
+    location.End = Bump().End;
+    return new ReturnStatement(location);
   }
-
   Expression *value = ParseExpressionStatement(Precedence::Lowest);
-  if (TokenType::Semicolon != CurrentToken.Type)
-  {
-    Diagnostic.ErrorAndExit(ErrorCode::UnexpectedToken, "Expressions must end with ';'.", CurrentToken.Loc);
-  }
-  loc.End = Bump().End;
-  return new ReturnStatement(loc, value);
+  location.End      = BumpExpect(TokenType::Semicolon, "Expressions must end with ';'.").End;
+  return new ReturnStatement(location, value);
 }
 
 BlockStatement Parser::ParseBlockStatement()
 {
-  if (TokenType::LeftBrace != CurrentToken.Type)
-  {
-    Diagnostic.ErrorAndExit(ErrorCode::UnexpectedToken, "Expect '{' to open block.", CurrentToken.Loc);
-  }
-  Location loc = Bump();
-
+  Location location = BumpExpect(TokenType::LeftBrace, "Expect '{' to open block.");
   std::vector<Statement *> block;
-
   while (1)
   {
     if (CurrentToken.Type == TokenType::Eof)
     {
       Diagnostic.ErrorAndExit(ErrorCode::UnexpectedToken, "Unexpected EOF.", CurrentToken.Loc);
     }
-
     if (CurrentToken.Type == TokenType::RightBrace)
     {
       break;
     }
-
     block.push_back(ParseStatement());
   }
-
-  loc.End = Bump().End;
-
-  return BlockStatement(loc, block);
+  location.End = Bump().End;
+  return BlockStatement(location, block);
 }
 
 Expression *Parser::ParseExpressionStatement(Precedence precedence)
 {
   Expression *leftHandSide;
-
-  if (CurrentToken.Type == TokenType::Identifier)
+  switch (CurrentToken.Type)
   {
+  case TokenType::Identifier:
     leftHandSide = new IdentifierExpression(CurrentToken);
-  }
-  else if (CurrentToken.Type == TokenType::String)
-  {
+    break;
+  case TokenType::String:
     leftHandSide = new StringExpression(CurrentToken);
-  }
-  else if (TokenType::Integer == CurrentToken.Type)
-  {
+    break;
+  case TokenType::Integer:
     leftHandSide = new IntegerExpression(CurrentToken);
-  }
-  else if (TokenType::True == CurrentToken.Type)
-  {
+    break;
+  case TokenType::True:
     leftHandSide = new BooleanExpression(CurrentToken, true);
-  }
-  else if (TokenType::False == CurrentToken.Type)
-  {
+    break;
+  case TokenType::False:
     leftHandSide = new BooleanExpression(CurrentToken, false);
-  }
-  else
-  {
+    break;
+  default:
     Diagnostic.ErrorAndExit(ErrorCode::UnexpectedToken, "Unexpected expression.", CurrentToken.Loc);
   }
-
   Bump();
-
   while ((TokenType::Eof != CurrentToken.Type) && (precedence < GetCurrentTokenPrecedence()))
   {
     switch (CurrentToken.Type)
@@ -238,55 +182,45 @@ Expression *Parser::ParseExpressionStatement(Precedence precedence)
       return leftHandSide;
     }
   }
-
   return leftHandSide;
 }
 
 CallExpression *Parser::ParseCallExpression(Expression *callee)
 {
   CallExpressionArgs args = ParseCallExpressionArgs();
-  Location loc            = callee->Loc;
-  loc.End                 = args.Loc.End;
-  return new CallExpression(loc, callee, args);
+  Location location       = callee->Loc;
+  location.End            = args.Loc.End;
+  return new CallExpression(location, callee, args);
 }
 
 CallExpressionArgs Parser::ParseCallExpressionArgs()
 {
-  Location loc = Bump();
-
-  // case 1: ()
+  Location location = Bump();
   if (TokenType::RightParent == CurrentToken.Type)
   {
-    loc.End = Bump().End;
-    return CallExpressionArgs(loc, {});
+    location.End = Bump().End;
+    return CallExpressionArgs(location, {});
   }
-
   std::vector<Expression *> args;
-
-  // case 2: (x)
   args.push_back(ParseExpressionStatement(Precedence::Lowest));
-
-  // case 3: (x, y, ...)
   while (TokenType::RightParent != CurrentToken.Type)
   {
     if (TokenType::Eof == CurrentToken.Type)
     {
       Diagnostic.ErrorAndExit(ErrorCode::UnexpectedToken, "Unexpected EOF.", CurrentToken.Loc);
     }
-
-    if (TokenType::Comma != CurrentToken.Type)
-    {
-      Diagnostic.ErrorAndExit(ErrorCode::UnexpectedToken, "Expect `)` or `,` to separate function's arguments.",
-                              CurrentToken.Loc);
-    }
-
-    Bump(); // eat `,`
+    BumpExpect(TokenType::Comma, "Expect `)` or `,` to separate function's arguments.");
     args.push_back(ParseExpressionStatement(Precedence::Lowest));
   }
+  location.End = Bump().End;
+  return CallExpressionArgs(location, args);
+}
 
-  loc.End = Bump().End;
-
-  return CallExpressionArgs(loc, args);
+IdentifierExpression *Parser::ParseIdentifierExpression()
+{
+  auto *identifier = new IdentifierExpression(CurrentToken);
+  BumpExpect(TokenType::Identifier, "Expect an identifier.");
+  return identifier;
 }
 
 Precedence Parser::TokenToPrecedence(Token &t)
@@ -304,35 +238,22 @@ Precedence Parser::GetCurrentTokenPrecedence() { return TokenToPrecedence(Curren
 
 TypeAnnotation Parser::ParseTypeAnnotation()
 {
-  if (TokenType::Colon != CurrentToken.Type)
+  BumpExpect(TokenType::Colon, "Expect ':' before type specifier.");
+  switch (CurrentToken.Type)
   {
-    Diagnostic.ErrorAndExit(ErrorCode::UnexpectedToken, "Expect ':' before type specifier.", CurrentToken.Loc);
+  case TokenType::TypeInt:
+    Bump();
+    return TypeAnnotation(new Type(BaseType::Integer));
+  case TokenType::TypeStr:
+    Bump();
+    return TypeAnnotation(new Type(BaseType::String));
+  case TokenType::TypeVoid:
+    Bump();
+    return TypeAnnotation(new Type(BaseType::Void));
+  case TokenType::TypeBool:
+    Bump();
+    return TypeAnnotation(new Type(BaseType::Boolean));
+  default:
+    Diagnostic.ErrorAndExit(ErrorCode::UnexpectedToken, "Invalid type annotation", CurrentToken.Loc);
   }
-  Bump();
-
-  if (TokenType::TypeInt == CurrentToken.Type)
-  {
-    auto typeAnnotation = TypeAnnotation(new Type(BaseType::Integer), CurrentToken);
-    return typeAnnotation;
-  }
-
-  if (TokenType::TypeStr == CurrentToken.Type)
-  {
-    auto typeAnnotation = TypeAnnotation(new Type(BaseType::String), CurrentToken);
-    return typeAnnotation;
-  }
-
-  if (TokenType::TypeVoid == CurrentToken.Type)
-  {
-    auto typeAnnotation = TypeAnnotation(new Type(BaseType::Void), CurrentToken);
-    return typeAnnotation;
-  }
-
-  if (TokenType::TypeBool == CurrentToken.Type)
-  {
-    auto typeAnnotation = TypeAnnotation(new Type(BaseType::Boolean), CurrentToken);
-    return typeAnnotation;
-  }
-
-  Diagnostic.ErrorAndExit(ErrorCode::UnexpectedToken, "Invalid type annotation", CurrentToken.Loc);
 }
