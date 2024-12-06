@@ -24,10 +24,12 @@ AST Parser::Parse()
   return ast;
 }
 
-void Parser::Bump()
+Location Parser::Bump()
 {
-  CurrentToken = NextToken;
-  NextToken    = lexer.GetNextToken();
+  Location currTokenLoc = CurrentToken.Loc;
+  CurrentToken          = NextToken;
+  NextToken             = lexer.GetNextToken();
+  return currTokenLoc;
 }
 
 Statement *Parser::ParseStatement()
@@ -53,8 +55,7 @@ Statement *Parser::ParseStatement()
 
 FunctionStatement *Parser::ParseFunctionStatement()
 {
-  Location loc = CurrentToken.Loc;
-  Bump(); // eat 'fn'
+  Location loc = Bump();
 
   if (CurrentToken.Type != TokenType::Identifier)
   {
@@ -98,8 +99,7 @@ std::vector<FunctionParam> Parser::ParseFunctionStatementParams()
   auto *identifier = new IdentifierExpression(CurrentToken);
   Bump();
   TypeAnnotation type = ParseTypeAnnotation();
-  loc.End             = CurrentToken.Loc.End;
-  Bump();
+  loc.End             = Bump().End;
   params.push_back(FunctionParam(loc, identifier, type));
 
   // case 3: (x: int, y: str, ...)
@@ -126,8 +126,7 @@ std::vector<FunctionParam> Parser::ParseFunctionStatementParams()
     identifier = new IdentifierExpression(CurrentToken);
     Bump();
     type    = ParseTypeAnnotation();
-    loc.End = CurrentToken.Loc.End;
-    Bump();
+    loc.End = Bump().End;
     params.push_back(FunctionParam(loc, identifier, type));
   }
 
@@ -150,13 +149,11 @@ TypeAnnotation Parser::ParseFunctionStatementReturnType()
 
 ReturnStatement *Parser::ParseReturnStatement()
 {
-  Location loc = CurrentToken.Loc;
-  Bump(); // eat 'return'
+  Location loc = Bump();
 
   if (TokenType::Semicolon == CurrentToken.Type)
   {
-    loc.End = CurrentToken.Loc.End;
-    Bump(); // eat ';'
+    loc.End = Bump().End;
     return new ReturnStatement(loc);
   }
 
@@ -165,8 +162,7 @@ ReturnStatement *Parser::ParseReturnStatement()
   {
     Diagnostic.ErrorAndExit(ErrorCode::UnexpectedToken, "Expressions must end with ';'.", CurrentToken.Loc);
   }
-  loc.End = CurrentToken.Loc.End;
-  Bump();
+  loc.End = Bump().End;
   return new ReturnStatement(loc, value);
 }
 
@@ -176,8 +172,7 @@ BlockStatement Parser::ParseBlockStatement()
   {
     Diagnostic.ErrorAndExit(ErrorCode::UnexpectedToken, "Expect '{' to open block.", CurrentToken.Loc);
   }
-  Location loc = CurrentToken.Loc;
-  Bump();
+  Location loc = Bump();
 
   std::vector<Statement *> block;
 
@@ -196,8 +191,7 @@ BlockStatement Parser::ParseBlockStatement()
     block.push_back(ParseStatement());
   }
 
-  loc.End = CurrentToken.Loc.End;
-  Bump(); // eat '}'
+  loc.End = Bump().End;
 
   return BlockStatement(loc, block);
 }
@@ -258,14 +252,12 @@ CallExpression *Parser::ParseCallExpression(Expression *callee)
 
 CallExpressionArgs Parser::ParseCallExpressionArgs()
 {
-  Location loc = CurrentToken.Loc;
-  Bump();
+  Location loc = Bump();
 
   // case 1: ()
   if (TokenType::RightParent == CurrentToken.Type)
   {
-    loc.End = CurrentToken.Loc.End;
-    Bump();
+    loc.End = Bump().End;
     return CallExpressionArgs(loc, {});
   }
 
@@ -292,8 +284,7 @@ CallExpressionArgs Parser::ParseCallExpressionArgs()
     args.push_back(ParseExpressionStatement(Precedence::Lowest));
   }
 
-  loc.End = CurrentToken.Loc.End;
-  Bump();
+  loc.End = Bump().End;
 
   return CallExpressionArgs(loc, args);
 }
