@@ -3,6 +3,7 @@
 #include "Ast.h"
 #include "DiagnosticEngine.h"
 #include "Lexer.h"
+#include "Location.h"
 #include "Token.h"
 
 #include <filesystem>
@@ -30,7 +31,7 @@ private:
   Token CurrentToken;
   Token NextToken;
 
-  void Bump();
+  Location Bump();
 
   Precedence TokenToPrecedence(Token &);
   Precedence GetCurrentTokenPrecedence();
