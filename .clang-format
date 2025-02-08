@@ -1,6 +1,12 @@
 BasedOnStyle: LLVM
-ColumnLimit: 120
-AllowShortBlocksOnASingleLine: Always
 BreakBeforeBraces: Allman
 IndentWidth: 2
-AlignConsecutiveAssignments: Consecutive
+AlignAfterOpenBracket: AlwaysBreak
+BraceWrapping:
+  AfterFunction: true
+  AfterStruct: true
+  SplitEmptyFunction: false
+  SplitEmptyRecord: false
+  BeforeElse: false
+ColumnLimit: 0
+AllowShortBlocksOnASingleLine: Never
