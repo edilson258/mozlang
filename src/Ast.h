@@ -28,7 +28,7 @@ public:
   AstNodeType Type;
 
   virtual void *accept(AstVisitor *) = 0;
-  virtual ~AstNode()                 = default;
+  virtual ~AstNode() = default;
 
 protected:
   AstNode(Location loc, AstNodeType type) : Loc(loc), Type(type) {};
@@ -89,8 +89,7 @@ public:
   Token Lexeme;
   bool Value;
 
-  BooleanExpression(Token lexeme, bool value)
-      : Expression(lexeme.Loc, AstNodeType::BooleanExpression), Lexeme(lexeme), Value(value) {};
+  BooleanExpression(Token lexeme, bool value) : Expression(lexeme.Loc, AstNodeType::BooleanExpression), Lexeme(lexeme), Value(value) {};
 
   void *accept(AstVisitor *visitor) override;
 };
@@ -110,8 +109,7 @@ public:
   Expression *Callee;
   CallExpressionArgs Args;
 
-  CallExpression(Location loc, Expression *callee, CallExpressionArgs args)
-      : Expression(loc, AstNodeType::CallExpression), Callee(callee), Args(args) {};
+  CallExpression(Location loc, Expression *callee, CallExpressionArgs args) : Expression(loc, AstNodeType::CallExpression), Callee(callee), Args(args) {};
 
   void *accept(AstVisitor *visitor) override;
 };
@@ -121,8 +119,7 @@ class BlockStatement : public Statement
 public:
   std::vector<Statement *> Statements;
 
-  BlockStatement(Location loc, std::vector<Statement *> statements)
-      : Statement(loc, AstNodeType::BlockStatement), Statements(statements) {};
+  BlockStatement(Location loc, std::vector<Statement *> statements) : Statement(loc, AstNodeType::BlockStatement), Statements(statements) {};
 
   void *accept(AstVisitor *visitor) override;
 };
@@ -144,8 +141,7 @@ public:
   IdentifierExpression *Identifier;
   class TypeAnnotation TypeAnnotation;
 
-  FunctionParam(Location loc, IdentifierExpression *identifier, class TypeAnnotation type)
-      : Loc(loc), Identifier(identifier), TypeAnnotation(type) {};
+  FunctionParam(Location loc, IdentifierExpression *identifier, class TypeAnnotation type) : Loc(loc), Identifier(identifier), TypeAnnotation(type) {};
 };
 
 class FunctionStatement : public Statement
@@ -156,10 +152,7 @@ public:
   TypeAnnotation ReturnType;
   std::vector<FunctionParam> Params;
 
-  FunctionStatement(Location loc, IdentifierExpression *identifier, BlockStatement body, TypeAnnotation returnType,
-                    std::vector<FunctionParam> params)
-      : Statement(loc, AstNodeType::FunctionStatement), Identifier(identifier), Body(body), ReturnType(returnType),
-        Params(params) {};
+  FunctionStatement(Location loc, IdentifierExpression *identifier, BlockStatement body, TypeAnnotation returnType, std::vector<FunctionParam> params) : Statement(loc, AstNodeType::FunctionStatement), Identifier(identifier), Body(body), ReturnType(returnType), Params(params) {};
 
   void *accept(AstVisitor *visitor) override;
 };

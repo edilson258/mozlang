@@ -49,8 +49,7 @@ public:
 class Checker : AstVisitor
 {
 public:
-  Checker(std::filesystem::path &filePath, std::string &fileContent)
-      : Diagnostic(DiagnosticEngine(filePath, fileContent)) {};
+  Checker(std::filesystem::path &filePath, std::string &fileContent) : Diagnostic(DiagnosticEngine(filePath, fileContent)) {};
 
   void Check(AST &ast);
 
