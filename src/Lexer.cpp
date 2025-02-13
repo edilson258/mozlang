@@ -74,8 +74,7 @@ Token Lexer::MakeStringToken()
   {
     if (IsEof() || PeekOne() == '\n')
     {
-      Diagnostic.ErrorAndExit(ErrorCode::UnquotedString, "Unquoted string literal",
-                              Location(Line - 1, stringBeginColumn, stringBeginIndex - 1, Cursor));
+      Diagnostic.ErrorAndExit(ErrorCode::UnquotedString, "Unquoted string literal", Location(Line - 1, stringBeginColumn, stringBeginIndex - 1, Cursor));
     }
 
     if (PeekOne() == '"')
@@ -126,7 +125,7 @@ Token Lexer::GetNextToken()
 
   if (std::isalpha(currentChar) || '_' == currentChar)
   {
-    unsigned long identifierBeginIndex  = Cursor;
+    unsigned long identifierBeginIndex = Cursor;
     unsigned long identifierBeginColumn = Column;
 
     while (!IsEof() && (std::isalnum(PeekOne()) || '_' == PeekOne()))
@@ -134,7 +133,7 @@ Token Lexer::GetNextToken()
       AdvanceOne();
     }
 
-    Location identifierLoc      = Location(Line, identifierBeginColumn, RangeBegin, Cursor - 1);
+    Location identifierLoc = Location(Line, identifierBeginColumn, RangeBegin, Cursor - 1);
     std::string identifierLabel = FileContent.substr(identifierBeginIndex, Cursor - identifierBeginIndex);
 
     if ("fn" == identifierLabel)
@@ -182,7 +181,7 @@ Token Lexer::GetNextToken()
 
   if (std::isdigit(currentChar))
   {
-    unsigned long intBeginIndex  = Cursor;
+    unsigned long intBeginIndex = Cursor;
     unsigned long intBeginColumn = Column;
 
     while (!IsEof() && std::isdigit(PeekOne()))
@@ -190,11 +189,10 @@ Token Lexer::GetNextToken()
       AdvanceOne();
     }
 
-    Location intLoc    = Location(Line, intBeginColumn, RangeBegin, Cursor - 1);
+    Location intLoc = Location(Line, intBeginColumn, RangeBegin, Cursor - 1);
     std::string intRaw = FileContent.substr(intBeginIndex, Cursor - intBeginIndex);
     return Token(TokenType::Integer, intLoc, intRaw);
   }
 
-  Diagnostic.ErrorAndExit(ErrorCode::UnexpectedToken, std::format("Unknown token '{}'", currentChar),
-                          Location(Line, Column, Cursor, Cursor));
+  Diagnostic.ErrorAndExit(ErrorCode::UnexpectedToken, std::format("Unknown token '{}'", currentChar), Location(Line, Column, Cursor, Cursor));
 }

@@ -54,10 +54,12 @@ bool TypeFunction::operator==(const Type &other) const
   for (const Type &param : ParamTypes)
   {
     for (const Type &otherParam : otherFnType.ParamTypes)
+    {
       if (param != otherParam)
       {
         return false;
       }
+    }
   }
 
   return true;

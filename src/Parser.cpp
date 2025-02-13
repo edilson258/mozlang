@@ -28,8 +28,8 @@ AST Parser::Parse()
 Location Parser::Bump()
 {
   Location currTokenLoc = CurrentToken.Loc;
-  CurrentToken          = NextToken;
-  NextToken             = lexer.GetNextToken();
+  CurrentToken = NextToken;
+  NextToken = lexer.GetNextToken();
   return currTokenLoc;
 }
 
@@ -39,8 +39,7 @@ Location Parser::BumpExpect(TokenType expected, std::string message)
   {
     return Bump();
   }
-  Diagnostic.ErrorAndExit(ErrorCode::UnexpectedToken, std::format("{} but got '{}'.", message, CurrentToken.Data),
-                          CurrentToken.Loc);
+  Diagnostic.ErrorAndExit(ErrorCode::UnexpectedToken, std::format("{} but got '{}'.", message, CurrentToken.Data), CurrentToken.Loc);
 }
 
 Statement *Parser::ParseStatement()
@@ -63,20 +62,20 @@ Statement *Parser::ParseStatement()
 FunctionStatement *Parser::ParseFunctionStatement()
 {
   Location location = Bump();
-  auto *identifier  = ParseIdentifierExpression();
-  auto params       = ParseFunctionStatementParams();
-  auto returnType   = ParseFunctionStatementReturnType();
-  auto body         = ParseBlockStatement();
-  location.End      = body.Loc.End;
+  auto *identifier = ParseIdentifierExpression();
+  auto params = ParseFunctionStatementParams();
+  auto returnType = ParseFunctionStatementReturnType();
+  auto body = ParseBlockStatement();
+  location.End = body.Loc.End;
   return new FunctionStatement(location, identifier, body, returnType, params);
 }
 
 FunctionParam Parser::ParseFunctionStatementParam()
 {
-  Location location                = CurrentToken.Loc;
+  Location location = CurrentToken.Loc;
   IdentifierExpression *identifier = ParseIdentifierExpression();
-  TypeAnnotation type              = ParseTypeAnnotation();
-  location.End                     = type.Lexeme->Loc.End;
+  TypeAnnotation type = ParseTypeAnnotation();
+  location.End = type.Lexeme->Loc.End;
   return FunctionParam(location, identifier, type);
 }
 
@@ -125,7 +124,7 @@ ReturnStatement *Parser::ParseReturnStatement()
     return new ReturnStatement(location);
   }
   Expression *value = ParseExpressionStatement(Precedence::Lowest);
-  location.End      = BumpExpect(TokenType::Semicolon, "Expressions must end with ';'").End;
+  location.End = BumpExpect(TokenType::Semicolon, "Expressions must end with ';'").End;
   return new ReturnStatement(location, value);
 }
 
@@ -164,10 +163,8 @@ Expression *Parser::ParseExpressionStatement(Precedence precedence)
     leftHandSide = new IntegerExpression(CurrentToken);
     break;
   case TokenType::True:
-    leftHandSide = new BooleanExpression(CurrentToken, true);
-    break;
   case TokenType::False:
-    leftHandSide = new BooleanExpression(CurrentToken, false);
+    leftHandSide = new BooleanExpression(CurrentToken, CurrentToken.Type == TokenType::True ? true : false);
     break;
   default:
     Diagnostic.ErrorAndExit(ErrorCode::UnexpectedToken, "Unexpected expression.", CurrentToken.Loc);
@@ -190,8 +187,8 @@ Expression *Parser::ParseExpressionStatement(Precedence precedence)
 CallExpression *Parser::ParseCallExpression(Expression *callee)
 {
   CallExpressionArgs args = ParseCallExpressionArgs();
-  Location location       = callee->Loc;
-  location.End            = args.Loc.End;
+  Location location = callee->Loc;
+  location.End = args.Loc.End;
   return new CallExpression(location, callee, args);
 }
 
@@ -256,7 +253,6 @@ TypeAnnotation Parser::ParseTypeAnnotation()
     Bump();
     return TypeAnnotation(new Type(BaseType::Boolean));
   default:
-    Diagnostic.ErrorAndExit(ErrorCode::UnexpectedToken, std::format("Invalid type annotation '{}'.", CurrentToken.Data),
-                            CurrentToken.Loc);
+    Diagnostic.ErrorAndExit(ErrorCode::UnexpectedToken, std::format("Invalid type annotation '{}'.", CurrentToken.Data), CurrentToken.Loc);
   }
 }

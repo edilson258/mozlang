@@ -19,8 +19,7 @@ void Checker::Check(AST &ast)
   EnterScope(ScopeType::Global);
 
   // Setup builtins
-  GetCurrentScope()->Store["print"] = new Object(new TypeFunction(Type(BaseType::Void), {Type(BaseType::String)}, true),
-                                                 ObjectSource::Declaration, Location());
+  GetCurrentScope()->Store["print"] = new Object(new TypeFunction(Type(BaseType::Void), {Type(BaseType::String)}, true), ObjectSource::Declaration, Location());
 
   for (AstNode *node : ast.Nodes)
   {
@@ -37,8 +36,7 @@ void Checker::Check(AST &ast)
     {
       std::cerr << err;
     }
-    std::cerr << Painter::Paint(
-        std::format("[ABORT]: Aborting due to the {} previous errors\n", Diagnostic.Errors.size()), Color::Brown);
+    std::cerr << Painter::Paint(std::format("[ABORT]: Aborting due to the {} previous errors\n", Diagnostic.Errors.size()), Color::Brown);
     std::exit(1);
   }
 }
@@ -54,8 +52,7 @@ void Checker::LeaveScope()
       continue;
     }
 
-    Diagnostic.PushError(ErrorCode::UnusedName, std::format("Unused name '{}', try to prefix it with '_'", pair.first),
-                         pair.second->Loc);
+    Diagnostic.PushError(ErrorCode::UnusedName, std::format("Unused name '{}', try to prefix it with '_'", pair.first), pair.second->Loc);
   }
   Scopes.pop_back();
 }
@@ -87,7 +84,7 @@ void Checker::ValidateEntryPoint()
 {
   if (!ExistInCurrentScope("main"))
   {
-    std::cerr << "[ERROR]: Missing main function, try adding \"fn main(): int {}\"\n";
+    std::cerr << "[ERROR]: Missing main function, try adding \"fn main(): int {...}\"\n";
     return;
   }
 
@@ -95,7 +92,7 @@ void Checker::ValidateEntryPoint()
 
   if (BaseType::Function != main->Typ->Base)
   {
-    std::cerr << "[ERROR]: `main` must be callable, try adding \"fn main(): int {}\"\n";
+    std::cerr << "[ERROR]: `main` must be callable, try adding \"fn main(): int {...}\"\n";
     return;
   }
 
@@ -103,12 +100,12 @@ void Checker::ValidateEntryPoint()
 
   if (BaseType::Integer != mainFnType->ReturnType.Base)
   {
-    std::cerr << "[ERROR]: `main` must return `int`, try adding \"fn main(): int {}\"\n";
+    std::cerr << "[ERROR]: `main` must return `int`, try adding \"fn main(): int {...}\"\n";
   }
 
   if (mainFnType->IsVarArgs || mainFnType->ParamTypes.size() != 0)
   {
-    std::cerr << "[ERROR]: `main` cannot accept any argument, try adding \"fn main(): int {}\"\n";
+    std::cerr << "[ERROR]: `main` cannot accept any argument, try adding \"fn main(): int {...}\"\n";
   }
 
   GetCurrentScope()->Store["main"]->IsUsed = true;
@@ -118,9 +115,7 @@ void *Checker::visit(FunctionStatement *fnStmt)
 {
   if (ExistInCurrentScope(fnStmt->Identifier->GetValue()))
   {
-    Diagnostic.PushError(ErrorCode::NameAlreadyBound,
-                         std::format("Name '{}' is already in use.", fnStmt->Identifier->GetValue()),
-                         fnStmt->Identifier->Loc);
+    Diagnostic.PushError(ErrorCode::NameAlreadyBound, std::format("Name '{}' is already in use.", fnStmt->Identifier->GetValue()), fnStmt->Identifier->Loc);
     return nullptr;
   }
 
@@ -140,9 +135,7 @@ void *Checker::visit(FunctionStatement *fnStmt)
     paramTypes.push_back(*param.TypeAnnotation.Type);
   }
 
-  GetCurrentScope()->Store[fnStmt->Identifier->GetValue()] =
-      new Object(new TypeFunction(*fnStmt->ReturnType.Type, paramTypes, false), ObjectSource::Declaration,
-                 fnStmt->Identifier->Loc);
+  GetCurrentScope()->Store[fnStmt->Identifier->GetValue()] = new Object(new TypeFunction(*fnStmt->ReturnType.Type, paramTypes, false), ObjectSource::Declaration, fnStmt->Identifier->Loc);
   EnterScope(ScopeType::Function);
 
   for (FunctionParam &param : fnStmt->Params)
@@ -151,8 +144,7 @@ void *Checker::visit(FunctionStatement *fnStmt)
     {
       Diagnostic.PushError(ErrorCode::NameAlreadyBound, "Parameter name is already used.", param.Identifier->Loc);
     }
-    GetCurrentScope()->Store[param.Identifier->GetValue()] =
-        new Object(param.TypeAnnotation.Type, ObjectSource::Parameter, param.Identifier->Loc);
+    GetCurrentScope()->Store[param.Identifier->GetValue()] = new Object(param.TypeAnnotation.Type, ObjectSource::Parameter, param.Identifier->Loc);
   }
 
   std::vector<Object *> *results = static_cast<std::vector<Object *> *>(fnStmt->Body.accept(this));
@@ -181,11 +173,7 @@ void *Checker::visit(FunctionStatement *fnStmt)
       }
       else if (*fnStmt->ReturnType.Type != *result->Typ)
       {
-        Diagnostic.PushError(ErrorCode::TypesNoMatch,
-                             std::format("Function '{}' expects value of type '{}' but returned value of type '{}'",
-                                         fnStmt->Identifier->GetValue(), fnStmt->ReturnType.Type->ToString(),
-                                         result->Typ->ToString()),
-                             result->Loc);
+        Diagnostic.PushError(ErrorCode::TypesNoMatch, std::format("Function '{}' expects value of type '{}' but returned value of type '{}'", fnStmt->Identifier->GetValue(), fnStmt->ReturnType.Type->ToString(), result->Typ->ToString()), result->Loc);
       }
     }
   }
@@ -220,7 +208,7 @@ void *Checker::visit(ReturnStatement *retStmt)
   }
   Object *value = static_cast<Object *>(x);
   value->Source = ObjectSource::ReturnValue;
-  value->Loc    = retStmt->Loc;
+  value->Loc = retStmt->Loc;
   return value;
 }
 
@@ -234,7 +222,7 @@ void *Checker::visit(BlockStatement *blockStmt)
     if (stmt->Type == AstNodeType::ReturnStatement && ((blockStmt->Statements.size() - i - 1) > 0))
     {
       Location loc = blockStmt->Statements.at(i + 1)->Loc;
-      loc.End      = blockStmt->Loc.End - 1;
+      loc.End = blockStmt->Loc.End - 1;
       Diagnostic.PushError(ErrorCode::DeadCode, "Unreachable code detected.", loc);
 
       void *x = stmt->accept(this);
@@ -277,19 +265,13 @@ void *Checker::visit(CallExpression *callExpr)
   {
     if (!calleeFnType->IsVarArgs)
     {
-      Diagnostic.PushError(ErrorCode::ArgsCountNoMatch,
-                           std::format("Callee expects '{}' args but got '{}'.", calleeFnType->ParamTypes.size(),
-                                       callExpr->Args.Args.size()),
-                           callExpr->Args.Loc);
+      Diagnostic.PushError(ErrorCode::ArgsCountNoMatch, std::format("Callee expects '{}' args but got '{}'.", calleeFnType->ParamTypes.size(), callExpr->Args.Args.size()), callExpr->Args.Loc);
       return nullptr;
     }
 
     if (callExpr->Args.Args.size() < calleeFnType->ParamTypes.size())
     {
-      Diagnostic.PushError(ErrorCode::ArgsCountNoMatch,
-                           std::format("Callee expects '{}' required args but got '{}'.",
-                                       calleeFnType->ParamTypes.size(), callExpr->Args.Args.size()),
-                           callExpr->Args.Loc);
+      Diagnostic.PushError(ErrorCode::ArgsCountNoMatch, std::format("Callee expects '{}' required args but got '{}'.", calleeFnType->ParamTypes.size(), callExpr->Args.Args.size()), callExpr->Args.Loc);
       return nullptr;
     }
   }
@@ -315,15 +297,12 @@ void *Checker::visit(CallExpression *callExpr)
       continue;
     }
 
-    Type argType   = *argObjects.at(i)->Typ;
+    Type argType = *argObjects.at(i)->Typ;
     Type paramType = calleeFnType->ParamTypes.at(i);
 
     if (argType != paramType)
     {
-      Diagnostic.PushError(ErrorCode::TypesNoMatch,
-                           std::format("Argument of type '{}' is not assignable to param of type '{}'.",
-                                       argType.ToString(), paramType.ToString()),
-                           argObjects.at(i)->Loc);
+      Diagnostic.PushError(ErrorCode::TypesNoMatch, std::format("Argument of type '{}' is not assignable to param of type '{}'.", argType.ToString(), paramType.ToString()), argObjects.at(i)->Loc);
     }
   }
 
@@ -346,8 +325,7 @@ void *Checker::visit(IdentifierExpression *identExpr)
     }
   }
 
-  Diagnostic.PushError(ErrorCode::UnboundName, std::format("Name '{}' is not defined.", identExpr->GetValue()),
-                       identExpr->Loc);
+  Diagnostic.PushError(ErrorCode::UnboundName, std::format("Name '{}' is not defined.", identExpr->GetValue()), identExpr->Loc);
   return nullptr;
 }
 

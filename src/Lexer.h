@@ -11,12 +11,11 @@ public:
   const std::filesystem::path FilePath;
   const std::string &FileContent;
 
-  Lexer(std::filesystem::path &filePath, std::string &fileContent)
-      : FilePath(filePath), FileContent(fileContent), Diagnostic(DiagnosticEngine(filePath, fileContent))
+  Lexer(std::filesystem::path &filePath, std::string &fileContent) : FilePath(filePath), FileContent(fileContent), Diagnostic(DiagnosticEngine(filePath, fileContent))
   {
-    Cursor     = 0;
-    Line       = 1;
-    Column     = 1;
+    Cursor = 0;
+    Line = 1;
+    Column = 1;
     RangeBegin = 0;
   };
 

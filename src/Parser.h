@@ -13,7 +13,7 @@
 enum class Precedence
 {
   Lowest = 1,
-  Call   = 2,
+  Call = 2,
 };
 
 class Parser
@@ -23,8 +23,7 @@ public:
 
   AST Parse();
 
-  Parser(Lexer &lex, std::filesystem::path &filePath, std::string &fileContent)
-      : lexer(lex), Diagnostic(DiagnosticEngine(filePath, fileContent)) {};
+  Parser(Lexer &lex, std::filesystem::path &filePath, std::string &fileContent) : lexer(lex), Diagnostic(DiagnosticEngine(filePath, fileContent)) {};
 
 private:
   DiagnosticEngine Diagnostic;

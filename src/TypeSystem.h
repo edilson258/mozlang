@@ -33,10 +33,7 @@ public:
   std::vector<Type> ParamTypes;
   bool IsVarArgs;
 
-  TypeFunction(Type returnType, std::vector<Type> paramTypes, bool isVarArgs)
-      : Type(BaseType::Function), ReturnType(returnType), ParamTypes(paramTypes), IsVarArgs(isVarArgs)
-  {
-  }
+  TypeFunction(Type returnType, std::vector<Type> paramTypes, bool isVarArgs) : Type(BaseType::Function), ReturnType(returnType), ParamTypes(paramTypes), IsVarArgs(isVarArgs) {}
   ~TypeFunction() = default;
 
   bool operator==(const Type &other) const override;
