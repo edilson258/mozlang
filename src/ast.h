@@ -12,60 +12,60 @@ enum class precedence
   call = 10,
 };
 
-enum class statement_type
+enum class stmt_t
 {
   expr = 1,
 };
 
-enum class expression_type
+enum class expr_t
 {
   call = 1,
-  identifier,
+  ident,
   string,
 };
 
-class statement
+class stmt
 {
 public:
   position pos;
-  statement_type type;
+  stmt_t type;
 
 protected:
-  statement(position p, statement_type t) : pos(p), type(t) {};
+  stmt(position p, stmt_t t) : pos(p), type(t) {};
 };
 
-class expression : public statement
+class expr : public stmt
 {
 public:
-  expression_type type;
+  expr_t type;
 
 protected:
-  expression(position p, expression_type t) : statement(p, statement_type::expr), type(t) {};
+  expr(position p, expr_t t) : stmt(p, stmt_t::expr), type(t) {};
 };
 
-class expression_call : public expression
+class expr_call : public expr
 {
 public:
-  std::shared_ptr<expression> callee;
-  std::vector<std::shared_ptr<expression>> args;
+  std::shared_ptr<expr> callee;
+  std::vector<std::shared_ptr<expr>> args;
 
-  expression_call(position p, std::shared_ptr<expression> c, std::vector<std::shared_ptr<expression>> as) : expression(p, expression_type::call), callee(c), args(as) {};
+  expr_call(position p, std::shared_ptr<expr> c, std::vector<std::shared_ptr<expr>> as) : expr(p, expr_t::call), callee(c), args(as) {};
 };
 
-class expression_identifier : public expression
+class expr_ident : public expr
 {
 public:
   std::string value;
 
-  expression_identifier(position p, std::string v) : expression(p, expression_type::identifier), value(v) {};
+  expr_ident(position p, std::string v) : expr(p, expr_t::ident), value(v) {};
 };
 
-class expression_string : public expression
+class expr_string : public expr
 {
 public:
   std::string value;
 
-  expression_string(position p, std::string v) : expression(p, expression_type::string), value(v) {};
+  expr_string(position p, std::string v) : expr(p, expr_t::string), value(v) {};
 };
 
 class ast
@@ -73,7 +73,7 @@ class ast
 public:
   ast() : program() {};
 
-  std::vector<std::shared_ptr<statement>> program;
+  std::vector<std::shared_ptr<stmt>> program;
 
   std::string inspect();
 };

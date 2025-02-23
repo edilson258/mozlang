@@ -1,7 +1,9 @@
+#include <cstdio>
 #include <iostream>
 #include <memory>
 #include <string>
 
+#include "ir/ir.h"
 #include "lexer.h"
 #include "loader.h"
 #include "parser.h"
@@ -14,4 +16,8 @@ int main(void)
   parser p(l);
   auto ast = p.parse();
   std::cout << ast.unwrap().get()->inspect();
+  ir_generator ig(*ast.unwrap().get());
+  auto ir_ = ig.emit();
+  ir_disassembler id(ir_.unwrap());
+  std::cout << id.disassemble().unwrap() << std::endl;
 }
