@@ -26,11 +26,11 @@ private:
   void write(std::string);
   void writeln(std::string);
 
-  void inspect_stmt(std::shared_ptr<statement>);
-  void inspect_expr(std::shared_ptr<expression>);
-  void inspect_expr_call(std::shared_ptr<expression_call>);
-  void inspect_expr_string(std::shared_ptr<expression_string>);
-  void inspect_expr_identifier(std::shared_ptr<expression_identifier>);
+  void inspect_stmt(std::shared_ptr<stmt>);
+  void inspect_expr(std::shared_ptr<expr>);
+  void inspect_expr_call(std::shared_ptr<expr_call>);
+  void inspect_expr_string(std::shared_ptr<expr_string>);
+  void inspect_expr_identifier(std::shared_ptr<expr_ident>);
 };
 
 void ast_inspector::tab()
@@ -58,7 +58,7 @@ std::string ast_inspector::inspect()
 {
   oss << "Abstract Syntax Tree\n\n";
 
-  for (std::shared_ptr<statement> stmt : tree->program)
+  for (std::shared_ptr<stmt> stmt : tree->program)
   {
     inspect_stmt(stmt);
   }
@@ -66,29 +66,29 @@ std::string ast_inspector::inspect()
   return oss.str();
 }
 
-void ast_inspector::inspect_stmt(std::shared_ptr<statement> stmt)
+void ast_inspector::inspect_stmt(std::shared_ptr<stmt> stmt)
 {
   switch (stmt.get()->type)
   {
-  case statement_type::expr:
-    inspect_expr(std::static_pointer_cast<expression>(stmt));
+  case stmt_t::expr:
+    inspect_expr(std::static_pointer_cast<expr>(stmt));
   }
 }
 
-void ast_inspector::inspect_expr(std::shared_ptr<expression> expr)
+void ast_inspector::inspect_expr(std::shared_ptr<expr> expr)
 {
   switch (expr.get()->type)
   {
-  case expression_type::call:
-    return inspect_expr_call(std::static_pointer_cast<expression_call>(expr));
-  case expression_type::string:
-    return inspect_expr_string(std::static_pointer_cast<expression_string>(expr));
-  case expression_type::identifier:
-    return inspect_expr_identifier(std::static_pointer_cast<expression_identifier>(expr));
+  case expr_t::call:
+    return inspect_expr_call(std::static_pointer_cast<expr_call>(expr));
+  case expr_t::string:
+    return inspect_expr_string(std::static_pointer_cast<expr_string>(expr));
+  case expr_t::ident:
+    return inspect_expr_identifier(std::static_pointer_cast<expr_ident>(expr));
   }
 }
 
-void ast_inspector::inspect_expr_call(std::shared_ptr<expression_call> expr_call)
+void ast_inspector::inspect_expr_call(std::shared_ptr<expr_call> expr_call)
 {
   position p = expr_call.get()->pos;
   writeln(std::format("call expression: {{{}:{}:{}:{}}}", p.line, p.col, p.start, p.end));
@@ -111,12 +111,12 @@ void ast_inspector::inspect_expr_call(std::shared_ptr<expression_call> expr_call
   untab();
 }
 
-void ast_inspector::inspect_expr_string(std::shared_ptr<expression_string> expr_string)
+void ast_inspector::inspect_expr_string(std::shared_ptr<expr_string> expr_string)
 {
   writeln(std::format("string literal: {}", expr_string.get()->value));
 }
 
-void ast_inspector::inspect_expr_identifier(std::shared_ptr<expression_identifier> expr_identifier)
+void ast_inspector::inspect_expr_identifier(std::shared_ptr<expr_ident> expr_identifier)
 {
   writeln(std::format("identifer expression: {}", expr_identifier.get()->value));
 }

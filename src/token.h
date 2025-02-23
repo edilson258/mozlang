@@ -5,12 +5,12 @@
 enum class token_type
 {
   eof = 1,
-  string = 2,
-  ident = 3,
-  semic = 4,
-  comma = 5,
-  lparen = 6,
-  rparen = 7,
+  string,
+  ident,
+  semic,
+  comma,
+  lparen,
+  rparen,
 };
 
 class position

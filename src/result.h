@@ -21,12 +21,16 @@ public:
 
   void set_val(T val)
   {
-    inner = val;
+    inner.template emplace<T>(val);
   }
 
   bool is_ok()
   {
-    return inner.index() == 0;
+    if (std::holds_alternative<T>(inner))
+    {
+      return true;
+    }
+    return false;
   }
 
   bool is_err()

@@ -28,3 +28,4 @@ add_compile_options(
 
 file(GLOB_RECURSE zero_sources "src/*.cpp")
 add_executable(zero ${zero_sources})
+target_include_directories(zero PUBLIC ${CMAKE_SOURCE_DIR}/src)
