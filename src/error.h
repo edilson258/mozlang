@@ -2,20 +2,18 @@
 
 #include <string>
 
-#include "token.h"
-
 enum class errn
 {
-  Ok = 0,
+  ok = 0,
+  name_error,
+  fs_error,
 };
 
 class error
 {
 public:
   errn no;
-  size_t file_id;
   std::string message;
-  position pos;
 
-  error(errn n, size_t fid, std::string m, position p) : no(n), file_id(fid), message(m), pos(p) {};
+  error(errn n, std::string m) : no(n), message(m) {};
 };
