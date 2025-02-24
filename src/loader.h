@@ -1,19 +1,22 @@
 #pragma once
 
 #include <cstddef>
-#include <filesystem>
-#include <map>
 #include <memory>
+#include <optional>
 #include <string>
+#include <vector>
+
+#include "error.h"
+#include "result.h"
 
 class source
 {
 public:
   size_t id;
-  std::filesystem::path path;
+  std::string path;
   std::string content;
 
-  source(size_t i, std::filesystem::path p, std::string c) : id(i), path(p), content(c) {};
+  source(size_t i, std::string p, std::string c) : id(i), path(p), content(c) {};
 };
 
 class loader
@@ -21,8 +24,9 @@ class loader
 public:
   loader() : sources() {};
 
-  size_t load(std::string path);
+  result<std::shared_ptr<source>, error> load(std::string path);
+  std::optional<std::shared_ptr<source>> find_source(size_t id);
 
 private:
-  std::map<size_t, std::shared_ptr<source>> sources;
+  std::vector<std::shared_ptr<source>> sources;
 };
