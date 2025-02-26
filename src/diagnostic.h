@@ -8,35 +8,36 @@
 #include "loader.h"
 #include "token.h"
 
-enum class diagnostic_severity
+enum class DiagnosticSeverity
 {
-  info = 1,
-  warn = 2,
-  error = 3,
+  INFO = 1,
+  WARN = 2,
+  ERROR = 3,
 };
 
-class diagnostic
+class Diagnostic
 {
 public:
-  errn ern;
-  position pos;
-  std::shared_ptr<source> src;
-  diagnostic_severity severity;
-  std::string message;
+  Errno Errn;
+  Position Pos;
+  std::shared_ptr<Source> Sourc;
+  DiagnosticSeverity Severity;
+  std::string Message;
 
-  diagnostic(errn en, position p, std::shared_ptr<source> s, diagnostic_severity sev, std::string msg) : ern(en), pos(p), src(s), severity(sev), message(msg) {};
+  Diagnostic(Errno errn, Position pos, std::shared_ptr<Source> source, DiagnosticSeverity severity, std::string message) : Errn(errn), Pos(pos), Sourc(source), Severity(severity), Message(message) {};
 };
 
-class diagnostic_engine
+class DiagnosticEngine
 {
 public:
-  diagnostic_engine() {}
+  DiagnosticEngine() {}
 
-  void report(diagnostic);
+  void Report(Diagnostic diagnostic);
 
 private:
-  std::string match_sevevirty_string(diagnostic_severity severity);
-  std::string match_severity_color(diagnostic_severity severity);
-  std::string paint(std::string text, std::string colr);
-  std::string highlight(std::string code, size_t start, size_t end, std::string colr);
+  std::string Paint(std::string code, std::string color);
+  std::string Highlight(std::string code, size_t start, size_t end, std::string color);
+
+  std::string MatchSevevirtyString(DiagnosticSeverity severity);
+  std::string MatchSeverityColor(DiagnosticSeverity severity);
 };

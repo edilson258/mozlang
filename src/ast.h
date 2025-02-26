@@ -6,74 +6,73 @@
 
 #include "token.h"
 
-enum class precedence
+enum class Precedence
 {
-  lowest = 0,
-  call = 10,
+  LOWEST = 0,
+  CALL = 10,
 };
 
-enum class stmt_t
+enum class StatementType
 {
-  expr = 1,
+  EXPRESSION,
 };
 
-enum class expr_t
+enum class ExpressionType
 {
-  call = 1,
-  ident,
-  string,
+  CALL = 1,
+  IDENTIFIER,
+  STRING,
 };
 
-class stmt
+class Statement
 {
 public:
-  position pos;
-  stmt_t type;
+  Position Pos;
+  StatementType Type;
 
 protected:
-  stmt(position p, stmt_t t) : pos(p), type(t) {};
+  Statement(Position position, StatementType type) : Pos(position), Type(type) {};
 };
 
-class expr : public stmt
+class Expression : public Statement
 {
 public:
-  expr_t type;
+  ExpressionType Type;
 
 protected:
-  expr(position p, expr_t t) : stmt(p, stmt_t::expr), type(t) {};
+  Expression(Position position, ExpressionType type) : Statement(position, StatementType::EXPRESSION), Type(type) {};
 };
 
-class expr_call : public expr
+class ExpressionCall : public Expression
 {
 public:
-  std::shared_ptr<expr> callee;
-  std::vector<std::shared_ptr<expr>> args;
+  std::shared_ptr<Expression> Callee;
+  std::vector<std::shared_ptr<Expression>> Arguments;
+  Position ArgumentsPosition;
 
-  expr_call(position p, std::shared_ptr<expr> c, std::vector<std::shared_ptr<expr>> as) : expr(p, expr_t::call), callee(c), args(as) {};
+  ExpressionCall(Position pos, std::shared_ptr<Expression> callee, std::vector<std::shared_ptr<Expression>> args, Position argsPos) : Expression(pos, ExpressionType::CALL), Callee(callee), Arguments(args), ArgumentsPosition(argsPos) {};
 };
 
-class expr_ident : public expr
+class ExpressionIdentifier : public Expression
 {
 public:
-  std::string value;
+  std::string Value;
 
-  expr_ident(position p, std::string v) : expr(p, expr_t::ident), value(v) {};
+  ExpressionIdentifier(Position pos, std::string value) : Expression(pos, ExpressionType::IDENTIFIER), Value(value) {};
 };
 
-class expr_string : public expr
+class ExpressionString : public Expression
 {
 public:
-  std::string value;
+  std::string Value;
 
-  expr_string(position p, std::string v) : expr(p, expr_t::string), value(v) {};
+  ExpressionString(Position pos, std::string value) : Expression(pos, ExpressionType::STRING), Value(value) {};
 };
 
-class ast
+class AST
 {
 public:
-  ast() : program() {};
-
-  std::vector<std::shared_ptr<stmt>> program;
-
-  std::string inspect();
+  std::vector<std::shared_ptr<Statement>> Program;
+  AST() : Program() {};
+  std::string Inspect();
 };

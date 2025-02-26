@@ -2,18 +2,22 @@
 
 #include <string>
 
-enum class errn
+enum class Errno
 {
-  ok = 0,
-  name_error,
-  fs_error,
+  OK = 1,
+  FS_ERROR,
+  NAME_ERROR,
+  TYPE_ERROR,
+  SYNTAX_ERROR,
+
+  UNUSED_VALUE,
 };
 
-class error
+class ERROR
 {
 public:
-  errn no;
-  std::string message;
+  Errno Errn;
+  std::string Message;
 
-  error(errn n, std::string m) : no(n), message(m) {};
+  ERROR(Errno errn, std::string message) : Errn(errn), Message(message) {};
 };

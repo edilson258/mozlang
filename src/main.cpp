@@ -17,37 +17,43 @@ int main(int argc, char *argv[])
     std::cerr << "Usage: " << argv[0] << " <input_file>" << std::endl;
     return 1;
   }
-  std::string input_file = argv[1];
-  loader ldr;
-  auto entry_res = ldr.load(input_file);
-  if (entry_res.is_err())
+  std::string entryFile = argv[1];
+  Loader loader;
+  auto entryRes = loader.Load(entryFile);
+  if (entryRes.is_err())
   {
-    std::cerr << entry_res.unwrap_err().message << std::endl;
+    std::cerr << entryRes.unwrap_err().Message << std::endl;
     return 1;
   }
-  auto entry_src = entry_res.unwrap();
-  lexer l(entry_src);
-  parser p(l);
-  auto ast = p.parse();
+  auto entrySource = entryRes.unwrap();
+  DiagnosticEngine diagnosticEngine;
+  Lexer lexer(entrySource);
+  parser parser(lexer);
+  auto astRes = parser.parse();
+  if (astRes.is_err())
+  {
+    diagnosticEngine.Report(astRes.unwrap_err());
+    return 1;
+  }
+  AST ast = astRes.unwrap();
   // std::cout << ast.unwrap().get()->inspect();
-  checker ckr(*ast.unwrap().get(), entry_src);
-  diagnostic_engine de;
-  auto xs = ckr.check();
-  bool has_errors = false;
-  for (auto &x : xs)
+  Checker checker(ast, entrySource);
+  auto diagnostics = checker.check();
+  bool hasErrorDiagnostic = false;
+  for (auto &diagnostic : diagnostics)
   {
-    if (x.severity == diagnostic_severity::error)
+    if (DiagnosticSeverity::ERROR == diagnostic.Severity)
     {
-      has_errors = true;
+      hasErrorDiagnostic = true;
     }
-    de.report(x);
+    diagnosticEngine.Report(diagnostic);
   }
-  if (has_errors)
+  if (hasErrorDiagnostic)
   {
     return 1;
   }
-  ir_generator ig(*ast.unwrap().get());
-  auto ir_ = ig.emit();
-  ir_disassembler id(ir_.unwrap());
-  std::cout << id.disassemble().unwrap() << std::endl;
+  IRGenerator irGenerator(ast);
+  auto ir = irGenerator.Emit();
+  IRDisassembler irDesassembler(ir.unwrap());
+  std::cout << irDesassembler.Disassemble().unwrap() << std::endl;
 }

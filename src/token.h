@@ -2,35 +2,35 @@
 
 #include <string>
 
-enum class token_type
+enum class TokenType
 {
-  eof = 1,
-  string,
-  ident,
-  semic,
-  comma,
-  lparen,
-  rparen,
+  EOf = 1,
+  STRING,
+  IDENTIFIER,
+  SEMICOLON,
+  COMMA,
+  LPAREN,
+  RPAREN,
 };
 
-class position
+class Position
 {
 public:
-  size_t line, col, start, end;
+  size_t Line, Column, Start, End;
 
-  position() = default;
-  position(size_t l, size_t c, size_t s, size_t e) : line(l), col(c), start(s), end(e) {};
+  Position() = default;
+  Position(size_t line, size_t column, size_t start, size_t end) : Line(line), Column(column), Start(start), End(end) {};
 };
 
-class token
+class Token
 {
 public:
-  position pos;
-  token_type type;
-  std::string lexeme;
+  Position Pos;
+  TokenType Type;
+  std::string Lexeme;
 
-  token() = default;
-  token(position p, token_type t, std::string l) : pos(p), type(t), lexeme(l) {};
+  Token() = default;
+  Token(Position position, TokenType type, std::string lexeme) : Pos(position), Type(type), Lexeme(lexeme) {};
 
-  std::string inspect();
+  std::string Inspect();
 };

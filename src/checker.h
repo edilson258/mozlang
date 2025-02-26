@@ -3,58 +3,54 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 #include "ast.h"
+#include "context.h"
 #include "diagnostic.h"
 #include "loader.h"
 
-class binding
+enum class ScopeType
 {
-public:
-  bool is_used;
-
-  binding() = default;
+  GLOBAL,
 };
 
-class context
+class Scope
 {
 public:
-  std::unordered_map<std::string, std::shared_ptr<binding>> store;
+  ScopeType Type;
+  Context Ctx;
 
-  context() : store() {};
-
-  void save(std::string key, std::shared_ptr<binding> bind)
-  {
-    store[key] = bind;
-  }
-
-  std::optional<std::shared_ptr<binding>> get(std::string key)
-  {
-    if (store.find(key) == store.end())
-      return std::nullopt;
-    return store[key];
-  }
+  Scope(ScopeType type) : Type(type), Ctx() {};
 };
 
-class checker
+class Checker
 {
 public:
-  checker(ast tree_, std::shared_ptr<source> s) : ctx(), tree(tree_), src(s) {};
+  Checker(AST &ast, std::shared_ptr<Source> source) : Ast(ast), Sourc(source), Scopes(), Diagnostics() {};
 
-  std::vector<diagnostic> check();
+  std::vector<Diagnostic> check();
 
 private:
-  context ctx;
-  ast tree;
-  std::shared_ptr<source> src;
+  AST &Ast;
+  std::shared_ptr<Source> Sourc;
+  std::vector<Scope> Scopes;
+  std::vector<Diagnostic> Diagnostics;
 
-  std::vector<diagnostic> diagnostics;
+  void EnterScope(ScopeType scopeType);
+  void LeaveScope();
+  std::optional<std::shared_ptr<Binding>> LookupBind(std::string name);
+  void SaveBind(std::string name, std::shared_ptr<Binding> bind);
 
-  std::vector<diagnostic> check_stmt(std::shared_ptr<stmt>);
-  std::vector<diagnostic> check_expr(std::shared_ptr<expr>);
-  std::vector<diagnostic> check_expr_ident(std::shared_ptr<expr_ident>);
-  std::vector<diagnostic> check_expr_call(std::shared_ptr<expr_call>);
-  std::vector<diagnostic> check_expr_string(std::shared_ptr<expr_string>);
+  std::string GetTmpName()
+  {
+    static int counter = 0;
+    return std::string("t___m___p__n__a__m__e__") + std::to_string(counter++);
+  }
+
+  void CheckStatement(std::shared_ptr<Statement>);
+  std::optional<std::shared_ptr<Binding>> CheckExpression(std::shared_ptr<Expression>);
+  std::optional<std::shared_ptr<Binding>> CheckExpressionCall(std::shared_ptr<ExpressionCall>);
+  std::optional<std::shared_ptr<Binding>> CheckExpressionString(std::shared_ptr<ExpressionString>);
+  std::optional<std::shared_ptr<Binding>> CheckExpressionIdentifier(std::shared_ptr<ExpressionIdentifier>);
 };

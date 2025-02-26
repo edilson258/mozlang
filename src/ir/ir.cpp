@@ -6,116 +6,116 @@
 
 #include "ir.h"
 
-result<ir, error> ir_generator::emit()
+result<IR, ERROR> IRGenerator::Emit()
 {
-  for (auto stmt : tree.program)
+  for (auto statement : Ast.Program)
   {
-    auto err = emit_stmt(stmt);
-    if (err.has_value())
+    auto error = EmitStatement(statement);
+    if (error.has_value())
     {
-      return result<ir, error>(err.value());
+      return result<IR, ERROR>(error.value());
     }
   }
 
-  return result<ir, error>(ir_);
+  return result<IR, ERROR>(Ir);
 }
 
-std::optional<error> ir_generator::emit_stmt(std::shared_ptr<stmt> stm)
+std::optional<ERROR> IRGenerator::EmitStatement(std::shared_ptr<Statement> statement)
 {
-  switch (stm.get()->type)
+  switch (statement.get()->Type)
   {
-  case stmt_t::expr:
-    return emit_expr(std::static_pointer_cast<expr>(stm));
+  case StatementType::EXPRESSION:
+    return EmitExpression(std::static_pointer_cast<Expression>(statement));
   }
   return std::nullopt;
 }
 
-std::optional<error> ir_generator::emit_expr(std::shared_ptr<expr> exp)
+std::optional<ERROR> IRGenerator::EmitExpression(std::shared_ptr<Expression> expression)
 {
-  switch (exp.get()->type)
+  switch (expression.get()->Type)
   {
-  case expr_t::call:
-    return emit_expr_call(std::static_pointer_cast<expr_call>(exp));
-  case expr_t::string:
-    return emit_expr_string(std::static_pointer_cast<expr_string>(exp));
-  case expr_t::ident:
-    return emit_expr_ident(std::static_pointer_cast<expr_ident>(exp));
+  case ExpressionType::CALL:
+    return EmitExpressionCall(std::static_pointer_cast<ExpressionCall>(expression));
+  case ExpressionType::STRING:
+    return EmitExpressionString(std::static_pointer_cast<ExpressionString>(expression));
+  case ExpressionType::IDENTIFIER:
+    return EmitExpressionIdentifier(std::static_pointer_cast<ExpressionIdentifier>(expression));
   }
   return std::nullopt;
 }
 
-std::optional<error> ir_generator::emit_expr_call(std::shared_ptr<expr_call> exp_call)
+std::optional<ERROR> IRGenerator::EmitExpressionCall(std::shared_ptr<ExpressionCall> callExpression)
 {
-  for (auto arg : exp_call.get()->args)
+  for (auto argument : callExpression.get()->Arguments)
   {
-    auto err = emit_expr(arg);
-    if (err.has_value())
+    auto error = EmitExpression(argument);
+    if (error.has_value())
     {
-      return err.value();
+      return error.value();
     }
   }
-  auto err = emit_expr(exp_call.get()->callee);
-  if (err.has_value())
+  auto error = EmitExpression(callExpression.get()->Callee);
+  if (error.has_value())
   {
-    return err.value();
+    return error.value();
   }
-  ir_.code.push_back(std::make_shared<call>());
+  Ir.Code.push_back(std::make_shared<CALL>());
   return std::nullopt;
 }
 
-std::optional<error> ir_generator::emit_expr_ident(std::shared_ptr<expr_ident> exp_ident)
+std::optional<ERROR> IRGenerator::EmitExpressionIdentifier(std::shared_ptr<ExpressionIdentifier> identifierExpression)
 {
-  uint32_t index = static_cast<uint32_t>(ir_.pool.pool.size());
-  ir_.pool.pool.push_back(object(object_t::string, exp_ident.get()->value));
-  ir_.code.push_back(std::make_shared<loadc>(index));
+  uint32_t index = static_cast<uint32_t>(Ir.Pool.size());
+  Ir.Pool.Objects.push_back(Object(ObjectType::STRING, identifierExpression.get()->Value));
+  Ir.Code.push_back(std::make_shared<LOADC>(index));
   return std::nullopt;
 }
 
-std::optional<error> ir_generator::emit_expr_string(std::shared_ptr<expr_string> exp_string)
+std::optional<ERROR> IRGenerator::EmitExpressionString(std::shared_ptr<ExpressionString> exp_string)
 {
-  uint32_t index = static_cast<uint32_t>(ir_.pool.pool.size());
-  ir_.pool.pool.push_back(object(object_t::string, exp_string.get()->value));
-  ir_.code.push_back(std::make_shared<loadc>(index));
+  uint32_t index = static_cast<uint32_t>(Ir.Pool.Objects.size());
+  Ir.Pool.Objects.push_back(Object(ObjectType::STRING, exp_string.get()->Value));
+  Ir.Code.push_back(std::make_shared<LOADC>(index));
   return std::nullopt;
 }
 
-result<std::string, error> ir_disassembler::disassemble()
+result<std::string, ERROR> IRDisassembler::Disassemble()
 {
-  for (auto &inst : ir_.code)
+  for (auto &instruction : Ir.Code)
   {
-    switch (inst.get()->op)
+    switch (instruction.get()->Opcode)
     {
-    case opcode::loadc:
+    case OPCode::LOADC:
     {
-      auto err = dis_loadc(std::static_pointer_cast<loadc>(inst));
+      auto err = DisassembleLoadc(std::static_pointer_cast<LOADC>(instruction));
       if (err.has_value())
       {
-        return result<std::string, error>(err.value());
+        return result<std::string, ERROR>(err.value());
       }
       break;
     }
-    case opcode::call:
+    case OPCode::CALL:
     {
-      auto err = dis_call(std::static_pointer_cast<call>(inst));
+      auto err = DisassembleCall(std::static_pointer_cast<CALL>(instruction));
       if (err.has_value())
       {
-        return result<std::string, error>(err.value());
+        return result<std::string, ERROR>(err.value());
       }
       break;
     }
     }
   }
-  return result<std::string, error>(oss.str());
+  return result<std::string, ERROR>(Output.str());
 }
 
-std::optional<error> ir_disassembler::dis_loadc(std::shared_ptr<loadc> ldc)
+std::optional<ERROR> IRDisassembler::DisassembleLoadc(std::shared_ptr<LOADC> ldc)
 {
-  oss << "load_const " << ldc.get()->index << "          ;;" << ir_.pool.pool.at(ldc.get()->index).inspect() << std::endl;
+  Output << "load_const " << ldc.get()->Index << "          ;;" << Ir.Pool.Objects.at(ldc.get()->Index).Inspect() << std::endl;
   return std::nullopt;
 }
 
-std::optional<error> ir_disassembler::dis_call(std::shared_ptr<call>)
+std::optional<ERROR> IRDisassembler::DisassembleCall(std::shared_ptr<CALL>)
 {
-  oss << "call" << std::endl;
+  Output << "call" << std::endl;
   return std::nullopt;
 }

@@ -4,31 +4,31 @@
 #include <functional>
 #include <memory>
 
-#include "error.h"
+#include "diagnostic.h"
 #include "loader.h"
 #include "result.h"
 #include "token.h"
 
-class lexer
+class Lexer
 {
 public:
-  lexer(std::shared_ptr<source> s) : src(s), line(1), col(1), cursor(0) {};
+  std::shared_ptr<Source> Sourc;
 
-  result<token, error> next();
+  Lexer(std::shared_ptr<Source> source) : Sourc(source), Line(1), Column(1), Cursor(0) {};
+
+  result<Token, Diagnostic> Next();
 
 private:
-  std::shared_ptr<source> src;
+  size_t Line;
+  size_t Column;
 
-  size_t line;
-  size_t col;
+  size_t Cursor;
 
-  size_t cursor;
+  bool IsEof();
+  char PeekOne();
+  void Advance();
+  size_t AdvanceWhile(std::function<bool(char)>);
 
-  bool is_eof();
-  char peek_one();
-  void advance();
-  size_t advance_while(std::function<bool(char)>);
-
-  result<token, error> make_token_string();
-  result<token, error> make_token_simple(token_type);
+  result<Token, Diagnostic> MakeTokenString();
+  result<Token, Diagnostic> MakeTokenSimple(TokenType);
 };
