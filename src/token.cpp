@@ -1,11 +1,8 @@
-#include <sstream>
+#include <format>
 
 #include "token.h"
 
-std::string token::inspect()
+std::string Token::Inspect()
 {
-  std::ostringstream oss;
-  oss << lexeme << " ";
-  oss << pos.line << ":" << pos.col << ":" << pos.start << ":" << pos.end;
-  return oss.str();
+  return std::format("{} {}:{}:{}:{}", Lexeme, Pos.Line, Pos.Column, Pos.Start, Pos.End);
 }

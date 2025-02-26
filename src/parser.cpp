@@ -1,79 +1,79 @@
-#include <cassert>
 #include <iostream>
+#include <memory>
 
 #include "ast.h"
 #include "parser.h"
 #include "token.h"
 
-result<std::shared_ptr<ast>, error> parser::parse()
+result<AST, Diagnostic> parser::parse()
 {
   auto res = next();
   if (res.is_err())
   {
-    return result<std::shared_ptr<ast>, error>(res.unwrap_err());
+    return result<AST, Diagnostic>(res.unwrap_err());
   }
-  auto tree = std::make_shared<ast>();
+  AST tree;
   while (!is_eof())
   {
     auto stmt_res = parse_stmt();
     if (stmt_res.is_ok())
     {
-      tree.get()->program.push_back(stmt_res.unwrap());
+      tree.Program.push_back(stmt_res.unwrap());
     }
     else
     {
-      return result<std::shared_ptr<ast>, error>(stmt_res.unwrap_err());
+      return result<AST, Diagnostic>(stmt_res.unwrap_err());
     }
   }
-  return result<std::shared_ptr<ast>, error>(tree);
+  return result<AST, Diagnostic>(tree);
 }
 
-result<std::shared_ptr<stmt>, error> parser::parse_stmt()
+result<std::shared_ptr<Statement>, Diagnostic> parser::parse_stmt()
 {
-  auto expr_res = parse_expr(precedence::lowest);
+  auto expr_res = parse_expr(Precedence::LOWEST);
   if (expr_res.is_err())
   {
-    return result<std::shared_ptr<stmt>, error>(expr_res.unwrap_err());
+    return result<std::shared_ptr<Statement>, Diagnostic>(expr_res.unwrap_err());
   }
-  auto expect_res = expect(token_type::semic);
+  auto expect_res = expect(TokenType::SEMICOLON);
   if (expect_res.is_err())
   {
-    return result<std::shared_ptr<stmt>, error>(expect_res.unwrap_err());
+    return result<std::shared_ptr<Statement>, Diagnostic>(expect_res.unwrap_err());
   }
-  std::shared_ptr<expr> exp = expr_res.unwrap();
-  exp.get()->pos.end = expect_res.unwrap().end;
-  return result<std::shared_ptr<stmt>, error>(exp);
+  std::shared_ptr<Expression> exp = expr_res.unwrap();
+  exp.get()->Pos.End = expect_res.unwrap().End;
+  return result<std::shared_ptr<Statement>, Diagnostic>(exp);
 }
 
-precedence token2prec(token_type tt)
+Precedence token2precedence(TokenType tt)
 {
   switch (tt)
   {
-  case token_type::lparen:
-    return precedence::call;
+  case TokenType::LPAREN:
+    return Precedence::CALL;
   default:
-    return precedence::lowest;
+    return Precedence::LOWEST;
   }
 }
 
-result<std::shared_ptr<expr>, error> parser::parse_expr(precedence prec)
+result<std::shared_ptr<Expression>, Diagnostic> parser::parse_expr(Precedence prec)
 {
   auto lhs_res = parse_expr_lhs();
   if (lhs_res.is_err())
   {
-    return result<std::shared_ptr<expr>, error>(lhs_res.unwrap_err());
+    return result<std::shared_ptr<Expression>, Diagnostic>(lhs_res.unwrap_err());
   }
-  next();
-  while (!is_eof() && prec < token2prec(tkn.type))
+  next(); // eat lhs expression
+  while (!is_eof() && prec < token2precedence(tkn.Type))
   {
-    switch (tkn.type)
+    switch (tkn.Type)
     {
-    case token_type::lparen:
+    case TokenType::LPAREN:
     {
       auto expr_call_res = parse_expr_call(lhs_res.unwrap());
       if (expr_call_res.is_err())
       {
-        return result<std::shared_ptr<expr>, error>(lhs_res.unwrap_err());
+        return result<std::shared_ptr<Expression>, Diagnostic>(lhs_res.unwrap_err());
       }
       lhs_res.set_val(expr_call_res.unwrap());
     }
@@ -82,85 +82,88 @@ result<std::shared_ptr<expr>, error> parser::parse_expr(precedence prec)
     }
   }
 defer:
-  return result<std::shared_ptr<expr>, error>(lhs_res.unwrap());
+  return result<std::shared_ptr<Expression>, Diagnostic>(lhs_res.unwrap());
 }
 
-result<std::shared_ptr<expr>, error> parser::parse_expr_lhs()
+result<std::shared_ptr<Expression>, Diagnostic> parser::parse_expr_lhs()
 {
-  switch (tkn.type)
+  switch (tkn.Type)
   {
-  case token_type::string:
-    return result<std::shared_ptr<expr>, error>(std::make_shared<expr_string>(tkn.pos, tkn.lexeme));
-  case token_type::ident:
-    return result<std::shared_ptr<expr>, error>(std::make_shared<expr_ident>(tkn.pos, tkn.lexeme));
+  case TokenType::STRING:
+    return result<std::shared_ptr<Expression>, Diagnostic>(std::make_shared<ExpressionString>(tkn.Pos, tkn.Lexeme));
+  case TokenType::IDENTIFIER:
+    return result<std::shared_ptr<Expression>, Diagnostic>(std::make_shared<ExpressionIdentifier>(tkn.Pos, tkn.Lexeme));
   default:
-    std::cout << static_cast<int>(tkn.type) << std::endl;
-    assert(false);
+    // TODO: display expression
+    return result<std::shared_ptr<Expression>, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, tkn.Pos, lexr.Sourc, DiagnosticSeverity::ERROR, "invalid left side expression"));
   }
 }
 
-result<std::shared_ptr<expr_call>, error> parser::parse_expr_call(std::shared_ptr<expr> callee)
+result<std::shared_ptr<ExpressionCall>, Diagnostic> parser::parse_expr_call(std::shared_ptr<Expression> callee)
 {
-  auto expect_res = expect(token_type::lparen);
+  auto expect_res = expect(TokenType::LPAREN);
   if (expect_res.is_err())
   {
-    return result<std::shared_ptr<expr_call>, error>(expect_res.unwrap_err());
+    return result<std::shared_ptr<ExpressionCall>, Diagnostic>(expect_res.unwrap_err());
   }
-  position pos = callee.get()->pos;
-  std::vector<std::shared_ptr<expr>> args;
+  Position pos = callee.get()->Pos;
+  Position args_pos = expect_res.unwrap();
+  std::vector<std::shared_ptr<Expression>> args;
   for (;;)
   {
-    if (token_type::rparen == tkn.type)
+    if (TokenType::RPAREN == tkn.Type)
     {
       break;
     }
-    auto expr_res = parse_expr(precedence::lowest);
+    auto expr_res = parse_expr(Precedence::LOWEST);
     if (expr_res.is_err())
     {
-      return result<std::shared_ptr<expr_call>, error>(expr_res.unwrap_err());
+      return result<std::shared_ptr<ExpressionCall>, Diagnostic>(expr_res.unwrap_err());
     }
     args.push_back(expr_res.unwrap());
-    if (token_type::rparen != tkn.type)
+    if (TokenType::RPAREN != tkn.Type)
     {
-      expect_res = expect(token_type::comma);
+      expect_res = expect(TokenType::COMMA);
       if (expect_res.is_err())
       {
-        return result<std::shared_ptr<expr_call>, error>(expect_res.unwrap_err());
+        return result<std::shared_ptr<ExpressionCall>, Diagnostic>(expect_res.unwrap_err());
       }
     }
   }
-  expect_res = expect(token_type::rparen);
+  expect_res = expect(TokenType::RPAREN);
   if (expect_res.is_err())
   {
-    return result<std::shared_ptr<expr_call>, error>(expect_res.unwrap_err());
+    return result<std::shared_ptr<ExpressionCall>, Diagnostic>(expect_res.unwrap_err());
   }
-  pos.end = expect_res.unwrap().end;
-  return result<std::shared_ptr<expr_call>, error>(std::make_shared<expr_call>(pos, callee, args));
+  pos.End = expect_res.unwrap().End;
+  args_pos.End = expect_res.unwrap().End;
+  return result<std::shared_ptr<ExpressionCall>, Diagnostic>(std::make_shared<ExpressionCall>(pos, callee, args, args_pos));
 }
 
-result<position, error> parser::next()
+result<Position, Diagnostic> parser::next()
 {
-  position pos = tkn.pos;
-  auto res = lexr.next();
+  Position pos = tkn.Pos;
+  auto res = lexr.Next();
   if (res.is_err())
   {
-    return result<position, error>(res.unwrap_err());
+    return result<Position, Diagnostic>(res.unwrap_err());
   }
   tkn = res.unwrap();
-  return result<position, error>(pos);
+  return result<Position, Diagnostic>(pos);
 }
 
-result<position, error> parser::expect(token_type tt)
+result<Position, Diagnostic> parser::expect(TokenType tt)
 {
-  if (tt != tkn.type)
+  if (tt != tkn.Type)
   {
     std::cout << static_cast<int>(tt) << std::endl;
-    assert(false);
+    // TODO: display token, token_type
+    return result<Position, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, tkn.Pos, lexr.Sourc, DiagnosticSeverity::ERROR, "syntax error: expect {} but got {}."));
   }
   return next();
 }
 
 bool parser::is_eof()
 {
-  return token_type::eof == tkn.type;
+  return TokenType::EOf == tkn.Type;
 }

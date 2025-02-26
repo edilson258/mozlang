@@ -2,120 +2,123 @@
 #include <cctype>
 #include <cstddef>
 #include <cstdlib>
+#include <format>
 #include <string>
 
+#include "diagnostic.h"
+#include "error.h"
 #include "lexer.h"
 #include "result.h"
 #include "token.h"
 
 #define EOF_CHAR '\0'
 
-result<token, error> lexer::next()
+result<Token, Diagnostic> Lexer::Next()
 {
-  advance_while([](char c)
-                { return std::isspace(c); });
+  AdvanceWhile([](char c)
+               { return std::isspace(c); });
 
-  if (is_eof())
+  if (IsEof())
   {
-    return result<token, error>(token(position(line, col, cursor, cursor), token_type::eof, "EOF"));
+    return result<Token, Diagnostic>(Token(Position(Line, Column, Cursor, Cursor), TokenType::EOf, "EOF"));
   }
 
-  char current = peek_one();
+  char current = PeekOne();
   switch (current)
   {
   case '(':
-    return make_token_simple(token_type::lparen);
+    return MakeTokenSimple(TokenType::LPAREN);
   case ')':
-    return make_token_simple(token_type::rparen);
+    return MakeTokenSimple(TokenType::RPAREN);
   case ';':
-    return make_token_simple(token_type::semic);
+    return MakeTokenSimple(TokenType::SEMICOLON);
   case ',':
-    return make_token_simple(token_type::comma);
+    return MakeTokenSimple(TokenType::COMMA);
   case '"':
-    return make_token_string();
+    return MakeTokenString();
   }
 
   if (std::isalpha(current) || '_' == current)
   {
-    size_t at = cursor;
-    size_t at_col = col;
-    size_t len = advance_while([](char c)
-                               { return std::isalnum(c) || '_' == c; });
-    return result<token, error>(token(position(line, at_col, at, cursor - 1), token_type::ident, src.get()->content.substr(at, len)));
+    size_t at = Cursor;
+    size_t atColumn = Column;
+    size_t len = AdvanceWhile([](char c)
+                              { return std::isalnum(c) || '_' == c; });
+    return result<Token, Diagnostic>(Token(Position(Line, atColumn, at, Cursor - 1), TokenType::IDENTIFIER, Sourc.get()->content.substr(at, len)));
   }
 
-  assert(false);
+  return result<Token, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, Position(Line, Column, Cursor, Cursor), Sourc, DiagnosticSeverity::ERROR, std::format("invalid token: '{}'", current)));
 }
 
-result<token, error> lexer::make_token_simple(token_type tt)
+result<Token, Diagnostic> Lexer::MakeTokenSimple(TokenType tt)
 {
-  token tkn(position(line, col, cursor, cursor), tt, std::string(1, peek_one()));
-  advance();
-  return result<token, error>(tkn);
+  Token token(Position(Line, Column, Cursor, Cursor), tt, std::string(1, PeekOne()));
+  Advance();
+  return result<Token, Diagnostic>(token);
 }
 
-result<token, error> lexer::make_token_string()
+result<Token, Diagnostic> Lexer::MakeTokenString()
 {
-  size_t at = cursor;
-  size_t at_col = col;
+  size_t at = Cursor;
+  size_t atColumn = Column;
 
-  advance();
+  Advance();
   for (;;)
   {
-    char current = peek_one();
-    if (is_eof() || '\n' == current)
+    char current = PeekOne();
+    if (IsEof() || '\n' == current)
     {
-      assert(false);
+      return result<Token, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, Position(Line, Column, at, Cursor - 1), Sourc, DiagnosticSeverity::ERROR, "unquoted string"));
     }
     if ('"' == current)
     {
-      advance();
+      Advance();
       break;
     }
-    advance();
+    Advance();
   }
 
-  return result<token, error>(token(position(line, at_col, at, cursor - 1), token_type::string, src.get()->content.substr(at, cursor - at)));
+  return result<Token, Diagnostic>(Token(Position(Line, atColumn, at, Cursor - 1), TokenType::STRING, Sourc.get()->content.substr(at, Cursor - at)));
 }
 
-bool lexer::is_eof()
+bool Lexer::IsEof()
 {
-  return cursor >= src.get()->content.length();
+  return Cursor >= Sourc.get()->content.length();
 }
 
-char lexer::peek_one()
+char Lexer::PeekOne()
 {
-  if (is_eof())
+  if (IsEof())
   {
     return EOF_CHAR;
   }
-  return src.get()->content.at(cursor);
+  return Sourc.get()->content.at(Cursor);
 }
 
-void lexer::advance()
+void Lexer::Advance()
 {
-  if (is_eof())
+  if (IsEof())
   {
     return;
   }
-  cursor++;
-  if ('\n' == peek_one())
+  Cursor++;
+  if ('\n' == PeekOne())
   {
-    line++;
-    col = 0;
+    Line++;
+    Column = 0;
   }
   else
   {
-    col++;
+    Column++;
   }
 }
 
-size_t lexer::advance_while(std::function<bool(char)> pred)
+size_t Lexer::AdvanceWhile(std::function<bool(char)> predicate)
 {
-  size_t at = cursor;
-  while (!is_eof() && pred(peek_one()))
+  size_t at = Cursor;
+  while (!IsEof() && predicate(PeekOne()))
   {
-    advance();
+    Advance();
   }
-  return cursor - at;
+  return Cursor - at;
 }

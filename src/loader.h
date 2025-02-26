@@ -9,24 +9,24 @@
 #include "error.h"
 #include "result.h"
 
-class source
+class Source
 {
 public:
   size_t id;
   std::string path;
   std::string content;
 
-  source(size_t i, std::string p, std::string c) : id(i), path(p), content(c) {};
+  Source(size_t i, std::string p, std::string c) : id(i), path(p), content(c) {};
 };
 
-class loader
+class Loader
 {
 public:
-  loader() : sources() {};
+  Loader() : Sources() {};
 
-  result<std::shared_ptr<source>, error> load(std::string path);
-  std::optional<std::shared_ptr<source>> find_source(size_t id);
+  result<std::shared_ptr<Source>, ERROR> Load(std::string path);
+  std::optional<std::shared_ptr<Source>> FindSource(size_t id);
 
 private:
-  std::vector<std::shared_ptr<source>> sources;
+  std::vector<std::shared_ptr<Source>> Sources;
 };

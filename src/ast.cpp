@@ -1,128 +1,127 @@
 #include <cstddef>
 #include <format>
-#include <memory>
 #include <sstream>
 #include <string>
 
 #include "ast.h"
-#include "token.h"
 
-class ast_inspector
+class ASTInspector
 {
 public:
-  ast_inspector(ast *t) : tree(t), tabrate(4), tabsize(0), oss() {}
+  ASTInspector(AST &ast) : Ast(ast), TabRate(4), TabSize(0), Output() {}
 
-  std::string inspect();
+  std::string Inspect();
 
 private:
-  ast *tree;
+  AST &Ast;
 
-  size_t tabrate;
-  size_t tabsize;
-  std::ostringstream oss;
+  size_t TabRate;
+  size_t TabSize;
+  std::ostringstream Output;
 
-  void tab();
-  void untab();
-  void write(std::string);
-  void writeln(std::string);
+  void Tab();
+  void UnTab();
+  void Write(std::string);
+  void Writeln(std::string);
 
-  void inspect_stmt(std::shared_ptr<stmt>);
-  void inspect_expr(std::shared_ptr<expr>);
-  void inspect_expr_call(std::shared_ptr<expr_call>);
-  void inspect_expr_string(std::shared_ptr<expr_string>);
-  void inspect_expr_identifier(std::shared_ptr<expr_ident>);
+  void InspectStatement(std::shared_ptr<Statement>);
+  void InspectExpression(std::shared_ptr<Expression>);
+  void InspectExpressionCall(std::shared_ptr<ExpressionCall>);
+  void InspectExpressionString(std::shared_ptr<ExpressionString>);
+  void InspectEpressionIdentifier(std::shared_ptr<ExpressionIdentifier>);
 };
 
-void ast_inspector::tab()
+void ASTInspector::Tab()
 {
-  tabsize += tabrate;
+  TabSize += TabRate;
 }
 
-void ast_inspector::untab()
+void ASTInspector::UnTab()
 {
-  tabsize -= tabrate;
+  TabSize -= TabRate;
 }
 
-void ast_inspector::write(std::string str)
+void ASTInspector::Write(std::string str)
 {
-  oss << std::string(tabsize, ' ') << str;
+  Output << std::string(TabSize, ' ') << str;
 }
 
-void ast_inspector::writeln(std::string str)
+void ASTInspector::Writeln(std::string str)
 {
-  write(str);
-  oss << '\n';
+  Write(str);
+  Output << '\n';
 }
 
-std::string ast_inspector::inspect()
+std::string ASTInspector::Inspect()
 {
-  oss << "Abstract Syntax Tree\n\n";
+  Output << "Abstract Syntax Tree\n\n";
 
-  for (std::shared_ptr<stmt> stmt : tree->program)
+  for (std::shared_ptr<Statement> stmt : Ast.Program)
   {
-    inspect_stmt(stmt);
+    InspectStatement(stmt);
   }
 
-  return oss.str();
+  return Output.str();
 }
 
-void ast_inspector::inspect_stmt(std::shared_ptr<stmt> stmt)
+void ASTInspector::InspectStatement(std::shared_ptr<Statement> statement)
 {
-  switch (stmt.get()->type)
+  switch (statement.get()->Type)
   {
-  case stmt_t::expr:
-    inspect_expr(std::static_pointer_cast<expr>(stmt));
-  }
-}
-
-void ast_inspector::inspect_expr(std::shared_ptr<expr> expr)
-{
-  switch (expr.get()->type)
-  {
-  case expr_t::call:
-    return inspect_expr_call(std::static_pointer_cast<expr_call>(expr));
-  case expr_t::string:
-    return inspect_expr_string(std::static_pointer_cast<expr_string>(expr));
-  case expr_t::ident:
-    return inspect_expr_identifier(std::static_pointer_cast<expr_ident>(expr));
+  case StatementType ::EXPRESSION:
+    InspectExpression(std::static_pointer_cast<Expression>(statement));
   }
 }
 
-void ast_inspector::inspect_expr_call(std::shared_ptr<expr_call> expr_call)
+void ASTInspector::InspectExpression(std::shared_ptr<Expression> expression)
 {
-  position p = expr_call.get()->pos;
-  writeln(std::format("call expression: {{{}:{}:{}:{}}}", p.line, p.col, p.start, p.end));
-  tab();
-
-  writeln("callee:");
-  tab();
-  inspect_expr(expr_call.get()->callee);
-  untab();
-
-  writeln("arguments: [");
-  tab();
-  for (auto arg : expr_call.get()->args)
+  switch (expression.get()->Type)
   {
-    inspect_expr(arg);
+  case ExpressionType::CALL:
+    return InspectExpressionCall(std::static_pointer_cast<ExpressionCall>(expression));
+  case ExpressionType::STRING:
+    return InspectExpressionString(std::static_pointer_cast<ExpressionString>(expression));
+  case ExpressionType::IDENTIFIER:
+    return InspectEpressionIdentifier(std::static_pointer_cast<ExpressionIdentifier>(expression));
   }
-  untab();
-  writeln("]");
-
-  untab();
 }
 
-void ast_inspector::inspect_expr_string(std::shared_ptr<expr_string> expr_string)
+void ASTInspector::InspectExpressionCall(std::shared_ptr<ExpressionCall> callExpression)
 {
-  writeln(std::format("string literal: {}", expr_string.get()->value));
+  Position position = callExpression.get()->Pos;
+  Writeln(std::format("call expression: {{{}:{}:{}:{}}}", position.Line, position.Column, position.Start, position.End));
+  Tab();
+
+  Writeln("callee:");
+  Tab();
+  InspectExpression(callExpression.get()->Callee);
+  UnTab();
+
+  Writeln("arguments: [");
+  Tab();
+  for (auto argument : callExpression.get()->Arguments)
+  {
+    InspectExpression(argument);
+  }
+  UnTab();
+  Writeln("]");
+
+  UnTab();
 }
 
-void ast_inspector::inspect_expr_identifier(std::shared_ptr<expr_ident> expr_identifier)
+void ASTInspector::InspectExpressionString(std::shared_ptr<ExpressionString> stringExpression)
 {
-  writeln(std::format("identifer expression: {}", expr_identifier.get()->value));
+  Writeln(std::format("string literal: {}", stringExpression.get()->Value));
 }
 
-std::string ast::inspect()
+// ;
+void ASTInspector::InspectEpressionIdentifier(std::shared_ptr<ExpressionIdentifier> identifierExpression)
 {
-  ast_inspector ai(this);
-  return ai.inspect();
+  Writeln(std::format("identifer expression: {}", identifierExpression.get()->Value));
+}
+
+std::string AST::Inspect()
+{
+  ASTInspector astInspector(*this);
+  return astInspector.Inspect();
 }

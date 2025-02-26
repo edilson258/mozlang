@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -12,100 +13,105 @@
 #include "error.h"
 #include "result.h"
 
-enum class opcode
+enum class OPCode
 {
-  loadc = 0x1,
-  call = 0x2,
+  LOADC = 0x1,
+  CALL = 0x2,
 };
 
-class instr
+class Instruction
 {
 public:
-  opcode op;
+  OPCode Opcode;
 
 protected:
-  instr(opcode o) : op(o) {};
+  Instruction(OPCode op) : Opcode(op) {};
 };
 
-class loadc : public instr
+class LOADC : public Instruction
 {
 public:
-  uint32_t index;
-  loadc(uint32_t i) : instr(opcode::loadc), index(i) {};
+  uint32_t Index;
+  LOADC(uint32_t index) : Instruction(OPCode::LOADC), Index(index) {};
 };
 
-class call : public instr
+class CALL : public Instruction
 {
 public:
-  call() : instr(opcode::call) {};
+  CALL() : Instruction(OPCode::CALL) {};
 };
 
-enum class object_t
+enum class ObjectType
 {
-  string = 1,
+  STRING = 1,
 };
 
-using object_v = std::variant<std::monostate, std::string>;
+using ObjectValue = std::variant<std::monostate, std::string>;
 
-class object
+class Object
 {
 public:
-  object_t type;
-  object_v value;
+  ObjectType Type;
+  ObjectValue Value;
 
-  object(object_t t, object_v v) : type(t), value(v) {};
+  Object(ObjectType type, ObjectValue value) : Type(type), Value(value) {};
 
-  std::string inspect() const
+  std::string Inspect() const
   {
-    return std::get<std::string>(value);
+    return std::get<std::string>(Value);
   }
 };
 
-class const_pool
+class ConstantPool
 {
 public:
-  std::vector<object> pool;
+  std::vector<Object> Objects;
+
+  size_t size() const
+  {
+    return Objects.size();
+  }
 };
 
-class ir
+class IR
 {
 public:
-  ir() : code() {};
+  IR() : Code() {};
 
-  const_pool pool;
-  std::vector<std::shared_ptr<instr>> code;
+  ConstantPool Pool;
+  std::vector<std::shared_ptr<Instruction>> Code;
 };
 
-class ir_generator
+class IRGenerator
 {
 public:
-  ir_generator(ast &t) : tree(t), ir_() {};
+  IRGenerator(AST &t) : Ast(t), Ir() {};
 
-  result<ir, error> emit();
+  result<IR, ERROR> Emit();
 
 private:
-  ast &tree;
-  ir ir_;
+  AST &Ast;
+  IR Ir;
 
-  std::optional<error> emit_stmt(std::shared_ptr<stmt>);
-  std::optional<error> emit_expr(std::shared_ptr<expr>);
-  std::optional<error> emit_expr_call(std::shared_ptr<expr_call>);
-  std::optional<error> emit_expr_ident(std::shared_ptr<expr_ident>);
-  std::optional<error> emit_expr_string(std::shared_ptr<expr_string>);
+  std::optional<ERROR> EmitStatement(std::shared_ptr<Statement>);
+  std::optional<ERROR> EmitExpression(std::shared_ptr<Expression>);
+  std::optional<ERROR> EmitExpressionCall(std::shared_ptr<ExpressionCall>);
+  std::optional<ERROR> EmitExpressionIdentifier(std::shared_ptr<ExpressionIdentifier>);
+  std::optional<ERROR> EmitExpressionString(std::shared_ptr<ExpressionString>);
 };
 
-class ir_disassembler
+class IRDisassembler
 {
 public:
-  ir_disassembler(ir i) : ir_(i) {};
+  IRDisassembler(IR ir) : Ir(ir) {};
 
-  result<std::string, error> disassemble();
+  result<std::string, ERROR> Disassemble();
 
 private:
-  ir ir_;
+  IR Ir;
 
-  std::ostringstream oss;
+  std::ostringstream Output;
 
-  std::optional<error> dis_loadc(std::shared_ptr<loadc>);
-  std::optional<error> dis_call(std::shared_ptr<call>);
+  std::optional<ERROR> DisassembleLoadc(std::shared_ptr<LOADC>);
+  std::optional<ERROR> DisassembleCall(std::shared_ptr<CALL>);
 };

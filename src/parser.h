@@ -1,25 +1,26 @@
 #pragma once
 
 #include "ast.h"
+#include "diagnostic.h"
 #include "lexer.h"
 
 class parser
 {
 public:
-  parser(lexer l) : lexr(l), tkn() {};
+  parser(Lexer l) : lexr(l), tkn() {};
 
-  result<std::shared_ptr<ast>, error> parse();
+  result<AST, Diagnostic> parse();
 
 private:
-  lexer lexr;
-  token tkn;
+  Lexer lexr;
+  Token tkn;
 
   bool is_eof();
-  result<position, error> next();
-  result<position, error> expect(token_type);
+  result<Position, Diagnostic> next();
+  result<Position, Diagnostic> expect(TokenType);
 
-  result<std::shared_ptr<stmt>, error> parse_stmt();
-  result<std::shared_ptr<expr>, error> parse_expr(precedence);
-  result<std::shared_ptr<expr>, error> parse_expr_lhs();
-  result<std::shared_ptr<expr_call>, error> parse_expr_call(std::shared_ptr<expr>);
+  result<std::shared_ptr<Statement>, Diagnostic> parse_stmt();
+  result<std::shared_ptr<Expression>, Diagnostic> parse_expr(Precedence);
+  result<std::shared_ptr<Expression>, Diagnostic> parse_expr_lhs();
+  result<std::shared_ptr<ExpressionCall>, Diagnostic> parse_expr_call(std::shared_ptr<Expression>);
 };

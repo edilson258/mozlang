@@ -27,17 +27,17 @@
 #define BOLD_GREEN BOLD GREEN
 #define BOLD_WHITE BOLD WHITE
 
-std::string diagnostic_engine::paint(std::string text, std::string colr)
+std::string DiagnosticEngine::Paint(std::string text, std::string color)
 {
-  text.insert(0, colr);
+  text.insert(0, color);
   text.append(COLOR_RESET);
   return text;
 }
 
 struct LineInfo
 {
-  size_t start;
-  size_t end;
+  size_t Start;
+  size_t End;
 };
 
 std::vector<LineInfo> split_lines(const std::string &code)
@@ -63,7 +63,7 @@ size_t find_line_index(const std::vector<LineInfo> &lines, size_t pos)
 {
   for (size_t i = 0; i < lines.size(); ++i)
   {
-    if (pos >= lines[i].start && pos < lines[i].end)
+    if (pos >= lines[i].Start && pos < lines[i].End)
     {
       return i;
     }
@@ -71,10 +71,10 @@ size_t find_line_index(const std::vector<LineInfo> &lines, size_t pos)
   return lines.size(); // Not found
 }
 
-std::string diagnostic_engine::highlight(std::string code, size_t start, size_t end, std::string colr)
+std::string DiagnosticEngine::Highlight(std::string code, size_t start, size_t end, std::string colr)
 {
-  // Clamp start and end to valid range
   end++;
+  // Clamp start and end to valid range
   start = std::min(start, code.size());
   end = std::min(end, code.size());
   start = std::max(start, static_cast<size_t>(0));
@@ -87,69 +87,69 @@ std::string diagnostic_engine::highlight(std::string code, size_t start, size_t 
   }
 
   // Find start_line and end_line
-  size_t start_line = find_line_index(lines, start);
-  if (start_line >= lines.size())
+  size_t startLine = find_line_index(lines, start);
+  if (startLine >= lines.size())
   {
-    start_line = lines.size() - 1;
+    startLine = lines.size() - 1;
   }
 
-  size_t end_line;
+  size_t endLine;
   if (end == 0)
   {
-    end_line = start_line;
+    endLine = startLine;
   }
   else
   {
-    end_line = find_line_index(lines, end - 1);
-    if (end_line >= lines.size())
+    endLine = find_line_index(lines, end - 1);
+    if (endLine >= lines.size())
     {
-      end_line = lines.size() - 1;
+      endLine = lines.size() - 1;
     }
   }
 
   // Calculate context lines
-  size_t context_start = (start_line >= 2) ? start_line - 2 : 0;
-  size_t context_end = std::min(end_line + 2, lines.size() - 1);
+  size_t contextStart = (startLine >= 2) ? startLine - 2 : 0;
+  size_t contextEnd = std::min(endLine + 2, lines.size() - 1);
 
   // Collect context lines
-  std::vector<size_t> context_lines;
-  for (size_t i = context_start; i <= context_end; ++i)
+  std::vector<size_t> contextLines;
+  for (size_t i = contextStart; i <= contextEnd; ++i)
   {
-    context_lines.push_back(i);
+    contextLines.push_back(i);
   }
 
   // Prepare output
   std::stringstream output;
-  size_t max_line_number = context_end + 1;
+  size_t max_line_number = contextEnd + 1;
   size_t line_number_width = std::to_string(max_line_number).size();
 
-  for (size_t line_idx : context_lines)
+  for (size_t lineIndex : contextLines)
   {
-    const auto &line = lines[line_idx];
-    std::string line_code = code.substr(line.start, line.end - line.start);
-    size_t line_number = line_idx + 1;
+    const auto &line = lines[lineIndex];
+    std::string lineCode = code.substr(line.Start, line.End - line.Start);
+    size_t lineNumber = lineIndex + 1;
 
     // Output code line
-    output << std::setw(static_cast<int>(line_number_width)) << line_number << " | " << line_code << "\n";
+    output << std::setw(static_cast<int>(line_number_width)) << lineNumber << " | " << lineCode << "\n";
 
     // Check if line is part of the highlighted region
-    if (line.end <= start || line.start >= end)
+    if (line.End <= start || line.Start >= end)
     {
       continue;
     }
 
     // Calculate columns to highlight
-    size_t highlight_start = std::max(start, line.start);
-    size_t highlight_end = std::min(end, line.end);
-    size_t start_col = highlight_start - line.start;
-    size_t end_col = highlight_end - line.start;
+    size_t highlightStart = std::max(start, line.Start);
+    size_t highlightEnd = std::min(end, line.End);
+    size_t startColumn = highlightStart - line.Start;
+    size_t endColumn = highlightEnd - line.Start;
 
     // Handle zero-length (caret at a position)
-    if (start_col == end_col)
+    if (startColumn == endColumn)
     {
-      if (start_col < line_code.size())
+      if (startColumn < lineCode.size())
       {
-        end_col = start_col + 1;
+        endColumn = startColumn + 1;
       }
       else
       {
@@ -158,50 +158,50 @@ std::string diagnostic_engine::highlight(std::string code, size_t start, size_t 
     }
 
     // Generate caret line
-    std::string caret_line(line_code.size(), ' ');
-    for (size_t i = start_col; i < end_col && i < caret_line.size(); ++i)
+    std::string caretLine(lineCode.size(), ' ');
+    for (size_t i = startColumn; i < endColumn && i < caretLine.size(); ++i)
     {
-      caret_line[i] = '~';
+      caretLine[i] = '~';
     }
 
     // Output caret line
-    output << std::setw(static_cast<int>(line_number_width)) << "" << " | " << colr << caret_line << RESET << "\n";
+    output << std::setw(static_cast<int>(line_number_width)) << "" << " | " << colr << caretLine << RESET << "\n";
   }
 
   return output.str();
 }
 
-void diagnostic_engine::report(diagnostic diag)
+void DiagnosticEngine::Report(Diagnostic diagnostic)
 {
-  std::cerr << paint(std::format("{}:{}:{} ", diag.src.get()->path, diag.pos.line, diag.pos.col), BOLD_WHITE);
-  std::cerr << paint(std::format("{}: {}", match_sevevirty_string(diag.severity), diag.message), match_severity_color(diag.severity)) << std::endl;
+  std::cerr << Paint(std::format("{}:{}:{} ", diagnostic.Sourc.get()->path, diagnostic.Pos.Line, diagnostic.Pos.Column), BOLD_WHITE);
+  std::cerr << Paint(std::format("{}: {}", MatchSevevirtyString(diagnostic.Severity), diagnostic.Message), MatchSeverityColor(diagnostic.Severity)) << std::endl;
   std::cerr << std::endl;
-  std::cerr << highlight(diag.src.get()->content, diag.pos.start, diag.pos.end, match_severity_color(diag.severity)) << std::endl;
+  std::cerr << Highlight(diagnostic.Sourc.get()->content, diagnostic.Pos.Start, diagnostic.Pos.End, MatchSeverityColor(diagnostic.Severity)) << std::endl;
 }
 
-std::string diagnostic_engine::match_sevevirty_string(diagnostic_severity severity)
+std::string DiagnosticEngine::MatchSevevirtyString(DiagnosticSeverity severity)
 {
   switch (severity)
   {
-  case diagnostic_severity::error:
+  case DiagnosticSeverity::ERROR:
     return "ERROR";
-  case diagnostic_severity::warn:
-    return "WARNING";
-  case diagnostic_severity::info:
+  case DiagnosticSeverity::WARN:
+    return "WARN";
+  case DiagnosticSeverity::INFO:
     return "INFO";
   }
   return "UNKNOWN SEVERITY";
 }
 
-std::string diagnostic_engine::match_severity_color(diagnostic_severity severity)
+std::string DiagnosticEngine::MatchSeverityColor(DiagnosticSeverity severity)
 {
   switch (severity)
   {
-  case diagnostic_severity::error:
+  case DiagnosticSeverity::ERROR:
     return BOLD_RED;
-  case diagnostic_severity::warn:
+  case DiagnosticSeverity::WARN:
     return BOLD_YELLOW;
-  case diagnostic_severity::info:
+  case DiagnosticSeverity::INFO:
     return BOLD_GREEN;
   }
   return BOLD_WHITE;
