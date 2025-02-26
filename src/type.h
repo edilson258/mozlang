@@ -10,7 +10,7 @@ enum class BaseType
   FUNCTION,
 
   // internal
-  NONE,
+  ANY,
   F_STRING,
 };
 

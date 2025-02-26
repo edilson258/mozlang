@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <memory>
 #include <optional>
 #include <string>
@@ -8,27 +9,49 @@
 #include "token.h"
 #include "type.h"
 
-enum class BindingOrigin
+enum class BindingType
 {
-  LITERAL,
-  RETURN_VALUE,
-  BUILTIN,
+  LITERAL = 1,
+  FUNCTION,
+  PARAMETER,
 };
 
 class Binding
 {
 public:
-  std::shared_ptr<Type> Typ;
+  BindingType Typ;
   Position Pos;
-  BindingOrigin Origin;
+  size_t FileID;
   bool Used;
 
-  Binding(std::shared_ptr<Type> type, Position pos, BindingOrigin origin, bool used = false) : Typ(type), Pos(pos), Origin(origin), Used(used) {}
+protected:
+  Binding(BindingType type, Position pos, size_t fileID, bool used = false) : Typ(type), Pos(pos), FileID(fileID), Used(used) {}
+};
 
-  static std::shared_ptr<Binding> make_string_literal(Position pos)
-  {
-    return std::make_shared<Binding>(std::make_shared<Type>(BaseType::STRING), pos, BindingOrigin::LITERAL);
-  }
+class BindingLiteral : public Binding
+{
+public:
+  BaseType BaseTyp;
+
+  BindingLiteral(Position pos, BaseType baseTyp, size_t fileID, bool used = false) : Binding(BindingType::LITERAL, pos, fileID, used), BaseTyp(baseTyp) {}
+};
+
+class BindingParameter : public Binding
+{
+public:
+  std::shared_ptr<Type> Typ;
+
+  BindingParameter(Position pos, std::shared_ptr<Type> typ, size_t fileID, bool used = false) : Binding(BindingType::PARAMETER, pos, fileID, used), Typ(typ) {}
+};
+
+class BindingFunction : public Binding
+{
+public:
+  Position NamePosition;
+  Position ParamsPosition;
+  std::shared_ptr<FunctionType> FnType;
+
+  BindingFunction(Position position, Position namePosition, Position paramsPosition, std::shared_ptr<FunctionType> functionType, size_t fileID, bool used = false) : Binding(BindingType::FUNCTION, position, fileID, used), NamePosition(namePosition), ParamsPosition(paramsPosition), FnType(functionType) {};
 };
 
 class Context

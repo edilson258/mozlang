@@ -3,11 +3,11 @@
 #include <variant>
 
 template <typename T, typename E>
-class result
+class Result
 {
 public:
-  result(T value) : inner(std::in_place_type<T>, value) {};
-  result(E error) : inner(std::in_place_type<E>, error) {};
+  Result(T value) : inner(std::in_place_type<T>, value) {};
+  Result(E error) : inner(std::in_place_type<E>, error) {};
 
   T unwrap()
   {

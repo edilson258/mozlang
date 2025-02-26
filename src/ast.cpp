@@ -25,6 +25,9 @@ private:
   void Writeln(std::string);
 
   void InspectStatement(std::shared_ptr<Statement>);
+  void InspectStatementBlock(std::shared_ptr<StatementBlock>);
+  void InspectStatementReturn(std::shared_ptr<StatementReturn>);
+  void InspectStatementFunction(std::shared_ptr<StatementFunction>);
   void InspectExpression(std::shared_ptr<Expression>);
   void InspectExpressionCall(std::shared_ptr<ExpressionCall>);
   void InspectExpressionString(std::shared_ptr<ExpressionString>);
@@ -68,9 +71,46 @@ void ASTInspector::InspectStatement(std::shared_ptr<Statement> statement)
 {
   switch (statement.get()->Type)
   {
+  case StatementType::BLOCK:
+    return InspectStatementBlock(std::static_pointer_cast<StatementBlock>(statement));
+  case StatementType::RETURN:
+    return InspectStatementReturn(std::static_pointer_cast<StatementReturn>(statement));
+  case StatementType::FUNCTION:
+    return InspectStatementFunction(std::static_pointer_cast<StatementFunction>(statement));
   case StatementType ::EXPRESSION:
-    InspectExpression(std::static_pointer_cast<Expression>(statement));
+    return InspectExpression(std::static_pointer_cast<Expression>(statement));
   }
+}
+
+void ASTInspector::InspectStatementBlock(std::shared_ptr<StatementBlock> blockStatement)
+{
+  Writeln("Block Statement:");
+  Tab();
+  for (auto &statement : blockStatement.get()->Stmts)
+  {
+    InspectStatement(statement);
+  }
+  UnTab();
+}
+
+void ASTInspector::InspectStatementReturn(std::shared_ptr<StatementReturn> returnStatement)
+{
+  Writeln("Return Statement:");
+  Tab();
+  if (returnStatement.get()->Value.has_value())
+  {
+    InspectExpression(returnStatement.get()->Value.value());
+  }
+  UnTab();
+}
+
+void ASTInspector::InspectStatementFunction(std::shared_ptr<StatementFunction> functionStatement)
+{
+  Writeln("Function Statement:");
+  Tab();
+  Writeln(std::format("Name: {}", functionStatement.get()->Name.get()->Value));
+  InspectStatementBlock(functionStatement.get()->Body);
+  UnTab();
 }
 
 void ASTInspector::InspectExpression(std::shared_ptr<Expression> expression)

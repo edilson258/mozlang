@@ -6,24 +6,28 @@
 
 #include "ir.h"
 
-result<IR, ERROR> IRGenerator::Emit()
+Result<IR, ERROR> IRGenerator::Emit()
 {
   for (auto statement : Ast.Program)
   {
     auto error = EmitStatement(statement);
     if (error.has_value())
     {
-      return result<IR, ERROR>(error.value());
+      return Result<IR, ERROR>(error.value());
     }
   }
 
-  return result<IR, ERROR>(Ir);
+  return Result<IR, ERROR>(Ir);
 }
 
 std::optional<ERROR> IRGenerator::EmitStatement(std::shared_ptr<Statement> statement)
 {
   switch (statement.get()->Type)
   {
+  case StatementType::BLOCK:
+  case StatementType::RETURN:
+  case StatementType::FUNCTION:
+    break;
   case StatementType::EXPRESSION:
     return EmitExpression(std::static_pointer_cast<Expression>(statement));
   }
@@ -73,13 +77,13 @@ std::optional<ERROR> IRGenerator::EmitExpressionIdentifier(std::shared_ptr<Expre
 
 std::optional<ERROR> IRGenerator::EmitExpressionString(std::shared_ptr<ExpressionString> exp_string)
 {
-  uint32_t index = static_cast<uint32_t>(Ir.Pool.Objects.size());
+  uint32_t index = static_cast<uint32_t>(Ir.Pool.size());
   Ir.Pool.Objects.push_back(Object(ObjectType::STRING, exp_string.get()->Value));
   Ir.Code.push_back(std::make_shared<LOADC>(index));
   return std::nullopt;
 }
 
-result<std::string, ERROR> IRDisassembler::Disassemble()
+Result<std::string, ERROR> IRDisassembler::Disassemble()
 {
   for (auto &instruction : Ir.Code)
   {
@@ -90,7 +94,7 @@ result<std::string, ERROR> IRDisassembler::Disassemble()
       auto err = DisassembleLoadc(std::static_pointer_cast<LOADC>(instruction));
       if (err.has_value())
       {
-        return result<std::string, ERROR>(err.value());
+        return Result<std::string, ERROR>(err.value());
       }
       break;
     }
@@ -99,13 +103,13 @@ result<std::string, ERROR> IRDisassembler::Disassemble()
       auto err = DisassembleCall(std::static_pointer_cast<CALL>(instruction));
       if (err.has_value())
       {
-        return result<std::string, ERROR>(err.value());
+        return Result<std::string, ERROR>(err.value());
       }
       break;
     }
     }
   }
-  return result<std::string, ERROR>(Output.str());
+  return Result<std::string, ERROR>(Output.str());
 }
 
 std::optional<ERROR> IRDisassembler::DisassembleLoadc(std::shared_ptr<LOADC> ldc)

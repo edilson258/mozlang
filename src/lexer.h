@@ -16,7 +16,7 @@ public:
 
   Lexer(std::shared_ptr<Source> source) : Sourc(source), Line(1), Column(1), Cursor(0) {};
 
-  result<Token, Diagnostic> Next();
+  Result<Token, Diagnostic> Next();
 
 private:
   size_t Line;
@@ -29,6 +29,6 @@ private:
   void Advance();
   size_t AdvanceWhile(std::function<bool(char)>);
 
-  result<Token, Diagnostic> MakeTokenString();
-  result<Token, Diagnostic> MakeTokenSimple(TokenType);
+  Result<Token, Diagnostic> MakeTokenString();
+  Result<Token, Diagnostic> MakeTokenSimple(TokenType);
 };

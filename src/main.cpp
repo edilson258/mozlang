@@ -28,15 +28,15 @@ int main(int argc, char *argv[])
   auto entrySource = entryRes.unwrap();
   DiagnosticEngine diagnosticEngine;
   Lexer lexer(entrySource);
-  parser parser(lexer);
-  auto astRes = parser.parse();
+  Parser parser(lexer);
+  auto astRes = parser.Parse();
   if (astRes.is_err())
   {
     diagnosticEngine.Report(astRes.unwrap_err());
     return 1;
   }
   AST ast = astRes.unwrap();
-  // std::cout << ast.unwrap().get()->inspect();
+  std::cout << ast.Inspect() << std::endl;
   Checker checker(ast, entrySource);
   auto diagnostics = checker.check();
   bool hasErrorDiagnostic = false;
