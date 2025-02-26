@@ -5,12 +5,24 @@
 enum class TokenType
 {
   EOf = 1,
+
   STRING,
   IDENTIFIER,
-  SEMICOLON,
+
+  // Keywords
+  FUN,
+  RETURN,
+
+  // Punctuation
   COMMA,
+  COLON,
   LPAREN,
   RPAREN,
+  LBRACE,
+  RBRACE,
+  SEMICOLON,
+
+  PLUS,
 };
 
 class Position

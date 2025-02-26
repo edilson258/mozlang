@@ -4,23 +4,28 @@
 #include "diagnostic.h"
 #include "lexer.h"
 
-class parser
+class Parser
 {
 public:
-  parser(Lexer l) : lexr(l), tkn() {};
+  Parser(Lexer &lexr) : Lexr(lexr), Tokn() {};
 
-  result<AST, Diagnostic> parse();
+  Result<AST, Diagnostic> Parse();
 
 private:
-  Lexer lexr;
-  Token tkn;
+  Lexer &Lexr;
+  Token Tokn;
 
-  bool is_eof();
-  result<Position, Diagnostic> next();
-  result<Position, Diagnostic> expect(TokenType);
+  bool IsEof();
+  Result<Position, Diagnostic> Next();
+  Result<Position, Diagnostic> Expect(TokenType);
 
-  result<std::shared_ptr<Statement>, Diagnostic> parse_stmt();
-  result<std::shared_ptr<Expression>, Diagnostic> parse_expr(Precedence);
-  result<std::shared_ptr<Expression>, Diagnostic> parse_expr_lhs();
-  result<std::shared_ptr<ExpressionCall>, Diagnostic> parse_expr_call(std::shared_ptr<Expression>);
+  Result<std::shared_ptr<Statement>, Diagnostic> ParseStatement();
+  Result<std::shared_ptr<StatementFunction>, Diagnostic> ParseStatementFunction();
+  Result<std::shared_ptr<StatementReturn>, Diagnostic> ParseStatementReturn();
+  Result<std::shared_ptr<StatementBlock>, Diagnostic> ParseStatementBlock();
+  Result<std::shared_ptr<Expression>, Diagnostic> ParseExpression(Precedence);
+  Result<std::shared_ptr<Expression>, Diagnostic> ParseExpressionLeft();
+  Result<std::shared_ptr<ExpressionCall>, Diagnostic> ParseExpressionCall(std::shared_ptr<Expression>);
+
+  Result<FunctionParams, Diagnostic> ParseFunctionParams();
 };

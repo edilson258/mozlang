@@ -1,10 +1,12 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "token.h"
+#include "type.h"
 
 enum class Precedence
 {
@@ -14,6 +16,9 @@ enum class Precedence
 
 enum class StatementType
 {
+  BLOCK,
+  FUNCTION,
+  RETURN,
   EXPRESSION,
 };
 
@@ -32,6 +37,50 @@ public:
 
 protected:
   Statement(Position position, StatementType type) : Pos(position), Type(type) {};
+};
+
+class StatementBlock : public Statement
+{
+public:
+  std::vector<std::shared_ptr<Statement>> Stmts;
+
+  StatementBlock(Position position, std::vector<std::shared_ptr<Statement>> stmts) : Statement(position, StatementType::BLOCK), Stmts(std::move(stmts)) {};
+};
+
+class StatementReturn : public Statement
+{
+public:
+  std::optional<std::shared_ptr<class Expression>> Value;
+  StatementReturn(Position position, std::optional<std::shared_ptr<class Expression>> value) : Statement(position, StatementType::RETURN), Value(value) {};
+};
+
+class FunctionParam
+{
+public:
+  Position Pos;
+  std::shared_ptr<class ExpressionIdentifier> Name;
+  std::optional<Type> Typ;
+
+  FunctionParam(Position pos, std::shared_ptr<class ExpressionIdentifier> name, std::optional<Type> typ) : Pos(pos), Name(name), Typ(typ) {};
+};
+
+class FunctionParams
+{
+public:
+  Position Pos;
+  std::vector<FunctionParam> Params;
+
+  FunctionParams(Position pos, std::vector<FunctionParam> params) : Pos(pos), Params(std::move(params)) {};
+};
+
+class StatementFunction : public Statement
+{
+public:
+  std::shared_ptr<class ExpressionIdentifier> Name;
+  FunctionParams Params;
+  std::shared_ptr<StatementBlock> Body;
+
+  StatementFunction(Position position, std::shared_ptr<class ExpressionIdentifier> name, FunctionParams params, std::shared_ptr<StatementBlock> body) : Statement(position, StatementType::FUNCTION), Name(name), Params(params), Body(body) {};
 };
 
 class Expression : public Statement

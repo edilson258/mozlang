@@ -87,7 +87,7 @@ class IRGenerator
 public:
   IRGenerator(AST &t) : Ast(t), Ir() {};
 
-  result<IR, ERROR> Emit();
+  Result<IR, ERROR> Emit();
 
 private:
   AST &Ast;
@@ -105,7 +105,7 @@ class IRDisassembler
 public:
   IRDisassembler(IR ir) : Ir(ir) {};
 
-  result<std::string, ERROR> Disassemble();
+  Result<std::string, ERROR> Disassemble();
 
 private:
   IR Ir;

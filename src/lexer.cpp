@@ -7,20 +7,21 @@
 
 #include "diagnostic.h"
 #include "error.h"
+#include "keywords.h"
 #include "lexer.h"
 #include "result.h"
 #include "token.h"
 
 #define EOF_CHAR '\0'
 
-result<Token, Diagnostic> Lexer::Next()
+Result<Token, Diagnostic> Lexer::Next()
 {
   AdvanceWhile([](char c)
                { return std::isspace(c); });
 
   if (IsEof())
   {
-    return result<Token, Diagnostic>(Token(Position(Line, Column, Cursor, Cursor), TokenType::EOf, "EOF"));
+    return Result<Token, Diagnostic>(Token(Position(Line, Column, Cursor, Cursor), TokenType::EOf, "EOF"));
   }
 
   char current = PeekOne();
@@ -30,6 +31,12 @@ result<Token, Diagnostic> Lexer::Next()
     return MakeTokenSimple(TokenType::LPAREN);
   case ')':
     return MakeTokenSimple(TokenType::RPAREN);
+  case '{':
+    return MakeTokenSimple(TokenType::LBRACE);
+  case '}':
+    return MakeTokenSimple(TokenType::RBRACE);
+  case ':':
+    return MakeTokenSimple(TokenType::COLON);
   case ';':
     return MakeTokenSimple(TokenType::SEMICOLON);
   case ',':
@@ -44,20 +51,26 @@ result<Token, Diagnostic> Lexer::Next()
     size_t atColumn = Column;
     size_t len = AdvanceWhile([](char c)
                               { return std::isalnum(c) || '_' == c; });
-    return result<Token, Diagnostic>(Token(Position(Line, atColumn, at, Cursor - 1), TokenType::IDENTIFIER, Sourc.get()->content.substr(at, len)));
+    std::string label = Sourc.get()->content.substr(at, len);
+    std::optional<TokenType> keyword = Keyword::match(label);
+    if (keyword.has_value())
+    {
+      return Result<Token, Diagnostic>(Token(Position(Line, atColumn, at, Cursor - 1), keyword.value(), label));
+    }
+    return Result<Token, Diagnostic>(Token(Position(Line, atColumn, at, Cursor - 1), TokenType::IDENTIFIER, label));
   }
 
-  return result<Token, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, Position(Line, Column, Cursor, Cursor), Sourc, DiagnosticSeverity::ERROR, std::format("invalid token: '{}'", current)));
+  return Result<Token, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, Position(Line, Column, Cursor, Cursor), Sourc, DiagnosticSeverity::ERROR, std::format("invalid token: '{}'", current)));
 }
 
-result<Token, Diagnostic> Lexer::MakeTokenSimple(TokenType tt)
+Result<Token, Diagnostic> Lexer::MakeTokenSimple(TokenType tt)
 {
   Token token(Position(Line, Column, Cursor, Cursor), tt, std::string(1, PeekOne()));
   Advance();
-  return result<Token, Diagnostic>(token);
+  return Result<Token, Diagnostic>(token);
 }
 
-result<Token, Diagnostic> Lexer::MakeTokenString()
+Result<Token, Diagnostic> Lexer::MakeTokenString()
 {
   size_t at = Cursor;
   size_t atColumn = Column;
@@ -68,7 +81,7 @@ result<Token, Diagnostic> Lexer::MakeTokenString()
     char current = PeekOne();
     if (IsEof() || '\n' == current)
     {
-      return result<Token, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, Position(Line, Column, at, Cursor - 1), Sourc, DiagnosticSeverity::ERROR, "unquoted string"));
+      return Result<Token, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, Position(Line, Column, at, Cursor - 1), Sourc, DiagnosticSeverity::ERROR, "unquoted string"));
     }
     if ('"' == current)
     {
@@ -78,7 +91,7 @@ result<Token, Diagnostic> Lexer::MakeTokenString()
     Advance();
   }
 
-  return result<Token, Diagnostic>(Token(Position(Line, atColumn, at, Cursor - 1), TokenType::STRING, Sourc.get()->content.substr(at, Cursor - at)));
+  return Result<Token, Diagnostic>(Token(Position(Line, atColumn, at, Cursor - 1), TokenType::STRING, Sourc.get()->content.substr(at, Cursor - at)));
 }
 
 bool Lexer::IsEof()

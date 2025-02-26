@@ -13,6 +13,7 @@
 enum class ScopeType
 {
   GLOBAL,
+  FUNCTION,
 };
 
 class Scope
@@ -45,10 +46,15 @@ private:
   std::string GetTmpName()
   {
     static int counter = 0;
-    return std::string("t___m___p__n__a__m__e__") + std::to_string(counter++);
+    return std::string("t___m___p___n___a___m___e___") + std::to_string(counter++);
   }
 
-  void CheckStatement(std::shared_ptr<Statement>);
+  bool IsWithinScope(ScopeType);
+
+  std::optional<std::shared_ptr<Binding>> CheckStatement(std::shared_ptr<Statement>);
+  std::optional<std::shared_ptr<Binding>> CheckStatementFunction(std::shared_ptr<StatementFunction>);
+  std::optional<std::shared_ptr<Binding>> CheckStatementReturn(std::shared_ptr<StatementReturn>);
+  std::optional<std::shared_ptr<Binding>> CheckStatementBlock(std::shared_ptr<StatementBlock>);
   std::optional<std::shared_ptr<Binding>> CheckExpression(std::shared_ptr<Expression>);
   std::optional<std::shared_ptr<Binding>> CheckExpressionCall(std::shared_ptr<ExpressionCall>);
   std::optional<std::shared_ptr<Binding>> CheckExpressionString(std::shared_ptr<ExpressionString>);
