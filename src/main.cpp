@@ -36,13 +36,13 @@ int main(int argc, char *argv[])
     return 1;
   }
   AST ast = astRes.unwrap();
-  std::cout << ast.Inspect() << std::endl;
+  // std::cout << ast.Inspect() << std::endl;
   Checker checker(ast, entrySource);
   auto diagnostics = checker.check();
   bool hasErrorDiagnostic = false;
   for (auto &diagnostic : diagnostics)
   {
-    if (DiagnosticSeverity::ERROR == diagnostic.Severity)
+    if (DiagnosticSeverity::ERROR == diagnostic.m_Severity)
     {
       hasErrorDiagnostic = true;
     }

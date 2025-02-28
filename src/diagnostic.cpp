@@ -164,12 +164,32 @@ std::string DiagnosticEngine::Highlight(std::string code, size_t start, size_t e
   return output.str();
 }
 
+std::string insertTabAfterNewline(const std::string &input)
+{
+  std::string result = input;
+  size_t pos = 0;
+  while ((pos = result.find("\n", pos)) != std::string::npos)
+  {
+    result.insert(pos + 1, "\t");
+    pos += 2;
+  }
+  return result;
+}
+
 void DiagnosticEngine::Report(Diagnostic diagnostic)
 {
-  std::cerr << Paint(std::format("{}:{}:{} ", diagnostic.Sourc.get()->m_Path, diagnostic.Pos.m_Line, diagnostic.Pos.m_Column), BOLD_WHITE);
-  std::cerr << Paint(std::format("{}: {}", MatchSevevirtyString(diagnostic.Severity), diagnostic.Message), MatchSeverityColor(diagnostic.Severity)) << std::endl;
+  std::cerr << Paint(std::format("{}:{}:{} ", diagnostic.m_Source.get()->m_Path, diagnostic.m_Position.m_Line, diagnostic.m_Position.m_Column), BOLD_WHITE);
+  std::cerr << Paint(std::format("{}: {}", MatchSevevirtyString(diagnostic.m_Severity), diagnostic.m_Message), MatchSeverityColor(diagnostic.m_Severity)) << std::endl;
   std::cerr << std::endl;
-  std::cerr << Highlight(diagnostic.Sourc.get()->m_Content, diagnostic.Pos.m_Start, diagnostic.Pos.m_End, MatchSeverityColor(diagnostic.Severity)) << std::endl;
+  std::cerr << Highlight(diagnostic.m_Source.get()->m_Content, diagnostic.m_Position.m_Start, diagnostic.m_Position.m_End, MatchSeverityColor(diagnostic.m_Severity)) << std::endl;
+
+  if (diagnostic.m_Reference.has_value())
+  {
+    auto ref = diagnostic.m_Reference.value();
+    std::cerr << Paint(std::format("{}:{}:{} {}", diagnostic.m_Source.get()->m_Path, ref.m_Position.m_Line, ref.m_Position.m_Column, ref.m_Message), BOLD_WHITE) << std::endl;
+    std::cerr << "\t" << std::endl;
+    std::cerr << "\t" << insertTabAfterNewline(Highlight(diagnostic.m_Source.get()->m_Content, ref.m_Position.m_Start, ref.m_Position.m_End, MatchSeverityColor(DiagnosticSeverity::INFO))) << std::endl;
+  }
 }
 
 std::string DiagnosticEngine::MatchSevevirtyString(DiagnosticSeverity severity)
