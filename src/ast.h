@@ -54,14 +54,23 @@ public:
   StatementReturn(Position position, std::optional<std::shared_ptr<class Expression>> value) : Statement(position, StatementType::RETURN), m_Value(value) {};
 };
 
+class TypeAnnotationToken
+{
+public:
+  std::optional<Position> m_Position;
+  std::shared_ptr<type::Type> m_ReturnType;
+
+  TypeAnnotationToken(std::optional<Position> position, std::shared_ptr<type::Type> returnType) : m_Position(position), m_ReturnType(returnType) {};
+};
+
 class FunctionParam
 {
 public:
   Position m_Position;
-  std::shared_ptr<type::Type> m_Type;
   std::shared_ptr<class ExpressionIdentifier> m_Identifier;
+  TypeAnnotationToken m_TypeAnnotation;
 
-  FunctionParam(Position position, std::shared_ptr<type::Type> type, std::shared_ptr<class ExpressionIdentifier> identifier) : m_Position(position), m_Type(type), m_Identifier(identifier) {};
+  FunctionParam(Position position, std::shared_ptr<class ExpressionIdentifier> identifier, TypeAnnotationToken typeAnnotation) : m_Position(position), m_Identifier(identifier), m_TypeAnnotation(typeAnnotation) {};
 };
 
 class FunctionParams
@@ -79,8 +88,9 @@ public:
   FunctionParams m_Params;
   std::shared_ptr<StatementBlock> m_Body;
   std::shared_ptr<class ExpressionIdentifier> m_Identifier;
+  TypeAnnotationToken m_ReturnTypeAnnotation;
 
-  StatementFunction(Position position, std::shared_ptr<class ExpressionIdentifier> identifier, FunctionParams params, std::shared_ptr<StatementBlock> body) : Statement(position, StatementType::FUNCTION), m_Params(params), m_Body(body), m_Identifier(identifier) {};
+  StatementFunction(Position position, std::shared_ptr<class ExpressionIdentifier> identifier, FunctionParams params, std::shared_ptr<StatementBlock> body, TypeAnnotationToken typeAnnotationToken) : Statement(position, StatementType::FUNCTION), m_Params(params), m_Body(body), m_Identifier(identifier), m_ReturnTypeAnnotation(typeAnnotationToken) {};
 };
 
 class Expression : public Statement

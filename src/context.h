@@ -14,6 +14,7 @@ enum class BindType
   LITERAL = 1,
   FUNCTION,
   PARAMETER,
+  RETURN_VALUE,
 };
 
 class Binding

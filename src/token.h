@@ -13,6 +13,10 @@ enum class TokenType
   FUN,
   RETURN,
 
+  // Types
+  I32,
+  STRING_T,
+
   // Punctuation
   COMMA,
   COLON,
