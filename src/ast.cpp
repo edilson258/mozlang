@@ -59,7 +59,7 @@ std::string ASTInspector::Inspect()
 {
   Output << "Abstract Syntax Tree\n\n";
 
-  for (std::shared_ptr<Statement> stmt : Ast.Program)
+  for (std::shared_ptr<Statement> stmt : Ast.m_Program)
   {
     InspectStatement(stmt);
   }
@@ -69,7 +69,7 @@ std::string ASTInspector::Inspect()
 
 void ASTInspector::InspectStatement(std::shared_ptr<Statement> statement)
 {
-  switch (statement.get()->Type)
+  switch (statement.get()->m_Type)
   {
   case StatementType::BLOCK:
     return InspectStatementBlock(std::static_pointer_cast<StatementBlock>(statement));
@@ -86,7 +86,7 @@ void ASTInspector::InspectStatementBlock(std::shared_ptr<StatementBlock> blockSt
 {
   Writeln("Block Statement:");
   Tab();
-  for (auto &statement : blockStatement.get()->Stmts)
+  for (auto &statement : blockStatement.get()->m_Stmts)
   {
     InspectStatement(statement);
   }
@@ -97,9 +97,9 @@ void ASTInspector::InspectStatementReturn(std::shared_ptr<StatementReturn> retur
 {
   Writeln("Return Statement:");
   Tab();
-  if (returnStatement.get()->Value.has_value())
+  if (returnStatement.get()->m_Value.has_value())
   {
-    InspectExpression(returnStatement.get()->Value.value());
+    InspectExpression(returnStatement.get()->m_Value.value());
   }
   UnTab();
 }
@@ -108,14 +108,14 @@ void ASTInspector::InspectStatementFunction(std::shared_ptr<StatementFunction> f
 {
   Writeln("Function Statement:");
   Tab();
-  Writeln(std::format("Name: {}", functionStatement.get()->Name.get()->Value));
-  InspectStatementBlock(functionStatement.get()->Body);
+  Writeln(std::format("Name: {}", functionStatement.get()->m_Identifier.get()->m_Value));
+  InspectStatementBlock(functionStatement.get()->m_Body);
   UnTab();
 }
 
 void ASTInspector::InspectExpression(std::shared_ptr<Expression> expression)
 {
-  switch (expression.get()->Type)
+  switch (expression.get()->m_Type)
   {
   case ExpressionType::CALL:
     return InspectExpressionCall(std::static_pointer_cast<ExpressionCall>(expression));
@@ -128,18 +128,18 @@ void ASTInspector::InspectExpression(std::shared_ptr<Expression> expression)
 
 void ASTInspector::InspectExpressionCall(std::shared_ptr<ExpressionCall> callExpression)
 {
-  Position position = callExpression.get()->Pos;
-  Writeln(std::format("call expression: {{{}:{}:{}:{}}}", position.Line, position.Column, position.Start, position.End));
+  Position position = callExpression.get()->m_Position;
+  Writeln(std::format("call expression: {{{}:{}:{}:{}}}", position.m_Line, position.m_Column, position.m_Start, position.m_End));
   Tab();
 
   Writeln("callee:");
   Tab();
-  InspectExpression(callExpression.get()->Callee);
+  InspectExpression(callExpression.get()->m_Callee);
   UnTab();
 
   Writeln("arguments: [");
   Tab();
-  for (auto argument : callExpression.get()->Arguments)
+  for (auto argument : callExpression.get()->m_Arguments)
   {
     InspectExpression(argument);
   }
@@ -151,13 +151,13 @@ void ASTInspector::InspectExpressionCall(std::shared_ptr<ExpressionCall> callExp
 
 void ASTInspector::InspectExpressionString(std::shared_ptr<ExpressionString> stringExpression)
 {
-  Writeln(std::format("string literal: {}", stringExpression.get()->Value));
+  Writeln(std::format("string literal: {}", stringExpression.get()->m_Value));
 }
 
 // ;
 void ASTInspector::InspectEpressionIdentifier(std::shared_ptr<ExpressionIdentifier> identifierExpression)
 {
-  Writeln(std::format("identifer expression: {}", identifierExpression.get()->Value));
+  Writeln(std::format("identifer expression: {}", identifierExpression.get()->m_Value));
 }
 
 std::string AST::Inspect()

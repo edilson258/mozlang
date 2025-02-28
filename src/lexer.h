@@ -12,17 +12,17 @@
 class Lexer
 {
 public:
-  std::shared_ptr<Source> Sourc;
+  std::shared_ptr<Source> m_Source;
 
-  Lexer(std::shared_ptr<Source> source) : Sourc(source), Line(1), Column(1), Cursor(0) {};
+  Lexer(std::shared_ptr<Source> source) : m_Source(source), m_Line(1), m_Column(1), m_Cursor(0) {};
 
   Result<Token, Diagnostic> Next();
 
 private:
-  size_t Line;
-  size_t Column;
+  size_t m_Line;
+  size_t m_Column;
 
-  size_t Cursor;
+  size_t m_Cursor;
 
   bool IsEof();
   char PeekOne();

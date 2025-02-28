@@ -19,24 +19,24 @@ enum class ScopeType
 class Scope
 {
 public:
-  ScopeType Type;
-  Context Ctx;
+  ScopeType m_Type;
+  Context m_Context;
 
-  Scope(ScopeType type) : Type(type), Ctx() {};
+  Scope(ScopeType type) : m_Type(type), m_Context() {};
 };
 
 class Checker
 {
 public:
-  Checker(AST &ast, std::shared_ptr<Source> source) : Ast(ast), Sourc(source), Scopes(), Diagnostics() {};
+  Checker(AST &ast, std::shared_ptr<Source> source) : m_Ast(ast), m_Source(source), m_Scopes(), m_Diagnostics() {};
 
   std::vector<Diagnostic> check();
 
 private:
-  AST &Ast;
-  std::shared_ptr<Source> Sourc;
-  std::vector<Scope> Scopes;
-  std::vector<Diagnostic> Diagnostics;
+  AST &m_Ast;
+  std::shared_ptr<Source> m_Source;
+  std::vector<Scope> m_Scopes;
+  std::vector<Diagnostic> m_Diagnostics;
 
   void EnterScope(ScopeType scopeType);
   void LeaveScope();

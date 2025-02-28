@@ -16,24 +16,24 @@ std::vector<Diagnostic> Checker::check()
 {
   EnterScope(ScopeType::GLOBAL);
 
-  auto printlnArgs = {std::make_shared<Type>(BaseType::F_STRING)};
-  auto printlnType = std::make_shared<FunctionType>(0, std::move(printlnArgs), true);
-  auto println_bind = std::make_shared<BindingFunction>(Position(), Position(), Position(), printlnType, 0, true);
-  SaveBind("println", println_bind);
+  auto printlnArgs = {std::make_shared<type::Type>(type::Base::F_STRING)};
+  auto printlnType = std::make_shared<type::Function>(0, std::move(printlnArgs), true);
+  auto printlnBind = std::make_shared<BindingFunction>(Position(), Position(), Position(), printlnType, 0, true);
+  SaveBind("println", printlnBind);
 
-  for (auto statement : Ast.Program)
+  for (auto statement : m_Ast.m_Program)
   {
     CheckStatement(statement);
   }
 
   LeaveScope();
 
-  return std::move(Diagnostics);
+  return std::move(m_Diagnostics);
 }
 
 std::optional<std::shared_ptr<Binding>> Checker::CheckStatement(std::shared_ptr<Statement> statement)
 {
-  switch (statement.get()->Type)
+  switch (statement.get()->m_Type)
   {
   case StatementType::BLOCK:
     return CheckStatementBlock(std::static_pointer_cast<StatementBlock>(statement));
@@ -49,39 +49,32 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatement(std::shared_ptr<
 
 std::optional<std::shared_ptr<Binding>> Checker::CheckStatementFunction(std::shared_ptr<StatementFunction> functionStatement)
 {
-  auto bindWithSameName = Scopes.back().Ctx.Get(functionStatement.get()->Name.get()->Value);
+  auto bindWithSameName = m_Scopes.back().m_Context.Get(functionStatement.get()->m_Identifier.get()->m_Value);
   if (bindWithSameName.has_value())
   {
-    Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, functionStatement.get()->Name.get()->Pos, Sourc, DiagnosticSeverity::ERROR, "name already in use"));
+    m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, functionStatement.get()->m_Identifier.get()->m_Position, m_Source, DiagnosticSeverity::ERROR, "name already in use"));
     return std::nullopt;
   }
 
-  std::vector<std::shared_ptr<Type>> functionArgsTypes = {};
-  for (auto &functionParam : functionStatement.get()->Params.Params)
+  std::vector<std::shared_ptr<type::Type>> functionArgsTypes = {};
+  for (auto &param : functionStatement.get()->m_Params.m_Params)
   {
-    if (!functionParam.Typ.has_value())
-    {
-      functionArgsTypes.push_back(std::make_shared<Type>(BaseType::ANY));
-      continue;
-    }
-    assert(false);
+    functionArgsTypes.push_back(param.m_Type);
   }
 
-  auto functionType = std::make_shared<FunctionType>(FunctionType(functionStatement.get()->Params.Params.size(), std::move(functionArgsTypes)));
-  auto functionBind = std::make_shared<BindingFunction>(functionStatement.get()->Pos, functionStatement.get()->Name.get()->Pos, functionStatement.get()->Params.Pos, functionType, 0);
-  SaveBind(functionStatement.get()->Name.get()->Value, functionBind);
+  auto functionType = std::make_shared<type::Function>(type::Function(functionArgsTypes.size(), std::move(functionArgsTypes)));
+  auto functionBind = std::make_shared<BindingFunction>(functionStatement.get()->m_Position, functionStatement.get()->m_Identifier.get()->m_Position, functionStatement.get()->m_Params.m_Position, functionType, 0);
+  SaveBind(functionStatement.get()->m_Identifier.get()->m_Value, functionBind);
 
   EnterScope(ScopeType::FUNCTION);
 
-  for (auto &param : functionStatement.get()->Params.Params)
+  for (auto &param : functionStatement.get()->m_Params.m_Params)
   {
     // TODO: check for duplicated param names
-    auto paramType = std::make_shared<Type>(BaseType::ANY);
-    auto paramBind = std::make_shared<BindingParameter>(param.Pos, paramType, 0);
-    SaveBind(param.Name.get()->Value, paramBind);
+    SaveBind(param.m_Identifier.get()->m_Value, std::make_shared<Binding>(Binding(BindType::PARAMETER, param.m_Type, m_Source->m_ID, param.m_Position)));
   }
 
-  CheckStatementBlock(functionStatement.get()->Body);
+  CheckStatementBlock(functionStatement.get()->m_Body);
 
   LeaveScope();
 
@@ -92,12 +85,12 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementReturn(std::share
 {
   if (!IsWithinScope(ScopeType::FUNCTION))
   {
-    Diagnostics.push_back(Diagnostic(Errno::SYNTAX_ERROR, returnStatement.get()->Pos, Sourc, DiagnosticSeverity::ERROR, "cannot return from outside of a function"));
+    m_Diagnostics.push_back(Diagnostic(Errno::SYNTAX_ERROR, returnStatement.get()->m_Position, m_Source, DiagnosticSeverity::ERROR, "cannot return from outside of a function"));
     return std::nullopt;
   }
-  if (returnStatement.get()->Value.has_value())
+  if (returnStatement.get()->m_Value.has_value())
   {
-    auto x = CheckExpression(returnStatement.get()->Value.value());
+    auto x = CheckExpression(returnStatement.get()->m_Value.value());
     if (x.has_value())
     {
     }
@@ -107,7 +100,7 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementReturn(std::share
 
 std::optional<std::shared_ptr<Binding>> Checker::CheckStatementBlock(std::shared_ptr<StatementBlock> blockStatement)
 {
-  for (auto &statement : blockStatement.get()->Stmts)
+  for (auto &statement : blockStatement.get()->m_Stmts)
   {
     CheckStatement(statement);
   }
@@ -116,7 +109,7 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementBlock(std::shared
 
 std::optional<std::shared_ptr<Binding>> Checker::CheckExpression(std::shared_ptr<Expression> expression)
 {
-  switch (expression.get()->Type)
+  switch (expression.get()->m_Type)
   {
   case ExpressionType::CALL:
     return CheckExpressionCall(std::static_pointer_cast<ExpressionCall>(expression));
@@ -130,97 +123,96 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckExpression(std::shared_ptr
 
 std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionCall(std::shared_ptr<ExpressionCall> callExpression)
 {
-  auto calleeBindOpt = CheckExpression(callExpression.get()->Callee);
+  auto calleeBindOpt = CheckExpression(callExpression.get()->m_Callee);
   if (!calleeBindOpt.has_value())
   {
     return std::nullopt;
   }
 
   auto calleeBind = calleeBindOpt.value();
-  if (BindingType::FUNCTION != calleeBind.get()->Typ)
+  if (BindType::FUNCTION != calleeBind.get()->m_BindType)
   {
-    Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, callExpression.get()->Callee.get()->Pos, Sourc, DiagnosticSeverity::ERROR, "call to non-callable object"));
+    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, callExpression.get()->m_Callee.get()->m_Position, m_Source, DiagnosticSeverity::ERROR, "call to non-callable object"));
     return std::nullopt;
   }
 
-  auto calleeBindFunction = std::static_pointer_cast<BindingFunction>(calleeBind);
-  auto callee = calleeBindFunction.get()->FnType;
+  auto callee = std::static_pointer_cast<type::Function>(calleeBind->m_Type);
 
-  if (callee->RequiredArgumentsCount != callExpression.get()->Arguments.size() && (!callee.get()->IsVariadicArguments || (callee.get()->RequiredArgumentsCount && callExpression.get()->Arguments.size() < callee.get()->RequiredArgumentsCount)))
+  if (callee.get()->m_ReqArgsCount != callExpression.get()->m_Arguments.size() && (!callee.get()->m_IsVariadicArguments || (callee.get()->m_ReqArgsCount && callExpression.get()->m_Arguments.size() < callee.get()->m_ReqArgsCount)))
   {
-    Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, callExpression.get()->ArgumentsPosition, Sourc, DiagnosticSeverity::ERROR, std::format("missing required arguments, expect {} but got {}", callee.get()->RequiredArgumentsCount, callExpression.get()->Arguments.size())));
+    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, callExpression.get()->m_ArgumentsPosition, m_Source, DiagnosticSeverity::ERROR, std::format("missing required arguments, expect {} but got {}", callee.get()->m_ReqArgsCount, callExpression.get()->m_Arguments.size())));
   }
 
-  for (auto argument : callExpression.get()->Arguments)
+  for (auto argument : callExpression.get()->m_Arguments)
   {
     auto argumentBind = CheckExpression(argument);
     if (!argumentBind.has_value())
     {
       continue;
     }
-    argumentBind.value().get()->Used = true;
+    argumentBind.value().get()->m_IsUsed = true;
   }
   return std::nullopt;
 }
 
 std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionIdentifier(std::shared_ptr<ExpressionIdentifier> identifierExpression)
 {
-  auto x = LookupBind(identifierExpression.get()->Value);
+  auto x = LookupBind(identifierExpression.get()->m_Value);
   if (x.has_value())
   {
-    x.value().get()->Used = true;
+    x.value().get()->m_IsUsed = true;
     return x.value();
   }
-  Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, identifierExpression.get()->Pos, Sourc, DiagnosticSeverity::ERROR, std::format("undefined name: '{}'", identifierExpression.get()->Value)));
+  m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, identifierExpression.get()->m_Position, m_Source, DiagnosticSeverity::ERROR, std::format("undefined name: '{}'", identifierExpression.get()->m_Value)));
   return std::nullopt;
 }
 
 std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionString(std::shared_ptr<ExpressionString> stringExpression)
 {
-  auto stringLiteralBind = std::make_shared<BindingLiteral>(stringExpression.get()->Pos, BaseType::STRING, 0);
+  auto stringLiteralBind = std::make_shared<Binding>(Binding(BindType::LITERAL, std::make_shared<type::Type>(type::Type(type::Base::STRING)), 0, stringExpression.get()->m_Position));
   SaveBind(GetTmpName(), stringLiteralBind);
   return stringLiteralBind;
 }
 
 void Checker::EnterScope(ScopeType scopeType)
 {
-  Scopes.push_back(Scope(scopeType));
+  m_Scopes.push_back(Scope(scopeType));
 }
 
 void Checker::LeaveScope()
 {
-  for (auto &binding : Scopes.back().Ctx.Store)
+  for (auto &binding : m_Scopes.back().m_Context.Store)
   {
-    if (binding.second.get()->Used || binding.first.starts_with('_'))
+    if (binding.second.get()->m_IsUsed || binding.first.starts_with('_'))
     {
       continue;
     }
 
-    switch (binding.second.get()->Typ)
+    switch (binding.second.get()->m_BindType)
     {
-    case BindingType::PARAMETER:
-      Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, binding.second.get()->Pos, Sourc, DiagnosticSeverity::WARN, "unused parameter"));
+    case BindType::PARAMETER:
+      m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, binding.second.get()->m_Position, m_Source, DiagnosticSeverity::WARN, "unused parameter"));
       break;
-    case BindingType::LITERAL:
+    case BindType::LITERAL:
       // auto literalBinding = std::static_pointer_cast<BindingLiteral>(binding.second);
-      Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, binding.second.get()->Pos, Sourc, DiagnosticSeverity::WARN, "expression results to unused value"));
+      m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, binding.second.get()->m_Position, m_Source, DiagnosticSeverity::WARN, "expression results to unused value"));
       break;
-    case BindingType::FUNCTION:
+    case BindType::FUNCTION:
     {
       auto functionBinding = std::static_pointer_cast<BindingFunction>(binding.second);
-      Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, functionBinding.get()->NamePosition, Sourc, DiagnosticSeverity::WARN, std::format("function '{}' never gets called", binding.first)));
+      m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, functionBinding.get()->NamePosition, m_Source, DiagnosticSeverity::WARN, std::format("function '{}' never gets called", binding.first)));
     }
     break;
     }
   }
-  Scopes.pop_back();
+  m_Scopes.pop_back();
 }
 
 std::optional<std::shared_ptr<Binding>> Checker::LookupBind(std::string name)
 {
-  for (auto it = Scopes.rbegin(); it != Scopes.rend(); ++it)
+  for (auto it = m_Scopes.rbegin(); it != m_Scopes.rend(); ++it)
   {
-    auto binding = it->Ctx.Get(name);
+    auto binding = it->m_Context.Get(name);
     if (binding)
       return binding;
   }
@@ -229,14 +221,14 @@ std::optional<std::shared_ptr<Binding>> Checker::LookupBind(std::string name)
 
 void Checker::SaveBind(std::string name, std::shared_ptr<Binding> bind)
 {
-  Scopes.back().Ctx.Save(name, bind);
+  m_Scopes.back().m_Context.Save(name, bind);
 }
 
 bool Checker::IsWithinScope(ScopeType scopeType)
 {
-  for (auto it = Scopes.rbegin(); it != Scopes.rend(); ++it)
+  for (auto it = m_Scopes.rbegin(); it != m_Scopes.rend(); ++it)
   {
-    if (it->Type == scopeType)
+    if (it->m_Type == scopeType)
     {
       return true;
     }

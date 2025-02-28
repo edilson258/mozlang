@@ -4,7 +4,9 @@
 #include <memory>
 #include <vector>
 
-enum class BaseType
+namespace type
+{
+enum class Base
 {
   STRING,
   FUNCTION,
@@ -17,17 +19,19 @@ enum class BaseType
 class Type
 {
 public:
-  BaseType Base;
+  Base m_Base;
 
-  Type(BaseType base) : Base(base) {}
+  Type(Base base) : m_Base(base) {}
 };
 
-class FunctionType : public Type
+class Function : public Type
 {
 public:
-  size_t RequiredArgumentsCount;
-  std::vector<std::shared_ptr<Type>> Arguments;
-  bool IsVariadicArguments;
+  size_t m_ReqArgsCount;
+  std::vector<std::shared_ptr<Type>> m_Arguments;
+  bool m_IsVariadicArguments;
 
-  FunctionType(size_t requiredArgsCount, std::vector<std::shared_ptr<Type>> arguments, bool isVariadic = false) : Type(BaseType::FUNCTION), RequiredArgumentsCount(requiredArgsCount), Arguments(std::move(arguments)), IsVariadicArguments(isVariadic) {}
+  Function(size_t reqArgsCount, std::vector<std::shared_ptr<Type>> arguments, bool isVariadic = false) : Type(Base::FUNCTION), m_ReqArgsCount(reqArgsCount), m_Arguments(std::move(arguments)), m_IsVariadicArguments(isVariadic) {}
 };
+
+} // namespace type

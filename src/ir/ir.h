@@ -22,17 +22,17 @@ enum class OPCode
 class Instruction
 {
 public:
-  OPCode Opcode;
+  OPCode m_Opcode;
 
 protected:
-  Instruction(OPCode op) : Opcode(op) {};
+  Instruction(OPCode opcode) : m_Opcode(opcode) {};
 };
 
 class LOADC : public Instruction
 {
 public:
-  uint32_t Index;
-  LOADC(uint32_t index) : Instruction(OPCode::LOADC), Index(index) {};
+  uint32_t m_Index;
+  LOADC(uint32_t index) : Instruction(OPCode::LOADC), m_Index(index) {};
 };
 
 class CALL : public Instruction
@@ -51,35 +51,35 @@ using ObjectValue = std::variant<std::monostate, std::string>;
 class Object
 {
 public:
-  ObjectType Type;
-  ObjectValue Value;
+  ObjectType m_Type;
+  ObjectValue m_Value;
 
-  Object(ObjectType type, ObjectValue value) : Type(type), Value(value) {};
+  Object(ObjectType type, ObjectValue value) : m_Type(type), m_Value(value) {};
 
   std::string Inspect() const
   {
-    return std::get<std::string>(Value);
+    return std::get<std::string>(m_Value);
   }
 };
 
 class ConstantPool
 {
 public:
-  std::vector<Object> Objects;
+  std::vector<Object> m_Objects;
 
   size_t size() const
   {
-    return Objects.size();
+    return m_Objects.size();
   }
 };
 
 class IR
 {
 public:
-  IR() : Code() {};
+  IR() : m_Code() {};
 
-  ConstantPool Pool;
-  std::vector<std::shared_ptr<Instruction>> Code;
+  ConstantPool m_Pool;
+  std::vector<std::shared_ptr<Instruction>> m_Code;
 };
 
 class IRGenerator

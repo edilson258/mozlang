@@ -12,21 +12,21 @@
 class Source
 {
 public:
-  size_t id;
-  std::string path;
-  std::string content;
+  size_t m_ID;
+  std::string m_Path;
+  std::string m_Content;
 
-  Source(size_t i, std::string p, std::string c) : id(i), path(p), content(c) {};
+  Source(size_t id, std::string path, std::string content) : m_ID(id), m_Path(path), m_Content(content) {};
 };
 
 class Loader
 {
 public:
-  Loader() : Sources() {};
+  Loader() : m_Sources() {};
 
   Result<std::shared_ptr<Source>, ERROR> Load(std::string path);
   std::optional<std::shared_ptr<Source>> FindSource(size_t id);
 
 private:
-  std::vector<std::shared_ptr<Source>> Sources;
+  std::vector<std::shared_ptr<Source>> m_Sources;
 };
