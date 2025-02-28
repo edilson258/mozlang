@@ -3,6 +3,7 @@
 #include "ast.h"
 #include "diagnostic.h"
 #include "lexer.h"
+#include "result.h"
 
 class Parser
 {
@@ -29,4 +30,5 @@ private:
   Result<std::shared_ptr<ExpressionCall>, Diagnostic> ParseExpressionCall(std::shared_ptr<Expression>);
 
   Result<FunctionParams, Diagnostic> ParseFunctionParams();
+  Result<std::shared_ptr<type::Type>, Diagnostic> ParseTypeAnnotation();
 };

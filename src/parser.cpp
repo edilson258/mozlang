@@ -12,11 +12,9 @@
 
 Result<AST, Diagnostic> Parser::Parse()
 {
-  auto res = Next();
-  if (res.is_err())
-  {
-    return Result<AST, Diagnostic>(res.unwrap_err());
-  }
+  Next().unwrap();
+  Next().unwrap();
+
   AST ast;
   while (!IsEof())
   {
@@ -55,19 +53,28 @@ Result<std::shared_ptr<Statement>, Diagnostic> Parser::ParseStatement()
     return Result<std::shared_ptr<Statement>, Diagnostic>(result.unwrap());
   }
 
-  auto expr_res = ParseExpression(Precedence::LOWEST);
-  if (expr_res.is_err())
+  auto expressionRes = ParseExpression(Precedence::LOWEST);
+  if (expressionRes.is_err())
   {
-    return Result<std::shared_ptr<Statement>, Diagnostic>(expr_res.unwrap_err());
+    return Result<std::shared_ptr<Statement>, Diagnostic>(expressionRes.unwrap_err());
   }
-  auto expect_res = Expect(TokenType::SEMICOLON);
-  if (expect_res.is_err())
+
+  auto expression = expressionRes.unwrap();
+
+  if (TokenType::SEMICOLON != m_CurrToken.m_Type)
   {
-    return Result<std::shared_ptr<Statement>, Diagnostic>(expect_res.unwrap_err());
+    if (TokenType::RBRACE != m_CurrToken.m_Type)
+    {
+      return Result<std::shared_ptr<Statement>, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, expression.get()->m_Position, m_Lexer.m_Source, DiagnosticSeverity::ERROR, "implicity return expression must be the last in a block, insert ';' at end"));
+    }
+    return Result<std::shared_ptr<Statement>, Diagnostic>(std::make_shared<StatementReturn>(StatementReturn(expression->m_Position, expression)));
   }
-  std::shared_ptr<Expression> exp = expr_res.unwrap();
-  exp.get()->m_Position.m_End = expect_res.unwrap().m_End;
-  return Result<std::shared_ptr<Statement>, Diagnostic>(exp);
+  else
+  {
+    Next().unwrap();
+  }
+
+  return Result<std::shared_ptr<Statement>, Diagnostic>(expression);
 }
 
 Result<FunctionParams, Diagnostic> Parser::ParseFunctionParams()
@@ -91,8 +98,14 @@ Result<FunctionParams, Diagnostic> Parser::ParseFunctionParams()
     }
     auto paramIdentifier = std::make_shared<ExpressionIdentifier>(m_CurrToken.m_Position, m_CurrToken.m_Lexeme);
     Position paramPosition = Next().unwrap();
-    auto paramType = std::make_shared<type::Type>(type::Type(type::Base::ANY));
-    params.push_back(FunctionParam(paramPosition, paramType, paramIdentifier));
+    TypeAnnotationToken typeAnnotation(std::nullopt, std::make_shared<type::Type>(type::Type(type::Base::ANY)));
+    if (TokenType::COLON == m_CurrToken.m_Type)
+    {
+      Expect(TokenType::COLON).unwrap();
+      typeAnnotation.m_ReturnType = ParseTypeAnnotation().unwrap();
+      typeAnnotation.m_Position = Next().unwrap();
+    }
+    params.push_back(FunctionParam(paramPosition, paramIdentifier, typeAnnotation));
 
     if (TokenType::RPAREN != m_CurrToken.m_Type)
     {
@@ -121,6 +134,13 @@ Result<std::shared_ptr<StatementFunction>, Diagnostic> Parser::ParseStatementFun
   auto name = std::make_shared<ExpressionIdentifier>(m_CurrToken.m_Position, m_CurrToken.m_Lexeme);
   Next();
   auto paramsRes = ParseFunctionParams();
+  TypeAnnotationToken typeAnnotation(std::nullopt, std::make_shared<type::Type>(type::Type(type::Base::ANY)));
+  if (TokenType::COLON == m_CurrToken.m_Type)
+  {
+    Expect(TokenType::COLON).unwrap();
+    typeAnnotation.m_ReturnType = ParseTypeAnnotation().unwrap();
+    typeAnnotation.m_Position = Next().unwrap();
+  }
   if (paramsRes.is_err())
   {
     return Result<std::shared_ptr<StatementFunction>, Diagnostic>(paramsRes.unwrap_err());
@@ -128,7 +148,7 @@ Result<std::shared_ptr<StatementFunction>, Diagnostic> Parser::ParseStatementFun
   auto bodyRes = ParseStatementBlock();
   assert(bodyRes.is_ok());
   position.m_End = bodyRes.unwrap().get()->m_Position.m_End;
-  return Result<std::shared_ptr<StatementFunction>, Diagnostic>(std::make_shared<StatementFunction>(position, name, paramsRes.unwrap(), bodyRes.unwrap()));
+  return Result<std::shared_ptr<StatementFunction>, Diagnostic>(std::make_shared<StatementFunction>(StatementFunction(position, name, paramsRes.unwrap(), bodyRes.unwrap(), typeAnnotation)));
 }
 
 Result<std::shared_ptr<StatementBlock>, Diagnostic> Parser::ParseStatementBlock()
@@ -157,8 +177,9 @@ Result<std::shared_ptr<StatementReturn>, Diagnostic> Parser::ParseStatementRetur
     auto valueRes = ParseExpression(Precedence::LOWEST);
     assert(valueRes.is_ok());
     value = valueRes.unwrap();
+    position.m_End = value->get()->m_Position.m_End;
   }
-  position.m_End = Expect(TokenType::SEMICOLON).unwrap().m_End;
+  Expect(TokenType::SEMICOLON).unwrap();
   return Result<std::shared_ptr<StatementReturn>, Diagnostic>(std::make_shared<StatementReturn>(position, value));
 }
 
@@ -257,6 +278,19 @@ Result<std::shared_ptr<ExpressionCall>, Diagnostic> Parser::ParseExpressionCall(
   return Result<std::shared_ptr<ExpressionCall>, Diagnostic>(std::make_shared<ExpressionCall>(pos, callee, args, args_pos));
 }
 
+Result<std::shared_ptr<type::Type>, Diagnostic> Parser::ParseTypeAnnotation()
+{
+  switch (m_CurrToken.m_Type)
+  {
+  case TokenType::I32:
+    return Result<std::shared_ptr<type::Type>, Diagnostic>(std::make_shared<type::Type>(type::Type(type::Base::I32)));
+  case TokenType::STRING_T:
+    return Result<std::shared_ptr<type::Type>, Diagnostic>(std::make_shared<type::Type>(type::Type(type::Base::STRING)));
+  default:
+    return Result<std::shared_ptr<type::Type>, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, m_CurrToken.m_Position, m_Lexer.m_Source, DiagnosticSeverity::ERROR, "expect type annotation, try 'i32', 'string', ..."));
+  }
+}
+
 Result<Position, Diagnostic> Parser::Next()
 {
   Position pos = m_CurrToken.m_Position;
@@ -265,7 +299,8 @@ Result<Position, Diagnostic> Parser::Next()
   {
     return Result<Position, Diagnostic>(res.unwrap_err());
   }
-  m_CurrToken = res.unwrap();
+  m_CurrToken = m_NextToken;
+  m_NextToken = res.unwrap();
   return Result<Position, Diagnostic>(pos);
 }
 

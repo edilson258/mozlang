@@ -11,6 +11,7 @@ enum class Errno
   SYNTAX_ERROR,
 
   UNUSED_VALUE,
+  DEAD_CODE,
 };
 
 class ERROR
