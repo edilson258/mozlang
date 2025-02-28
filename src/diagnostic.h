@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "error.h"
@@ -15,16 +16,28 @@ enum class DiagnosticSeverity
   ERROR = 3,
 };
 
+class DiagnosticReference
+{
+public:
+  Errno m_Errno;
+  size_t m_FileID;
+  Position m_Position;
+  std::string m_Message;
+
+  DiagnosticReference(Errno errn, size_t fileID, Position position, std::string message) : m_Errno(errn), m_FileID(fileID), m_Position(position), m_Message(message) {};
+};
+
 class Diagnostic
 {
 public:
-  Errno Errn;
-  Position Pos;
-  std::shared_ptr<Source> Sourc;
-  DiagnosticSeverity Severity;
-  std::string Message;
+  Errno m_Errno;
+  Position m_Position;
+  std::shared_ptr<Source> m_Source;
+  DiagnosticSeverity m_Severity;
+  std::string m_Message;
+  std::optional<DiagnosticReference> m_Reference;
 
-  Diagnostic(Errno errn, Position pos, std::shared_ptr<Source> source, DiagnosticSeverity severity, std::string message) : Errn(errn), Pos(pos), Sourc(source), Severity(severity), Message(message) {};
+  Diagnostic(Errno errn, Position pos, std::shared_ptr<Source> source, DiagnosticSeverity severity, std::string message, std::optional<DiagnosticReference> reference = std::nullopt) : m_Errno(errn), m_Position(pos), m_Source(source), m_Severity(severity), m_Message(message), m_Reference(reference) {};
 };
 
 class DiagnosticEngine
@@ -38,6 +51,6 @@ private:
   std::string Paint(std::string code, std::string color);
   std::string Highlight(std::string code, size_t start, size_t end, std::string color);
 
-  std::string MatchSevevirtyString(DiagnosticSeverity severity);
   std::string MatchSeverityColor(DiagnosticSeverity severity);
+  std::string MatchSevevirtyString(DiagnosticSeverity severity);
 };

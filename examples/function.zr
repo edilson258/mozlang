@@ -1,3 +1,6 @@
 fun sum(x: string, y: i32): string {
+  x;
   y
 }
+
+sum();

@@ -63,7 +63,7 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementFunction(std::sha
     functionArgsTypes.push_back(param.m_TypeAnnotation.m_ReturnType);
   }
   auto functionType = std::make_shared<type::Function>(type::Function(functionArgsTypes.size(), std::move(functionArgsTypes), functionStatement.get()->m_ReturnTypeAnnotation.m_ReturnType));
-  auto functionBind = std::make_shared<BindingFunction>(functionStatement.get()->m_Position, functionStatement.get()->m_Identifier.get()->m_Position, functionStatement.get()->m_Params.m_Position, functionType, 0);
+  auto functionBind = std::make_shared<BindingFunction>(BindingFunction(functionStatement.get()->m_Position, functionStatement.get()->m_Identifier.get()->m_Position, functionStatement.get()->m_Params.m_Position, functionType, 0));
   SaveBind(functionStatement.get()->m_Identifier.get()->m_Value, functionBind);
 
   EnterScope(ScopeType::FUNCTION);
@@ -72,27 +72,30 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementFunction(std::sha
   {
     if (m_Scopes.back().m_Context.Get(param.m_Identifier.get()->m_Value).has_value())
     {
-      m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, param.m_Position, m_Source, DiagnosticSeverity::ERROR, std::format("duplicated param name '{}'", param.m_Identifier->m_Value)));
+      DiagnosticReference reference(Errno::OK, 0, m_Scopes.back().m_Context.Get(param.m_Identifier.get()->m_Value).value().get()->m_Position, "first used here");
+      m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, param.m_Position, m_Source, DiagnosticSeverity::ERROR, std::format("duplicated param name '{}'", param.m_Identifier->m_Value), reference));
       continue;
     }
     SaveBind(param.m_Identifier.get()->m_Value, std::make_shared<Binding>(Binding(BindType::PARAMETER, param.m_TypeAnnotation.m_ReturnType, m_Source->m_ID, param.m_Position)));
   }
 
   auto blockReturnBind = CheckStatementBlock(functionStatement.get()->m_Body);
-  if (!blockReturnBind.has_value())
+
+  // TODO: make deep types comparison
+  if (blockReturnBind.has_value())
+  {
+    if (!type::MatchBaseTypes(blockReturnBind->get()->m_Type.get()->m_Base, functionStatement.get()->m_ReturnTypeAnnotation.m_ReturnType.get()->m_Base))
+    {
+      DiagnosticReference reference(Errno::OK, 0, functionStatement.get()->m_ReturnTypeAnnotation.m_Position.value(), std::format("expect '{}' due to here", type::InspectBase(functionStatement.get()->m_ReturnTypeAnnotation.m_ReturnType.get()->m_Base)));
+      m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, blockReturnBind->get()->m_Position, m_Source, DiagnosticSeverity::ERROR, std::format("return type mismatch, expect '{}' but got '{}'", type::InspectBase(functionStatement.get()->m_ReturnTypeAnnotation.m_ReturnType.get()->m_Base), type::InspectBase(blockReturnBind->get()->m_Type.get()->m_Base)), reference));
+    }
+  }
+  else
   {
     if (!type::MatchBaseTypes(type::Base::VOID, functionStatement.get()->m_ReturnTypeAnnotation.m_ReturnType.get()->m_Base))
     {
       m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, functionStatement.get()->m_ReturnTypeAnnotation.m_Position.value(), m_Source, DiagnosticSeverity::ERROR, "non-void function doesn't have return value"));
     }
-  }
-  else
-  {
-    if (!type::MatchBaseTypes(blockReturnBind->get()->m_Type.get()->m_Base, functionStatement.get()->m_ReturnTypeAnnotation.m_ReturnType.get()->m_Base))
-    {
-      m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, blockReturnBind->get()->m_Position, m_Source, DiagnosticSeverity::ERROR, std::format("return type mismatch, expect '{}' but got '{}'", type::InspectBase(functionStatement.get()->m_ReturnTypeAnnotation.m_ReturnType.get()->m_Base), type::InspectBase(blockReturnBind->get()->m_Type.get()->m_Base))));
-    }
-    // TODO: make deep types comparison
   }
 
   LeaveScope();
@@ -104,7 +107,7 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementReturn(std::share
 {
   if (!IsWithinScope(ScopeType::FUNCTION))
   {
-    m_Diagnostics.push_back(Diagnostic(Errno::SYNTAX_ERROR, returnStatement.get()->m_Position, m_Source, DiagnosticSeverity::ERROR, "cannot return from outside of a function"));
+    m_Diagnostics.push_back(Diagnostic(Errno::SYNTAX_ERROR, returnStatement.get()->m_Position, m_Source, DiagnosticSeverity::ERROR, "cannot return outside of a function"));
     return std::nullopt;
   }
   auto returnBind = std::make_shared<Binding>(Binding(BindType::RETURN_VALUE, std::make_shared<type::Type>(type::Type(type::Base::VOID)), 0, returnStatement.get()->m_Position, true));
@@ -208,7 +211,7 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionIdentifier(std::
   if (bind.has_value())
   {
     bind.value().get()->m_IsUsed = true;
-    return bind.value();
+    return bind;
   }
   m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, identifierExpression.get()->m_Position, m_Source, DiagnosticSeverity::ERROR, std::format("undefined name: '{}'", identifierExpression.get()->m_Value)));
   return std::nullopt;
@@ -242,6 +245,7 @@ void Checker::LeaveScope()
     case BindType::PARAMETER:
       m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, bind.second.get()->m_Position, m_Source, DiagnosticSeverity::WARN, "unused parameter"));
       break;
+    case BindType::IDENTIFIER:
     case BindType::LITERAL:
       // auto literalBinding = std::static_pointer_cast<BindingLiteral>(binding.second);
       m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, bind.second.get()->m_Position, m_Source, DiagnosticSeverity::WARN, "expression results to unused value"));
