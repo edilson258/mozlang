@@ -9,7 +9,7 @@
 #include "token.h"
 #include "type.h"
 
-enum class BindingType
+enum class BindType
 {
   LITERAL = 1,
   FUNCTION,
@@ -19,29 +19,13 @@ enum class BindingType
 class Binding
 {
 public:
-  BindingType Typ;
-  Position Pos;
-  size_t FileID;
-  bool Used;
+  BindType m_BindType;
+  size_t m_FileID;
+  Position m_Position;
+  std::shared_ptr<type::Type> m_Type;
+  bool m_IsUsed;
 
-protected:
-  Binding(BindingType type, Position pos, size_t fileID, bool used = false) : Typ(type), Pos(pos), FileID(fileID), Used(used) {}
-};
-
-class BindingLiteral : public Binding
-{
-public:
-  BaseType BaseTyp;
-
-  BindingLiteral(Position pos, BaseType baseTyp, size_t fileID, bool used = false) : Binding(BindingType::LITERAL, pos, fileID, used), BaseTyp(baseTyp) {}
-};
-
-class BindingParameter : public Binding
-{
-public:
-  std::shared_ptr<Type> Typ;
-
-  BindingParameter(Position pos, std::shared_ptr<Type> typ, size_t fileID, bool used = false) : Binding(BindingType::PARAMETER, pos, fileID, used), Typ(typ) {}
+  Binding(BindType bindType, std::shared_ptr<type::Type> type, size_t fileID, Position pos, bool isUsed = false) : m_BindType(bindType), m_FileID(fileID), m_Position(pos), m_Type(type), m_IsUsed(isUsed) {}
 };
 
 class BindingFunction : public Binding
@@ -49,9 +33,8 @@ class BindingFunction : public Binding
 public:
   Position NamePosition;
   Position ParamsPosition;
-  std::shared_ptr<FunctionType> FnType;
 
-  BindingFunction(Position position, Position namePosition, Position paramsPosition, std::shared_ptr<FunctionType> functionType, size_t fileID, bool used = false) : Binding(BindingType::FUNCTION, position, fileID, used), NamePosition(namePosition), ParamsPosition(paramsPosition), FnType(functionType) {};
+  BindingFunction(Position position, Position namePosition, Position paramsPosition, std::shared_ptr<type::Function> functionType, size_t fileID, bool used = false) : Binding(BindType::FUNCTION, functionType, fileID, position, used), NamePosition(namePosition), ParamsPosition(paramsPosition) {};
 };
 
 class Context

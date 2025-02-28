@@ -16,7 +16,7 @@ enum class Precedence
 
 enum class StatementType
 {
-  BLOCK,
+  BLOCK = 1,
   FUNCTION,
   RETURN,
   EXPRESSION,
@@ -32,96 +32,96 @@ enum class ExpressionType
 class Statement
 {
 public:
-  Position Pos;
-  StatementType Type;
+  Position m_Position;
+  StatementType m_Type;
 
 protected:
-  Statement(Position position, StatementType type) : Pos(position), Type(type) {};
+  Statement(Position position, StatementType type) : m_Position(position), m_Type(type) {};
 };
 
 class StatementBlock : public Statement
 {
 public:
-  std::vector<std::shared_ptr<Statement>> Stmts;
+  std::vector<std::shared_ptr<Statement>> m_Stmts;
 
-  StatementBlock(Position position, std::vector<std::shared_ptr<Statement>> stmts) : Statement(position, StatementType::BLOCK), Stmts(std::move(stmts)) {};
+  StatementBlock(Position position, std::vector<std::shared_ptr<Statement>> stmts) : Statement(position, StatementType::BLOCK), m_Stmts(std::move(stmts)) {};
 };
 
 class StatementReturn : public Statement
 {
 public:
-  std::optional<std::shared_ptr<class Expression>> Value;
-  StatementReturn(Position position, std::optional<std::shared_ptr<class Expression>> value) : Statement(position, StatementType::RETURN), Value(value) {};
+  std::optional<std::shared_ptr<class Expression>> m_Value;
+  StatementReturn(Position position, std::optional<std::shared_ptr<class Expression>> value) : Statement(position, StatementType::RETURN), m_Value(value) {};
 };
 
 class FunctionParam
 {
 public:
-  Position Pos;
-  std::shared_ptr<class ExpressionIdentifier> Name;
-  std::optional<Type> Typ;
+  Position m_Position;
+  std::shared_ptr<type::Type> m_Type;
+  std::shared_ptr<class ExpressionIdentifier> m_Identifier;
 
-  FunctionParam(Position pos, std::shared_ptr<class ExpressionIdentifier> name, std::optional<Type> typ) : Pos(pos), Name(name), Typ(typ) {};
+  FunctionParam(Position position, std::shared_ptr<type::Type> type, std::shared_ptr<class ExpressionIdentifier> identifier) : m_Position(position), m_Type(type), m_Identifier(identifier) {};
 };
 
 class FunctionParams
 {
 public:
-  Position Pos;
-  std::vector<FunctionParam> Params;
+  Position m_Position;
+  std::vector<FunctionParam> m_Params;
 
-  FunctionParams(Position pos, std::vector<FunctionParam> params) : Pos(pos), Params(std::move(params)) {};
+  FunctionParams(Position position, std::vector<FunctionParam> params) : m_Position(position), m_Params(std::move(params)) {};
 };
 
 class StatementFunction : public Statement
 {
 public:
-  std::shared_ptr<class ExpressionIdentifier> Name;
-  FunctionParams Params;
-  std::shared_ptr<StatementBlock> Body;
+  FunctionParams m_Params;
+  std::shared_ptr<StatementBlock> m_Body;
+  std::shared_ptr<class ExpressionIdentifier> m_Identifier;
 
-  StatementFunction(Position position, std::shared_ptr<class ExpressionIdentifier> name, FunctionParams params, std::shared_ptr<StatementBlock> body) : Statement(position, StatementType::FUNCTION), Name(name), Params(params), Body(body) {};
+  StatementFunction(Position position, std::shared_ptr<class ExpressionIdentifier> identifier, FunctionParams params, std::shared_ptr<StatementBlock> body) : Statement(position, StatementType::FUNCTION), m_Params(params), m_Body(body), m_Identifier(identifier) {};
 };
 
 class Expression : public Statement
 {
 public:
-  ExpressionType Type;
+  ExpressionType m_Type;
 
 protected:
-  Expression(Position position, ExpressionType type) : Statement(position, StatementType::EXPRESSION), Type(type) {};
+  Expression(Position position, ExpressionType type) : Statement(position, StatementType::EXPRESSION), m_Type(type) {};
 };
 
 class ExpressionCall : public Expression
 {
 public:
-  std::shared_ptr<Expression> Callee;
-  std::vector<std::shared_ptr<Expression>> Arguments;
-  Position ArgumentsPosition;
+  std::shared_ptr<Expression> m_Callee;
+  std::vector<std::shared_ptr<Expression>> m_Arguments;
+  Position m_ArgumentsPosition;
 
-  ExpressionCall(Position pos, std::shared_ptr<Expression> callee, std::vector<std::shared_ptr<Expression>> args, Position argsPos) : Expression(pos, ExpressionType::CALL), Callee(callee), Arguments(args), ArgumentsPosition(argsPos) {};
+  ExpressionCall(Position position, std::shared_ptr<Expression> callee, std::vector<std::shared_ptr<Expression>> args, Position argsPos) : Expression(position, ExpressionType::CALL), m_Callee(callee), m_Arguments(args), m_ArgumentsPosition(argsPos) {};
 };
 
 class ExpressionIdentifier : public Expression
 {
 public:
-  std::string Value;
+  std::string m_Value;
 
-  ExpressionIdentifier(Position pos, std::string value) : Expression(pos, ExpressionType::IDENTIFIER), Value(value) {};
+  ExpressionIdentifier(Position position, std::string value) : Expression(position, ExpressionType::IDENTIFIER), m_Value(value) {};
 };
 
 class ExpressionString : public Expression
 {
 public:
-  std::string Value;
+  std::string m_Value;
 
-  ExpressionString(Position pos, std::string value) : Expression(pos, ExpressionType::STRING), Value(value) {};
+  ExpressionString(Position position, std::string value) : Expression(position, ExpressionType::STRING), m_Value(value) {};
 };
 
 class AST
 {
 public:
-  std::vector<std::shared_ptr<Statement>> Program;
-  AST() : Program() {};
+  std::vector<std::shared_ptr<Statement>> m_Program;
+  AST() : m_Program() {};
   std::string Inspect();
 };

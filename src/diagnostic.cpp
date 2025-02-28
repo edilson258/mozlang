@@ -7,13 +7,6 @@
 #include <string>
 
 #include "diagnostic.h"
-#include "token.h"
-
-#define COLOR_RESET "\x1b[0m"
-#define COLOR_RED_BOLD "\x1b[1;31m"
-#define COLOR_RED_UNDERLINED "\x1b[4;31m"
-#define COLOR_CYAN "\x1b[36m"
-#define COLOR_BROW "\x1b[38;5;8m"
 
 #define RESET "\033[0m"
 #define BOLD "\033[1m"
@@ -30,7 +23,7 @@
 std::string DiagnosticEngine::Paint(std::string text, std::string color)
 {
   text.insert(0, color);
-  text.append(COLOR_RESET);
+  text.append(RESET);
   return text;
 }
 
@@ -173,10 +166,10 @@ std::string DiagnosticEngine::Highlight(std::string code, size_t start, size_t e
 
 void DiagnosticEngine::Report(Diagnostic diagnostic)
 {
-  std::cerr << Paint(std::format("{}:{}:{} ", diagnostic.Sourc.get()->path, diagnostic.Pos.Line, diagnostic.Pos.Column), BOLD_WHITE);
+  std::cerr << Paint(std::format("{}:{}:{} ", diagnostic.Sourc.get()->m_Path, diagnostic.Pos.m_Line, diagnostic.Pos.m_Column), BOLD_WHITE);
   std::cerr << Paint(std::format("{}: {}", MatchSevevirtyString(diagnostic.Severity), diagnostic.Message), MatchSeverityColor(diagnostic.Severity)) << std::endl;
   std::cerr << std::endl;
-  std::cerr << Highlight(diagnostic.Sourc.get()->content, diagnostic.Pos.Start, diagnostic.Pos.End, MatchSeverityColor(diagnostic.Severity)) << std::endl;
+  std::cerr << Highlight(diagnostic.Sourc.get()->m_Content, diagnostic.Pos.m_Start, diagnostic.Pos.m_End, MatchSeverityColor(diagnostic.Severity)) << std::endl;
 }
 
 std::string DiagnosticEngine::MatchSevevirtyString(DiagnosticSeverity severity)

@@ -28,21 +28,21 @@ enum class TokenType
 class Position
 {
 public:
-  size_t Line, Column, Start, End;
+  size_t m_Line, m_Column, m_Start, m_End;
 
   Position() = default;
-  Position(size_t line, size_t column, size_t start, size_t end) : Line(line), Column(column), Start(start), End(end) {};
+  Position(size_t line, size_t column, size_t start, size_t end) : m_Line(line), m_Column(column), m_Start(start), m_End(end) {};
 };
 
 class Token
 {
 public:
-  Position Pos;
-  TokenType Type;
-  std::string Lexeme;
+  Position m_Position;
+  TokenType m_Type;
+  std::string m_Lexeme;
 
   Token() = default;
-  Token(Position position, TokenType type, std::string lexeme) : Pos(position), Type(type), Lexeme(lexeme) {};
+  Token(Position position, TokenType type, std::string lexeme) : m_Position(position), m_Type(type), m_Lexeme(lexeme) {};
 
   std::string Inspect();
 };

@@ -7,13 +7,14 @@
 class Parser
 {
 public:
-  Parser(Lexer &lexr) : Lexr(lexr), Tokn() {};
+  Parser(Lexer &lexer) : m_Lexer(lexer), m_CurrToken(), m_NextToken() {};
 
   Result<AST, Diagnostic> Parse();
 
 private:
-  Lexer &Lexr;
-  Token Tokn;
+  Lexer &m_Lexer;
+  Token m_CurrToken;
+  Token m_NextToken;
 
   bool IsEof();
   Result<Position, Diagnostic> Next();
@@ -24,7 +25,7 @@ private:
   Result<std::shared_ptr<StatementReturn>, Diagnostic> ParseStatementReturn();
   Result<std::shared_ptr<StatementBlock>, Diagnostic> ParseStatementBlock();
   Result<std::shared_ptr<Expression>, Diagnostic> ParseExpression(Precedence);
-  Result<std::shared_ptr<Expression>, Diagnostic> ParseExpressionLeft();
+  Result<std::shared_ptr<Expression>, Diagnostic> ParseExpressionLhs();
   Result<std::shared_ptr<ExpressionCall>, Diagnostic> ParseExpressionCall(std::shared_ptr<Expression>);
 
   Result<FunctionParams, Diagnostic> ParseFunctionParams();
