@@ -14,11 +14,11 @@ enum class Errno
   DEAD_CODE,
 };
 
-class ERROR
+class Error
 {
 public:
   Errno Errn;
   std::string Message;
 
-  ERROR(Errno errn, std::string message) : Errn(errn), Message(message) {};
+  Error(Errno errn, std::string message) : Errn(errn), Message(message) {};
 };

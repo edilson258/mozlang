@@ -1,5 +1,6 @@
 #include <cassert>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <format>
 #include <memory>
@@ -13,21 +14,16 @@
 #include "ir/lib.h"
 #include "result.h"
 
-Result<lib::Program, ERROR> IRGenerator::Emit()
+Result<lib::Program, Error> IRGenerator::Emit()
 {
   for (auto statement : m_AST.m_Program)
   {
-    auto error = EmitStatement(statement);
-    if (error.has_value())
-    {
-      return Result<lib::Program, ERROR>(error.value());
-    }
+    EmitStatement(statement);
   }
-
-  return Result<lib::Program, ERROR>(m_Program);
+  return Result<lib::Program, Error>(m_Program);
 }
 
-std::optional<ERROR> IRGenerator::EmitStatement(std::shared_ptr<Statement> statement)
+void IRGenerator::EmitStatement(std::shared_ptr<Statement> statement)
 {
   switch (statement.get()->m_Type)
   {
@@ -40,52 +36,38 @@ std::optional<ERROR> IRGenerator::EmitStatement(std::shared_ptr<Statement> state
   case StatementType::EXPRESSION:
     return EmitExpression(std::static_pointer_cast<Expression>(statement));
   }
-  return std::nullopt;
 }
 
-std::optional<ERROR> IRGenerator::EmitStatementFunction(std::shared_ptr<StatementFunction> functionStatement)
+void IRGenerator::EmitStatementFunction(std::shared_ptr<StatementFunction> functionStatement)
 {
+  SaveIdentifierConstIfNotExist(functionStatement.get()->m_Identifier.get()->m_Value);
   EnterFunction(static_cast<uint32_t>(functionStatement.get()->m_Params.m_Params.size()), functionStatement.get()->m_Identifier.get()->m_Value);
-
   for (auto &param : functionStatement.get()->m_Params.m_Params)
   {
-    PushInstruction(std::make_shared<lib::Instruction>(lib::InstructionStore(SaveLocal(param.m_Identifier->m_Value))));
+    SaveLocal(param.m_Identifier->m_Value);
   }
-
-  auto error = EmitStatementBlock(functionStatement.get()->m_Body);
+  EmitStatementBlock(functionStatement.get()->m_Body);
   LeaveFunction();
-  return error;
 }
 
-std::optional<ERROR> IRGenerator::EmitStatementBlock(std::shared_ptr<StatementBlock> blockStatement)
+void IRGenerator::EmitStatementBlock(std::shared_ptr<StatementBlock> blockStatement)
 {
-  std::optional<ERROR> error;
   for (auto &stmt : blockStatement.get()->m_Stmts)
   {
-    error = EmitStatement(stmt);
-    if (error.has_value())
-    {
-      return error;
-    }
+    EmitStatement(stmt);
   }
-  return error;
 }
 
-std::optional<ERROR> IRGenerator::EmitStatementReturn(std::shared_ptr<StatementReturn> returnStatement)
+void IRGenerator::EmitStatementReturn(std::shared_ptr<StatementReturn> returnStatement)
 {
   if (returnStatement.get()->m_Value.has_value())
   {
-    auto error = EmitExpression(returnStatement.get()->m_Value.value());
-    if (error.has_value())
-    {
-      return error;
-    }
+    EmitExpression(returnStatement.get()->m_Value.value());
   }
   PushInstruction(std::make_shared<lib::InstructionReturn>(lib::InstructionReturn()));
-  return std::nullopt;
 }
 
-std::optional<ERROR> IRGenerator::EmitExpression(std::shared_ptr<Expression> expression)
+void IRGenerator::EmitExpression(std::shared_ptr<Expression> expression)
 {
   switch (expression.get()->m_Type)
   {
@@ -96,39 +78,52 @@ std::optional<ERROR> IRGenerator::EmitExpression(std::shared_ptr<Expression> exp
   case ExpressionType::IDENTIFIER:
     return EmitExpressionIdentifier(std::static_pointer_cast<ExpressionIdentifier>(expression));
   }
-  return std::nullopt;
 }
 
-std::optional<ERROR> IRGenerator::EmitExpressionCall(std::shared_ptr<ExpressionCall> callExpression)
+void IRGenerator::EmitExpressionCall(std::shared_ptr<ExpressionCall> callExpression)
 {
-  for (auto argument : callExpression.get()->m_Arguments)
+  for (auto &argument : callExpression.get()->m_Arguments)
   {
-    auto error = EmitExpression(argument);
-    if (error.has_value())
+    EmitExpression(argument);
+  }
+  EmitExpression(callExpression.get()->m_Callee);
+  PushInstruction(std::make_shared<lib::InstructionCall>());
+}
+
+uint32_t IRGenerator::SaveIdentifierConstIfNotExist(std::string utf8)
+{
+  if (m_Constants.find(utf8) != m_Constants.end())
+  {
+    return m_Constants[utf8];
+  }
+  auto index = m_Program.m_Pool.Save(lib::Object(lib::ObjectType::UTF_8, utf8));
+  m_Constants[utf8] = index;
+  return index;
+}
+
+void IRGenerator::EmitExpressionIdentifier(std::shared_ptr<ExpressionIdentifier> identifierExpression)
+{
+  std::optional<Symbol> symbOpt = ResolveName(identifierExpression.get()->m_Value);
+  if (symbOpt.has_value())
+  {
+    if (symbOpt.value().m_IsGlobal && m_CurrentFunction.has_value())
     {
-      return error.value();
+      PushInstruction(std::make_shared<lib::InstructionLoadGlobal>(lib::InstructionLoadGlobal(symbOpt.value().m_Index)));
+    }
+    else
+    {
+      PushInstruction(std::make_shared<lib::InstructionLoad>(lib::InstructionLoad(symbOpt.value().m_Index)));
     }
   }
-  auto error = EmitExpression(callExpression.get()->m_Callee);
-  if (error.has_value())
+  else
   {
-    return error.value();
+    PushInstruction(std::make_shared<lib::InstructionLoadConst>(lib::InstructionLoadConst(SaveIdentifierConstIfNotExist(identifierExpression.get()->m_Value))));
   }
-  PushInstruction(std::make_shared<lib::InstructionCall>());
-  return std::nullopt;
 }
 
-std::optional<ERROR> IRGenerator::EmitExpressionIdentifier(std::shared_ptr<ExpressionIdentifier> identifierExpression)
+void IRGenerator::EmitExpressionString(std::shared_ptr<ExpressionString> stringExpression)
 {
-  PushInstruction(std::make_shared<lib::InstructionLoadc>(lib::InstructionLoadc(FindLocal(identifierExpression.get()->m_Value))));
-  return std::nullopt;
-}
-
-std::optional<ERROR> IRGenerator::EmitExpressionString(std::shared_ptr<ExpressionString> exp_string)
-{
-  uint32_t index = m_Program.m_Pool.Save(lib::Object(lib::ObjectType::STRING, exp_string.get()->m_Value));
-  PushInstruction(std::make_shared<lib::InstructionLoadc>(lib::InstructionLoadc(index)));
-  return std::nullopt;
+  PushInstruction(std::make_shared<lib::InstructionLoadConst>(lib::InstructionLoadConst(m_Program.m_Pool.Save(lib::Object(lib::ObjectType::STRING, stringExpression.get()->m_Value)))));
 }
 
 void IRGenerator::EnterFunction(uint32_t arity, std::string name)
@@ -138,8 +133,7 @@ void IRGenerator::EnterFunction(uint32_t arity, std::string name)
 
 void IRGenerator::LeaveFunction()
 {
-  uint32_t nameIndex = m_Program.m_Pool.Save(lib::Object(lib::ObjectType::STRING, m_CurrentFunction.value().m_Name));
-  m_Program.m_Functions[m_CurrentFunction.value().m_Name] = lib::Function(m_CurrentFunction.value().m_Arity, nameIndex, std::move(m_CurrentFunction.value().m_Code));
+  m_Program.m_Functions[m_CurrentFunction.value().m_Name] = lib::Function(m_CurrentFunction.value().m_Arity, m_Constants[m_CurrentFunction.value().m_Name], std::move(m_CurrentFunction.value().m_Code));
   m_CurrentFunction.reset();
 };
 
@@ -168,74 +162,108 @@ uint32_t IRGenerator::SaveLocal(std::string name)
   return index;
 }
 
-uint32_t IRGenerator::FindLocal(std::string name)
+std::optional<Symbol> IRGenerator::ResolveName(std::string name)
 {
   if (m_CurrentFunction.has_value() && m_CurrentFunction.value().m_Locals.find(name) != m_CurrentFunction.value().m_Locals.end())
   {
-    return m_CurrentFunction.value().m_Locals[name];
+    return Symbol(m_CurrentFunction.value().m_Locals[name], false);
   }
-  return m_Globals[name];
+  if (m_Globals.find(name) != m_Globals.end())
+  {
+    return Symbol(m_Globals[name], true);
+  }
+  return std::nullopt;
 }
 
-Result<std::string, ERROR> IRDisassembler::Disassemble()
+Result<std::string, Error> IRDisassembler::Disassemble()
 {
+  DisassembleConstantPool();
+  Writeln("Global Instructions:");
+  Tab();
   DisassembleBytecode(m_Program.m_Code);
+  UnTab();
+  Writeln("Function Instructions:");
+  Tab();
   for (auto &pair : m_Program.m_Functions)
   {
-    Writeln(std::format("fun {}:", ""));
+    Writeln(std::format("fun {}:", m_Program.m_Pool.Get(pair.second.m_NameIndex).value().Inspect()));
     Tab();
     DisassembleBytecode(pair.second.m_Code);
     UnTab();
+    Writeln("");
   }
-  return Result<std::string, ERROR>(m_Output.str());
+  UnTab();
+  return Result<std::string, Error>(m_Output.str());
 }
 
-std::optional<ERROR> IRDisassembler::DisassembleBytecode(lib::ByteCode byteCode)
+void IRDisassembler::DisassembleConstantPool()
 {
-  std::optional<ERROR> error;
+  Writeln("Constant Pool:");
+  Tab();
+  for (size_t i = 0; i < m_Program.m_Pool.m_Objects.size(); ++i)
+  {
+    Writeln(std::format("{}\t{}\t{}", InspetObjectType(m_Program.m_Pool.m_Objects.at(i).m_Type), m_Program.m_Pool.m_Objects.at(i).Inspect(), i));
+  }
+  UnTab();
+  Writeln("");
+}
+
+void IRDisassembler::DisassembleBytecode(lib::ByteCode byteCode)
+{
   for (auto &instruction : byteCode)
   {
     switch (instruction.get()->m_OPCode)
     {
     case lib::OPCode::LOAD:
-      error = DisassembleLoadc(std::static_pointer_cast<lib::InstructionLoadc>(instruction));
+      DisassembleLoadLocal(std::static_pointer_cast<lib::InstructionLoad>(instruction));
       break;
-    case lib::OPCode::STORE:
-      error = DisassembleStore(std::static_pointer_cast<lib::InstructionStore>(instruction));
+    case lib::OPCode::LOADG:
+      DisassembleLoadGlobal(std::static_pointer_cast<lib::InstructionLoadGlobal>(instruction));
+      break;
+    case lib::OPCode::LOADC:
+      DisassembleLoadConst(std::static_pointer_cast<lib::InstructionLoadConst>(instruction));
+      break;
+    case lib::OPCode::STOREL:
+      DisassembleStore(std::static_pointer_cast<lib::InstructionStoreLocal>(instruction));
       break;
     case lib::OPCode::CALL:
-      error = DisassembleCall(std::static_pointer_cast<lib::InstructionCall>(instruction));
+      DisassembleCall(std::static_pointer_cast<lib::InstructionCall>(instruction));
       break;
     case lib::OPCode::RETURN:
-      error = DisassembleReturn(std::static_pointer_cast<lib::InstructionReturn>(instruction));
+      DisassembleReturn(std::static_pointer_cast<lib::InstructionReturn>(instruction));
       break;
     }
   }
-  return error;
 }
 
-std::optional<ERROR> IRDisassembler::DisassembleLoadc(std::shared_ptr<lib::InstructionLoadc> ldc)
+void IRDisassembler::DisassembleLoadLocal(std::shared_ptr<lib::InstructionLoad> ldl)
 {
-  Writeln(std::format("loadc '{}'\t", ldc.get()->m_Index));
-  return std::nullopt;
+  Writeln(std::format("load\t{}", ldl.get()->m_Index));
 }
 
-std::optional<ERROR> IRDisassembler::DisassembleStore(std::shared_ptr<lib::InstructionStore> store)
+void IRDisassembler::DisassembleLoadGlobal(std::shared_ptr<lib::InstructionLoadGlobal> ldg)
 {
-  Writeln(std::format("store '{}'", store.get()->m_Index));
-  return std::nullopt;
+  Writeln(std::format("loadg\t{}", ldg.get()->m_Index));
 }
 
-std::optional<ERROR> IRDisassembler::DisassembleCall(std::shared_ptr<lib::InstructionCall>)
+void IRDisassembler::DisassembleLoadConst(std::shared_ptr<lib::InstructionLoadConst> ldc)
+{
+  Writeln(std::format("loadc\t{}", ldc.get()->m_Index));
+}
+
+void IRDisassembler::DisassembleStore(std::shared_ptr<lib::InstructionStoreLocal> store)
+{
+  Writeln(std::format("store\t{}", store.get()->m_Index));
+}
+
+void IRDisassembler::DisassembleCall(std::shared_ptr<lib::InstructionCall>)
 {
   Writeln("call");
-  return std::nullopt;
 }
 
-std::optional<ERROR> IRDisassembler::DisassembleReturn(std::shared_ptr<lib::InstructionReturn>)
+void IRDisassembler::DisassembleReturn(std::shared_ptr<lib::InstructionReturn>)
 {
   Writeln("ret");
-  return std::nullopt;
 }
 
 void IRDisassembler::Tab()
@@ -257,4 +285,16 @@ void IRDisassembler::Writeln(std::string str)
 {
   Write(str);
   m_Output << '\n';
+}
+
+std::string IRDisassembler::InspetObjectType(lib::ObjectType type)
+{
+  switch (type)
+  {
+  case lib::ObjectType::STRING:
+    return "string";
+  case lib::ObjectType::UTF_8:
+    return "utf8";
+  }
+  return "<unknown object type>";
 }
