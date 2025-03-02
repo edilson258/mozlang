@@ -2,98 +2,53 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <optional>
 #include <sstream>
 #include <string>
-#include <variant>
-#include <vector>
+#include <sys/types.h>
 
 #include "ast.h"
 #include "error.h"
+#include "ir/lib.h"
 #include "result.h"
 
-enum class OPCode
-{
-  LOADC = 0x1,
-  CALL = 0x2,
-};
-
-class Instruction
+class IRGenFunction
 {
 public:
-  OPCode m_Opcode;
+  uint32_t m_Arity;
+  std::string m_Name;
+  lib::ByteCode m_Code;
+  std::map<std::string, uint32_t> m_Locals;
 
-protected:
-  Instruction(OPCode opcode) : m_Opcode(opcode) {};
-};
-
-class LOADC : public Instruction
-{
-public:
-  uint32_t m_Index;
-  LOADC(uint32_t index) : Instruction(OPCode::LOADC), m_Index(index) {};
-};
-
-class CALL : public Instruction
-{
-public:
-  CALL() : Instruction(OPCode::CALL) {};
-};
-
-enum class ObjectType
-{
-  STRING = 1,
-};
-
-using ObjectValue = std::variant<std::monostate, std::string>;
-
-class Object
-{
-public:
-  ObjectType m_Type;
-  ObjectValue m_Value;
-
-  Object(ObjectType type, ObjectValue value) : m_Type(type), m_Value(value) {};
-
-  std::string Inspect() const
-  {
-    return std::get<std::string>(m_Value);
-  }
-};
-
-class ConstantPool
-{
-public:
-  std::vector<Object> m_Objects;
-
-  size_t size() const
-  {
-    return m_Objects.size();
-  }
-};
-
-class IR
-{
-public:
-  IR() : m_Code() {};
-
-  ConstantPool m_Pool;
-  std::vector<std::shared_ptr<Instruction>> m_Code;
+  IRGenFunction(uint32_t arity, std::string name) : m_Arity(arity), m_Name(name), m_Code(), m_Locals() {}
 };
 
 class IRGenerator
 {
 public:
-  IRGenerator(AST &t) : Ast(t), Ir() {};
+  IRGenerator(const AST &t) : m_AST(t), m_Program(), m_Globals(), m_CurrentFunction() {};
 
-  Result<IR, ERROR> Emit();
+  Result<lib::Program, ERROR> Emit();
 
 private:
-  AST &Ast;
-  IR Ir;
+  const AST &m_AST;
+  lib::Program m_Program;
+  std::map<std::string, uint32_t> m_Globals;
+  std::optional<IRGenFunction> m_CurrentFunction;
+
+  uint32_t SaveLocal(std::string);
+  uint32_t FindLocal(std::string);
+
+  void EnterFunction(uint32_t, std::string);
+  void LeaveFunction();
+  void PushInstruction(std::shared_ptr<lib::Instruction>);
 
   std::optional<ERROR> EmitStatement(std::shared_ptr<Statement>);
+  std::optional<ERROR> EmitStatementFunction(std::shared_ptr<StatementFunction>);
+  std::optional<ERROR> EmitStatementBlock(std::shared_ptr<StatementBlock>);
+  std::optional<ERROR> EmitStatementReturn(std::shared_ptr<StatementReturn>);
   std::optional<ERROR> EmitExpression(std::shared_ptr<Expression>);
   std::optional<ERROR> EmitExpressionCall(std::shared_ptr<ExpressionCall>);
   std::optional<ERROR> EmitExpressionIdentifier(std::shared_ptr<ExpressionIdentifier>);
@@ -103,15 +58,25 @@ private:
 class IRDisassembler
 {
 public:
-  IRDisassembler(IR ir) : Ir(ir) {};
+  IRDisassembler(const lib::Program &program) : m_Program(program), m_Output(), TabRate(4), TabSize(0) {};
 
   Result<std::string, ERROR> Disassemble();
 
 private:
-  IR Ir;
+  const lib::Program &m_Program;
+  std::ostringstream m_Output;
 
-  std::ostringstream Output;
+  size_t TabRate;
+  size_t TabSize;
 
-  std::optional<ERROR> DisassembleLoadc(std::shared_ptr<LOADC>);
-  std::optional<ERROR> DisassembleCall(std::shared_ptr<CALL>);
+  void Tab();
+  void UnTab();
+  void Write(std::string);
+  void Writeln(std::string);
+
+  std::optional<ERROR> DisassembleBytecode(lib::ByteCode);
+  std::optional<ERROR> DisassembleLoadc(std::shared_ptr<lib::InstructionLoadc>);
+  std::optional<ERROR> DisassembleStore(std::shared_ptr<lib::InstructionStore>);
+  std::optional<ERROR> DisassembleCall(std::shared_ptr<lib::InstructionCall>);
+  std::optional<ERROR> DisassembleReturn(std::shared_ptr<lib::InstructionReturn>);
 };

@@ -53,7 +53,9 @@ int main(int argc, char *argv[])
     return 1;
   }
   IRGenerator irGenerator(ast);
-  auto ir = irGenerator.Emit();
-  IRDisassembler irDesassembler(ir.unwrap());
-  std::cout << irDesassembler.Disassemble().unwrap() << std::endl;
+  auto irRes = irGenerator.Emit();
+  auto ir = irRes.unwrap();
+  IRDisassembler irDesassembler(ir);
+  auto irAsm = irDesassembler.Disassemble();
+  std::cout << irAsm.unwrap() << std::endl;
 }

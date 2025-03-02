@@ -1,3 +1,23 @@
-println("{}", "Hello, world!");
+println("%s {}", "Hello, world!");
 println();
 "Hello";
+
+
+
+std.max.max();
+
+tree:
+  std
+    - math: [sqrt]
+    - io
+    mod
+
+
+// main.ln
+const std = @import("std");
+
+fn sqrt() {}
+
+std.math.sqrt();
+
+import Java.math;

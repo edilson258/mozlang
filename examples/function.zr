@@ -1,6 +1,5 @@
-fun sum(x: string, y: i32): string {
-  x;
-  y
+fun main(x) {
+  x
 }
 
-sum();
+main();
