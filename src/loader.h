@@ -24,7 +24,7 @@ class Loader
 public:
   Loader() : m_Sources() {};
 
-  Result<std::shared_ptr<Source>, ERROR> Load(std::string path);
+  Result<std::shared_ptr<Source>, Error> Load(std::string path);
   std::optional<std::shared_ptr<Source>> FindSource(size_t id);
 
 private:

@@ -11,52 +11,11 @@
 
 namespace lib
 {
-enum class OPCode
-{
-  LOAD = 0x01,
-  STORE = 0x02,
-  CALL = 0x03,
-  RETURN = 0x04,
-};
-
-class Instruction
-{
-public:
-  OPCode m_OPCode;
-
-protected:
-  Instruction(OPCode opcode) : m_OPCode(opcode) {};
-};
-
-class InstructionLoadc : public Instruction
-{
-public:
-  uint32_t m_Index;
-  InstructionLoadc(uint32_t index) : Instruction(OPCode::LOAD), m_Index(index) {};
-};
-
-class InstructionStore : public Instruction
-{
-public:
-  uint32_t m_Index;
-  InstructionStore(uint32_t index) : Instruction(OPCode::STORE), m_Index(index) {};
-};
-
-class InstructionCall : public Instruction
-{
-public:
-  InstructionCall() : Instruction(OPCode::CALL) {};
-};
-
-class InstructionReturn : public Instruction
-{
-public:
-  InstructionReturn() : Instruction(OPCode::RETURN) {};
-};
 
 enum class ObjectType
 {
-  STRING = 1,
+  UTF_8,
+  STRING,
 };
 
 using ObjectValue = std::variant<std::monostate, std::string>;
@@ -75,6 +34,68 @@ public:
   }
 };
 
+enum class OPCode
+{
+  /* Load symbol from locals */
+  LOAD = 0x01,
+  /* Load symbol from globals */
+  LOADG = 0x02,
+  /* Load constant value from constant pool */
+  LOADC = 0x03,
+  STOREL = 0x04,
+  CALL = 0x05,
+  RETURN = 0x06,
+};
+
+class Instruction
+{
+public:
+  OPCode m_OPCode;
+
+protected:
+  Instruction(OPCode opcode) : m_OPCode(opcode) {};
+};
+
+class InstructionLoad : public Instruction
+{
+public:
+  uint32_t m_Index;
+  InstructionLoad(uint32_t index) : Instruction(OPCode::LOAD), m_Index(index) {};
+};
+
+class InstructionLoadGlobal : public Instruction
+{
+public:
+  uint32_t m_Index;
+  InstructionLoadGlobal(uint32_t index) : Instruction(OPCode::LOADG), m_Index(index) {};
+};
+
+class InstructionLoadConst : public Instruction
+{
+public:
+  uint32_t m_Index;
+  InstructionLoadConst(uint32_t index) : Instruction(OPCode::LOADC), m_Index(index) {};
+};
+
+class InstructionStoreLocal : public Instruction
+{
+public:
+  uint32_t m_Index;
+  InstructionStoreLocal(uint32_t index) : Instruction(OPCode::STOREL), m_Index(index) {};
+};
+
+class InstructionCall : public Instruction
+{
+public:
+  InstructionCall() : Instruction(OPCode::CALL) {};
+};
+
+class InstructionReturn : public Instruction
+{
+public:
+  InstructionReturn() : Instruction(OPCode::RETURN) {};
+};
+
 class Pool
 {
 public:
@@ -83,7 +104,6 @@ public:
 
   Pool() : m_Objects() {};
 
-private:
   std::vector<Object> m_Objects;
 };
 
