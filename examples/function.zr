@@ -1,10 +1,10 @@
-fun main(x) {
+fun foo(x: i32, y: string): i32 {
+  return x;
+}
+
+fun bar(x) {
   "hello";
   println(x);
 }
 
-fun sum(x: i32, y: i32): i32 {
-  return x;
-}
-
-sum();
+foo("hello", "hi");
