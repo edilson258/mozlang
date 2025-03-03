@@ -61,17 +61,17 @@ Result<std::shared_ptr<Statement>, Diagnostic> Parser::ParseStatement()
 
   auto expression = expressionRes.unwrap();
 
-  if (TokenType::SEMICOLON != m_CurrToken.m_Type)
+  if (TokenType::SEMICOLON == m_CurrToken.m_Type)
+  {
+    Next().unwrap();
+  }
+  else
   {
     if (TokenType::RBRACE != m_CurrToken.m_Type)
     {
       return Result<std::shared_ptr<Statement>, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, expression.get()->m_Position, m_Lexer.m_Source, DiagnosticSeverity::ERROR, "implicity return expression must be the last in a block, insert ';' at end"));
     }
     return Result<std::shared_ptr<Statement>, Diagnostic>(std::make_shared<StatementReturn>(StatementReturn(expression->m_Position, expression)));
-  }
-  else
-  {
-    Next().unwrap();
   }
 
   return Result<std::shared_ptr<Statement>, Diagnostic>(expression);
@@ -146,7 +146,10 @@ Result<std::shared_ptr<StatementFunction>, Diagnostic> Parser::ParseStatementFun
     return Result<std::shared_ptr<StatementFunction>, Diagnostic>(paramsRes.unwrap_err());
   }
   auto bodyRes = ParseStatementBlock();
-  assert(bodyRes.is_ok());
+  if (bodyRes.is_err())
+  {
+    return Result<std::shared_ptr<StatementFunction>, Diagnostic>(bodyRes.unwrap_err());
+  }
   position.m_End = bodyRes.unwrap().get()->m_Position.m_End;
   return Result<std::shared_ptr<StatementFunction>, Diagnostic>(std::make_shared<StatementFunction>(StatementFunction(position, name, paramsRes.unwrap(), bodyRes.unwrap(), typeAnnotation)));
 }
@@ -201,7 +204,11 @@ Result<std::shared_ptr<Expression>, Diagnostic> Parser::ParseExpression(Preceden
   {
     return Result<std::shared_ptr<Expression>, Diagnostic>(lhs_res.unwrap_err());
   }
-  Next(); // eat lhs expression
+  auto nextRes = Next();
+  if (nextRes.is_err())
+  {
+    return Result<std::shared_ptr<Expression>, Diagnostic>(nextRes.unwrap_err());
+  }
   while (!IsEof() && prec < token2precedence(m_CurrToken.m_Type))
   {
     switch (m_CurrToken.m_Type)
