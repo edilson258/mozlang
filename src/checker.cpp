@@ -1,4 +1,3 @@
-#include <cassert>
 #include <cstddef>
 #include <format>
 #include <memory>
@@ -57,12 +56,12 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementFunction(std::sha
     return std::nullopt;
   }
 
-  std::vector<std::shared_ptr<type::Type>> functionArgsTypes = {};
+  std::vector<std::shared_ptr<type::Type>> functionArgsTypes;
   for (auto &param : functionStatement.get()->m_Params.m_Params)
   {
     functionArgsTypes.push_back(param.m_TypeAnnotation.m_ReturnType);
   }
-  auto functionType = std::make_shared<type::Function>(type::Function(functionArgsTypes.size(), std::move(functionArgsTypes), functionStatement.get()->m_ReturnTypeAnnotation.m_ReturnType));
+  auto functionType = std::make_shared<type::Function>(type::Function(functionStatement.get()->m_Params.m_Params.size(), std::move(functionArgsTypes), functionStatement.get()->m_ReturnTypeAnnotation.m_ReturnType));
   auto functionBind = std::make_shared<BindingFunction>(BindingFunction(functionStatement.get()->m_Position, functionStatement.get()->m_Identifier.get()->m_Position, functionStatement.get()->m_Params.m_Position, functionType, 0));
   SaveBind(functionStatement.get()->m_Identifier.get()->m_Value, functionBind);
 
@@ -188,7 +187,14 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionCall(std::shared
 
   auto callee = std::static_pointer_cast<type::Function>(calleeBind->m_Type);
 
-  if (callee.get()->m_ReqArgsCount != callExpression.get()->m_Arguments.size() && (!callee.get()->m_IsVariadicArguments || (callee.get()->m_ReqArgsCount && callExpression.get()->m_Arguments.size() < callee.get()->m_ReqArgsCount)))
+  if (callee.get()->m_IsVariadicArguments)
+  {
+    if (callee.get()->m_ReqArgsCount > callExpression.get()->m_Arguments.size())
+    {
+      m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, callExpression.get()->m_ArgumentsPosition, m_Source, DiagnosticSeverity::ERROR, std::format("missing required arguments, expect {} but got {}", callee.get()->m_ReqArgsCount, callExpression.get()->m_Arguments.size())));
+    }
+  }
+  else if (callee.get()->m_ReqArgsCount != callExpression.get()->m_Arguments.size())
   {
     m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, callExpression.get()->m_ArgumentsPosition, m_Source, DiagnosticSeverity::ERROR, std::format("missing required arguments, expect {} but got {}", callee.get()->m_ReqArgsCount, callExpression.get()->m_Arguments.size())));
   }
