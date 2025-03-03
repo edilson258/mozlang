@@ -45,12 +45,12 @@ class DiagnosticEngine
 public:
   DiagnosticEngine() {}
 
-  void Report(Diagnostic diagnostic);
+  static void Report(Diagnostic diagnostic);
 
 private:
-  std::string Paint(std::string code, std::string color);
-  std::string Highlight(std::string code, size_t start, size_t end, std::string color);
+  static std::string Paint(std::string code, std::string color);
+  static std::string Highlight(std::string code, size_t start, size_t end, std::string color);
 
-  std::string MatchSeverityColor(DiagnosticSeverity severity);
-  std::string MatchSevevirtyString(DiagnosticSeverity severity);
+  static std::string MatchSeverityColor(DiagnosticSeverity severity);
+  static std::string MatchSevevirtyString(DiagnosticSeverity severity);
 };
