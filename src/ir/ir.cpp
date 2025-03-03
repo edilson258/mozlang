@@ -182,6 +182,7 @@ Result<std::string, Error> IRDisassembler::Disassemble()
   Tab();
   DisassembleBytecode(m_Program.m_Code);
   UnTab();
+  Writeln("");
   Writeln("Function Instructions:");
   Tab();
   for (auto &pair : m_Program.m_Functions)
