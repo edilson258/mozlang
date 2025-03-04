@@ -1,5 +1,5 @@
 fun foo(x: i32, y: string): i32 {
-  return x;
+  y
 }
 
 fun bar(x) {

@@ -47,11 +47,18 @@ public:
   StatementBlock(Position position, std::vector<std::shared_ptr<Statement>> stmts) : Statement(position, StatementType::BLOCK), m_Stmts(std::move(stmts)) {};
 };
 
+enum class StatementReturnType
+{
+  EXPLICITY,
+  IMPLICITY,
+};
+
 class StatementReturn : public Statement
 {
 public:
   std::optional<std::shared_ptr<class Expression>> m_Value;
-  StatementReturn(Position position, std::optional<std::shared_ptr<class Expression>> value) : Statement(position, StatementType::RETURN), m_Value(value) {};
+  StatementReturnType m_Type;
+  StatementReturn(Position position, std::optional<std::shared_ptr<class Expression>> value, StatementReturnType type = StatementReturnType::EXPLICITY) : Statement(position, StatementType::RETURN), m_Value(value), m_Type(type) {};
 };
 
 class TypeAnnotationToken
