@@ -147,14 +147,19 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementBlock(std::shared
     }
   }
 
-  for (auto &statementBind : statementsBinds)
+  std::optional<std::shared_ptr<Binding>> returnBind;
+  for (auto &bind : statementsBinds)
   {
-    if (BindType::RETURN_VALUE == statementBind.get()->m_BindType)
+    if (BindType::RETURN_VALUE == bind.get()->m_BindType)
     {
-      return statementBind;
+      returnBind = bind;
+    }
+    if (!bind.get()->m_IsUsed)
+    {
+      m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, bind.get()->m_Position, m_ModuleID, DiagnosticSeverity::WARN, "expression results to unused value"));
     }
   }
-  return std::nullopt;
+  return returnBind;
 }
 
 std::optional<std::shared_ptr<Binding>> Checker::CheckExpression(std::shared_ptr<Expression> expression)
@@ -180,7 +185,7 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionCall(std::shared
   }
 
   auto calleeBind = calleeBindOpt.value();
-  if (BindType::FUNCTION != calleeBind.get()->m_BindType)
+  if (type::Base::FUNCTION != calleeBind.get()->m_Type.get()->m_Base)
   {
     m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, callExpression.get()->m_Callee.get()->m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "call to non-callable object"));
     return std::nullopt;
@@ -218,7 +223,8 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionIdentifier(std::
   if (bind.has_value())
   {
     bind.value().get()->m_IsUsed = true;
-    return bind;
+    auto identifierBind = std::make_shared<Binding>(Binding(BindType::IDENTIFIER, bind.value().get()->m_Type, m_ModuleID, identifierExpression.get()->m_Position));
+    return identifierBind;
   }
   m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, identifierExpression.get()->m_Position, m_ModuleID, DiagnosticSeverity::ERROR, std::format("undefined name: '{}'", identifierExpression.get()->m_Value)));
   return std::nullopt;
@@ -227,7 +233,6 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionIdentifier(std::
 std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionString(std::shared_ptr<ExpressionString> stringExpression)
 {
   auto stringLiteralBind = std::make_shared<Binding>(Binding(BindType::LITERAL, std::make_shared<type::Type>(type::Type(type::Base::STRING)), m_ModuleID, stringExpression.get()->m_Position));
-  SaveBind(GetTmpName(), stringLiteralBind);
   return stringLiteralBind;
 }
 
@@ -244,25 +249,19 @@ void Checker::LeaveScope()
     {
       continue;
     }
-
     switch (bind.second.get()->m_BindType)
     {
+    case BindType::IDENTIFIER:
+    case BindType::LITERAL:
     case BindType::RETURN_VALUE:
-      continue;
+      /* Values with these Bind types never get stored in the context */
+      break;
     case BindType::PARAMETER:
       m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, bind.second.get()->m_Position, m_ModuleID, DiagnosticSeverity::WARN, "unused parameter"));
       break;
-    case BindType::IDENTIFIER:
-    case BindType::LITERAL:
-      // auto literalBinding = std::static_pointer_cast<BindingLiteral>(binding.second);
-      m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, bind.second.get()->m_Position, m_ModuleID, DiagnosticSeverity::WARN, "expression results to unused value"));
-      break;
     case BindType::FUNCTION:
-    {
-      auto functionBinding = std::static_pointer_cast<BindingFunction>(bind.second);
-      m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, functionBinding.get()->NamePosition, m_ModuleID, DiagnosticSeverity::WARN, std::format("function '{}' never gets called", bind.first)));
-    }
-    break;
+      m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, std::static_pointer_cast<BindingFunction>(bind.second).get()->NamePosition, m_ModuleID, DiagnosticSeverity::WARN, std::format("function '{}' never gets called", bind.first)));
+      break;
     }
   }
   m_Scopes.pop_back();
