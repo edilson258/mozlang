@@ -18,6 +18,7 @@ std::vector<Diagnostic> Checker::check()
 
   auto printlnArgs = {std::make_shared<type::Type>(type::Base::F_STRING)};
   auto printlnType = std::make_shared<type::Function>(type::Function(0, std::move(printlnArgs), std::make_shared<type::Type>(type::Base::VOID), true));
+  // TODO: module ID
   auto printlnBind = std::make_shared<BindingFunction>(Position(), Position(), Position(), printlnType, 0, true);
   SaveBind("println", printlnBind);
 
@@ -52,7 +53,7 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementFunction(std::sha
   auto bindWithSameName = m_Scopes.back().m_Context.Get(functionStatement.get()->m_Identifier.get()->m_Value);
   if (bindWithSameName.has_value())
   {
-    m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, functionStatement.get()->m_Identifier.get()->m_Position, m_Source, DiagnosticSeverity::ERROR, "name already in use"));
+    m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, functionStatement.get()->m_Identifier.get()->m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "name already in use"));
     return std::nullopt;
   }
 
@@ -72,10 +73,10 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementFunction(std::sha
     if (m_Scopes.back().m_Context.Get(param.m_Identifier.get()->m_Value).has_value())
     {
       DiagnosticReference reference(Errno::OK, 0, m_Scopes.back().m_Context.Get(param.m_Identifier.get()->m_Value).value().get()->m_Position, "first used here");
-      m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, param.m_Position, m_Source, DiagnosticSeverity::ERROR, std::format("duplicated param name '{}'", param.m_Identifier->m_Value), reference));
+      m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, param.m_Position, m_ModuleID, DiagnosticSeverity::ERROR, std::format("duplicated param name '{}'", param.m_Identifier->m_Value), reference));
       continue;
     }
-    SaveBind(param.m_Identifier.get()->m_Value, std::make_shared<Binding>(Binding(BindType::PARAMETER, param.m_TypeAnnotation.m_ReturnType, m_Source->m_ID, param.m_Position)));
+    SaveBind(param.m_Identifier.get()->m_Value, std::make_shared<Binding>(Binding(BindType::PARAMETER, param.m_TypeAnnotation.m_ReturnType, m_ModuleID, param.m_Position)));
   }
 
   auto blockReturnBind = CheckStatementBlock(functionStatement.get()->m_Body);
@@ -86,14 +87,14 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementFunction(std::sha
     if (!type::MatchBaseTypes(blockReturnBind->get()->m_Type.get()->m_Base, functionStatement.get()->m_ReturnTypeAnnotation.m_ReturnType.get()->m_Base))
     {
       DiagnosticReference reference(Errno::OK, 0, functionStatement.get()->m_ReturnTypeAnnotation.m_Position.value(), std::format("expect '{}' due to here", type::InspectBase(functionStatement.get()->m_ReturnTypeAnnotation.m_ReturnType.get()->m_Base)));
-      m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, blockReturnBind->get()->m_Position, m_Source, DiagnosticSeverity::ERROR, std::format("return type mismatch, expect '{}' but got '{}'", type::InspectBase(functionStatement.get()->m_ReturnTypeAnnotation.m_ReturnType.get()->m_Base), type::InspectBase(blockReturnBind->get()->m_Type.get()->m_Base)), reference));
+      m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, blockReturnBind->get()->m_Position, m_ModuleID, DiagnosticSeverity::ERROR, std::format("return type mismatch, expect '{}' but got '{}'", type::InspectBase(functionStatement.get()->m_ReturnTypeAnnotation.m_ReturnType.get()->m_Base), type::InspectBase(blockReturnBind->get()->m_Type.get()->m_Base)), reference));
     }
   }
   else
   {
     if (!type::MatchBaseTypes(type::Base::VOID, functionStatement.get()->m_ReturnTypeAnnotation.m_ReturnType.get()->m_Base))
     {
-      m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, functionStatement.get()->m_ReturnTypeAnnotation.m_Position.value(), m_Source, DiagnosticSeverity::ERROR, "non-void function doesn't have return value"));
+      m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, functionStatement.get()->m_ReturnTypeAnnotation.m_Position.value(), m_ModuleID, DiagnosticSeverity::ERROR, "non-void function doesn't have return value"));
     }
   }
 
@@ -106,10 +107,10 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementReturn(std::share
 {
   if (!IsWithinScope(ScopeType::FUNCTION))
   {
-    m_Diagnostics.push_back(Diagnostic(Errno::SYNTAX_ERROR, returnStatement.get()->m_Position, m_Source, DiagnosticSeverity::ERROR, "cannot return outside of a function"));
+    m_Diagnostics.push_back(Diagnostic(Errno::SYNTAX_ERROR, returnStatement.get()->m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "cannot return outside of a function"));
     return std::nullopt;
   }
-  auto returnBind = std::make_shared<Binding>(Binding(BindType::RETURN_VALUE, std::make_shared<type::Type>(type::Type(type::Base::VOID)), 0, returnStatement.get()->m_Position, true));
+  auto returnBind = std::make_shared<Binding>(Binding(BindType::RETURN_VALUE, std::make_shared<type::Type>(type::Type(type::Base::VOID)), m_ModuleID, returnStatement.get()->m_Position, true));
   if (returnStatement.get()->m_Value.has_value())
   {
     auto returnValueBind = CheckExpression(returnStatement.get()->m_Value.value());
@@ -141,7 +142,7 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementBlock(std::shared
     {
       Position position = blockStatement.get()->m_Stmts.at(i + 1).get()->m_Position;
       position.m_End = blockStatement.get()->m_Position.m_End - 1;
-      m_Diagnostics.push_back(Diagnostic(Errno::DEAD_CODE, position, m_Source, DiagnosticSeverity::WARN, "unreachable code detected"));
+      m_Diagnostics.push_back(Diagnostic(Errno::DEAD_CODE, position, m_ModuleID, DiagnosticSeverity::WARN, "unreachable code detected"));
       break;
     }
   }
@@ -181,7 +182,7 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionCall(std::shared
   auto calleeBind = calleeBindOpt.value();
   if (BindType::FUNCTION != calleeBind.get()->m_BindType)
   {
-    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, callExpression.get()->m_Callee.get()->m_Position, m_Source, DiagnosticSeverity::ERROR, "call to non-callable object"));
+    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, callExpression.get()->m_Callee.get()->m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "call to non-callable object"));
     return std::nullopt;
   }
 
@@ -191,12 +192,12 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionCall(std::shared
   {
     if (callee.get()->m_ReqArgsCount > callExpression.get()->m_Arguments.size())
     {
-      m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, callExpression.get()->m_ArgumentsPosition, m_Source, DiagnosticSeverity::ERROR, std::format("missing required arguments, expect {} but got {}", callee.get()->m_ReqArgsCount, callExpression.get()->m_Arguments.size())));
+      m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, callExpression.get()->m_ArgumentsPosition, m_ModuleID, DiagnosticSeverity::ERROR, std::format("missing required arguments, expect {} but got {}", callee.get()->m_ReqArgsCount, callExpression.get()->m_Arguments.size())));
     }
   }
   else if (callee.get()->m_ReqArgsCount != callExpression.get()->m_Arguments.size())
   {
-    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, callExpression.get()->m_ArgumentsPosition, m_Source, DiagnosticSeverity::ERROR, std::format("missing required arguments, expect {} but got {}", callee.get()->m_ReqArgsCount, callExpression.get()->m_Arguments.size())));
+    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, callExpression.get()->m_ArgumentsPosition, m_ModuleID, DiagnosticSeverity::ERROR, std::format("missing required arguments, expect {} but got {}", callee.get()->m_ReqArgsCount, callExpression.get()->m_Arguments.size())));
   }
 
   for (auto argument : callExpression.get()->m_Arguments)
@@ -219,13 +220,13 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionIdentifier(std::
     bind.value().get()->m_IsUsed = true;
     return bind;
   }
-  m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, identifierExpression.get()->m_Position, m_Source, DiagnosticSeverity::ERROR, std::format("undefined name: '{}'", identifierExpression.get()->m_Value)));
+  m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, identifierExpression.get()->m_Position, m_ModuleID, DiagnosticSeverity::ERROR, std::format("undefined name: '{}'", identifierExpression.get()->m_Value)));
   return std::nullopt;
 }
 
 std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionString(std::shared_ptr<ExpressionString> stringExpression)
 {
-  auto stringLiteralBind = std::make_shared<Binding>(Binding(BindType::LITERAL, std::make_shared<type::Type>(type::Type(type::Base::STRING)), 0, stringExpression.get()->m_Position));
+  auto stringLiteralBind = std::make_shared<Binding>(Binding(BindType::LITERAL, std::make_shared<type::Type>(type::Type(type::Base::STRING)), m_ModuleID, stringExpression.get()->m_Position));
   SaveBind(GetTmpName(), stringLiteralBind);
   return stringLiteralBind;
 }
@@ -249,17 +250,17 @@ void Checker::LeaveScope()
     case BindType::RETURN_VALUE:
       continue;
     case BindType::PARAMETER:
-      m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, bind.second.get()->m_Position, m_Source, DiagnosticSeverity::WARN, "unused parameter"));
+      m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, bind.second.get()->m_Position, m_ModuleID, DiagnosticSeverity::WARN, "unused parameter"));
       break;
     case BindType::IDENTIFIER:
     case BindType::LITERAL:
       // auto literalBinding = std::static_pointer_cast<BindingLiteral>(binding.second);
-      m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, bind.second.get()->m_Position, m_Source, DiagnosticSeverity::WARN, "expression results to unused value"));
+      m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, bind.second.get()->m_Position, m_ModuleID, DiagnosticSeverity::WARN, "expression results to unused value"));
       break;
     case BindType::FUNCTION:
     {
       auto functionBinding = std::static_pointer_cast<BindingFunction>(bind.second);
-      m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, functionBinding.get()->NamePosition, m_Source, DiagnosticSeverity::WARN, std::format("function '{}' never gets called", bind.first)));
+      m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, functionBinding.get()->NamePosition, m_ModuleID, DiagnosticSeverity::WARN, std::format("function '{}' never gets called", bind.first)));
     }
     break;
     }

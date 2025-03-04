@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "loader.h"
 #include "token.h"
 #include "type.h"
 
@@ -138,7 +139,10 @@ public:
 class AST
 {
 public:
+  ModuleID m_ModuleID;
   std::vector<std::shared_ptr<Statement>> m_Program;
-  AST() : m_Program() {};
+
+  AST(ModuleID moduleID) : m_ModuleID(moduleID), m_Program() {};
+
   std::string Inspect();
 };

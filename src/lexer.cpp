@@ -51,7 +51,7 @@ Result<Token, Diagnostic> Lexer::Next()
     size_t atColumn = m_Column;
     size_t len = AdvanceWhile([](char c)
                               { return std::isalnum(c) || '_' == c; });
-    std::string label = m_Source.get()->m_Content.substr(at, len);
+    std::string label = m_ModuleContent.substr(at, len);
     std::optional<TokenType> keyword = Keyword::match(label);
     if (keyword.has_value())
     {
@@ -60,7 +60,7 @@ Result<Token, Diagnostic> Lexer::Next()
     return Result<Token, Diagnostic>(Token(Position(m_Line, atColumn, at, m_Cursor - 1), TokenType::IDENTIFIER, label));
   }
 
-  return Result<Token, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, Position(m_Line, m_Column, m_Cursor, m_Cursor), m_Source, DiagnosticSeverity::ERROR, std::format("invalid token: '{}'", current)));
+  return Result<Token, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, Position(m_Line, m_Column, m_Cursor, m_Cursor), m_ModuleID, DiagnosticSeverity::ERROR, std::format("invalid token: '{}'", current)));
 }
 
 Result<Token, Diagnostic> Lexer::MakeTokenSimple(TokenType tt)
@@ -81,7 +81,7 @@ Result<Token, Diagnostic> Lexer::MakeTokenString()
     char current = PeekOne();
     if (IsEof() || '\n' == current)
     {
-      return Result<Token, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, Position(m_Line, m_Column, at, m_Cursor - 1), m_Source, DiagnosticSeverity::ERROR, "unquoted string"));
+      return Result<Token, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, Position(m_Line, m_Column, at, m_Cursor - 1), m_ModuleID, DiagnosticSeverity::ERROR, "unquoted string"));
     }
     if ('"' == current)
     {
@@ -91,12 +91,12 @@ Result<Token, Diagnostic> Lexer::MakeTokenString()
     Advance();
   }
 
-  return Result<Token, Diagnostic>(Token(Position(m_Line, atColumn, at, m_Cursor - 1), TokenType::STRING, m_Source.get()->m_Content.substr(at, m_Cursor - at)));
+  return Result<Token, Diagnostic>(Token(Position(m_Line, atColumn, at, m_Cursor - 1), TokenType::STRING, m_ModuleContent.substr(at, m_Cursor - at)));
 }
 
 bool Lexer::IsEof()
 {
-  return m_Cursor >= m_Source.get()->m_Content.length();
+  return m_Cursor >= m_ModuleContent.length();
 }
 
 char Lexer::PeekOne()
@@ -105,7 +105,7 @@ char Lexer::PeekOne()
   {
     return EOF_CHAR;
   }
-  return m_Source.get()->m_Content.at(m_Cursor);
+  return m_ModuleContent.at(m_Cursor);
 }
 
 void Lexer::Advance()

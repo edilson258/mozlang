@@ -5,6 +5,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include "diagnostic.h"
 
@@ -178,17 +179,17 @@ std::string insertTabAfterNewline(const std::string &input)
 
 void DiagnosticEngine::Report(Diagnostic diagnostic)
 {
-  std::cerr << Paint(std::format("{}:{}:{} ", diagnostic.m_Source.get()->m_Path, diagnostic.m_Position.m_Line, diagnostic.m_Position.m_Column), BOLD_WHITE);
+  std::cerr << Paint(std::format("{}:{}:{} ", m_ModManager.m_Modules[diagnostic.m_ModuleID].get()->m_Path, diagnostic.m_Position.m_Line, diagnostic.m_Position.m_Column), BOLD_WHITE);
   std::cerr << Paint(std::format("{}: {}", MatchSevevirtyString(diagnostic.m_Severity), diagnostic.m_Message), MatchSeverityColor(diagnostic.m_Severity)) << std::endl;
   std::cerr << std::endl;
-  std::cerr << Highlight(diagnostic.m_Source.get()->m_Content, diagnostic.m_Position.m_Start, diagnostic.m_Position.m_End, MatchSeverityColor(diagnostic.m_Severity)) << std::endl;
+  std::cerr << Highlight(m_ModManager.m_Modules[diagnostic.m_ModuleID].get()->m_Content, diagnostic.m_Position.m_Start, diagnostic.m_Position.m_End, MatchSeverityColor(diagnostic.m_Severity)) << std::endl;
 
   if (diagnostic.m_Reference.has_value())
   {
     auto ref = diagnostic.m_Reference.value();
-    std::cerr << Paint(std::format("{}:{}:{} {}", diagnostic.m_Source.get()->m_Path, ref.m_Position.m_Line, ref.m_Position.m_Column, ref.m_Message), BOLD_WHITE) << std::endl;
+    std::cerr << Paint(std::format("{}:{}:{} {}", m_ModManager.m_Modules[ref.m_ModuleID].get()->m_Path, ref.m_Position.m_Line, ref.m_Position.m_Column, ref.m_Message), BOLD_WHITE) << std::endl;
     std::cerr << "\t" << std::endl;
-    std::cerr << "\t" << insertTabAfterNewline(Highlight(diagnostic.m_Source.get()->m_Content, ref.m_Position.m_Start, ref.m_Position.m_End, MatchSeverityColor(DiagnosticSeverity::INFO))) << std::endl;
+    std::cerr << "\t" << insertTabAfterNewline(Highlight(m_ModManager.m_Modules[ref.m_ModuleID].get()->m_Content, ref.m_Position.m_Start, ref.m_Position.m_End, MatchSeverityColor(DiagnosticSeverity::INFO))) << std::endl;
   }
 }
 

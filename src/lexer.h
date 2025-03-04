@@ -2,7 +2,7 @@
 
 #include <cstddef>
 #include <functional>
-#include <memory>
+#include <string>
 
 #include "diagnostic.h"
 #include "loader.h"
@@ -12,16 +12,17 @@
 class Lexer
 {
 public:
-  std::shared_ptr<Source> m_Source;
-
-  Lexer(std::shared_ptr<Source> source) : m_Source(source), m_Line(1), m_Column(1), m_Cursor(0) {};
+  Lexer(ModuleID moduleID, ModuleManager &moduleManager) : m_ModuleID(moduleID), m_ModManager(moduleManager), m_ModuleContent(m_ModManager.m_Modules[moduleID].get()->m_Content), m_Line(1), m_Column(1), m_Cursor(0) {};
 
   Result<Token, Diagnostic> Next();
 
 private:
+  ModuleID m_ModuleID;
+  ModuleManager &m_ModManager;
+  std::string &m_ModuleContent;
+
   size_t m_Line;
   size_t m_Column;
-
   size_t m_Cursor;
 
   bool IsEof();
