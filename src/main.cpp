@@ -1,6 +1,5 @@
 #include <cstdio>
 #include <iostream>
-#include <memory>
 #include <string>
 
 #include "checker.h"
@@ -17,26 +16,22 @@ int main(int argc, char *argv[])
     std::cerr << "Usage: " << argv[0] << " <input_file>" << std::endl;
     return 1;
   }
-  std::string entryFile = argv[1];
-  Loader loader;
-  auto entryRes = loader.Load(entryFile);
-  if (entryRes.is_err())
-  {
-    std::cerr << entryRes.unwrap_err().Message << std::endl;
-    return 1;
-  }
-  auto entrySource = entryRes.unwrap();
-  Lexer lexer(entrySource);
-  Parser parser(lexer);
+
+  ModuleManager moduleManager;
+  DiagnosticEngine diagnosticEngine(moduleManager);
+  ModuleID entryModID = moduleManager.Load(argv[1]).unwrap();
+
+  Lexer lexer(entryModID, moduleManager);
+  Parser parser(entryModID, lexer);
   auto astRes = parser.Parse();
   if (astRes.is_err())
   {
-    DiagnosticEngine::Report(astRes.unwrap_err());
+    diagnosticEngine.Report(astRes.unwrap_err());
     return 1;
   }
   AST ast = astRes.unwrap();
   std::cout << ast.Inspect() << std::endl;
-  Checker checker(ast, entrySource);
+  Checker checker(ast);
   auto diagnostics = checker.check();
   bool hasErrorDiagnostic = false;
   for (auto &diagnostic : diagnostics)
@@ -45,7 +40,7 @@ int main(int argc, char *argv[])
     {
       hasErrorDiagnostic = true;
     }
-    DiagnosticEngine::Report(diagnostic);
+    diagnosticEngine.Report(diagnostic);
   }
   if (hasErrorDiagnostic)
   {

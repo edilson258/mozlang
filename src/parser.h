@@ -3,16 +3,18 @@
 #include "ast.h"
 #include "diagnostic.h"
 #include "lexer.h"
+#include "loader.h"
 #include "result.h"
 
 class Parser
 {
 public:
-  Parser(Lexer &lexer) : m_Lexer(lexer), m_CurrToken(), m_NextToken() {};
+  Parser(ModuleID moduleID, Lexer &lexer) : m_ModuleID(moduleID), m_Lexer(lexer), m_CurrToken(), m_NextToken() {};
 
   Result<AST, Diagnostic> Parse();
 
 private:
+  ModuleID m_ModuleID;
   Lexer &m_Lexer;
   Token m_CurrToken;
   Token m_NextToken;

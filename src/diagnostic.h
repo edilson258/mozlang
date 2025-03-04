@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstddef>
-#include <memory>
 #include <optional>
 #include <string>
 
@@ -20,11 +19,11 @@ class DiagnosticReference
 {
 public:
   Errno m_Errno;
-  size_t m_FileID;
+  ModuleID m_ModuleID;
   Position m_Position;
   std::string m_Message;
 
-  DiagnosticReference(Errno errn, size_t fileID, Position position, std::string message) : m_Errno(errn), m_FileID(fileID), m_Position(position), m_Message(message) {};
+  DiagnosticReference(Errno errn, ModuleID moduleID, Position position, std::string message) : m_Errno(errn), m_ModuleID(moduleID), m_Position(position), m_Message(message) {};
 };
 
 class Diagnostic
@@ -32,25 +31,27 @@ class Diagnostic
 public:
   Errno m_Errno;
   Position m_Position;
-  std::shared_ptr<Source> m_Source;
+  ModuleID m_ModuleID;
   DiagnosticSeverity m_Severity;
   std::string m_Message;
   std::optional<DiagnosticReference> m_Reference;
 
-  Diagnostic(Errno errn, Position pos, std::shared_ptr<Source> source, DiagnosticSeverity severity, std::string message, std::optional<DiagnosticReference> reference = std::nullopt) : m_Errno(errn), m_Position(pos), m_Source(source), m_Severity(severity), m_Message(message), m_Reference(reference) {};
+  Diagnostic(Errno errn, Position pos, ModuleID moduleID, DiagnosticSeverity severity, std::string message, std::optional<DiagnosticReference> reference = std::nullopt) : m_Errno(errn), m_Position(pos), m_ModuleID(moduleID), m_Severity(severity), m_Message(message), m_Reference(reference) {};
 };
 
 class DiagnosticEngine
 {
 public:
-  DiagnosticEngine() {}
+  DiagnosticEngine(ModuleManager &modManager) : m_ModManager(modManager) {}
 
-  static void Report(Diagnostic diagnostic);
+  void Report(Diagnostic diagnostic);
 
 private:
-  static std::string Paint(std::string code, std::string color);
-  static std::string Highlight(std::string code, size_t start, size_t end, std::string color);
+  ModuleManager &m_ModManager;
 
-  static std::string MatchSeverityColor(DiagnosticSeverity severity);
-  static std::string MatchSevevirtyString(DiagnosticSeverity severity);
+  std::string Paint(std::string code, std::string color);
+  std::string Highlight(std::string code, size_t start, size_t end, std::string color);
+
+  std::string MatchSeverityColor(DiagnosticSeverity severity);
+  std::string MatchSevevirtyString(DiagnosticSeverity severity);
 };

@@ -15,7 +15,7 @@ Result<AST, Diagnostic> Parser::Parse()
   Next().unwrap();
   Next().unwrap();
 
-  AST ast;
+  AST ast(m_ModuleID);
   while (!IsEof())
   {
     auto stmtRes = ParseStatement();
@@ -69,7 +69,7 @@ Result<std::shared_ptr<Statement>, Diagnostic> Parser::ParseStatement()
   {
     if (TokenType::RBRACE != m_CurrToken.m_Type)
     {
-      return Result<std::shared_ptr<Statement>, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, expression.get()->m_Position, m_Lexer.m_Source, DiagnosticSeverity::ERROR, "implicity return expression must be the last in a block, insert ';' at end"));
+      return Result<std::shared_ptr<Statement>, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, expression.get()->m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "implicity return expression must be the last in a block, insert ';' at end"));
     }
     return Result<std::shared_ptr<Statement>, Diagnostic>(std::make_shared<StatementReturn>(StatementReturn(expression->m_Position, expression, StatementReturnType::IMPLICITY)));
   }
@@ -94,7 +94,7 @@ Result<FunctionParams, Diagnostic> Parser::ParseFunctionParams()
 
     if (TokenType::IDENTIFIER != m_CurrToken.m_Type)
     {
-      return Result<FunctionParams, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, m_CurrToken.m_Position, m_Lexer.m_Source, DiagnosticSeverity::ERROR, "expect param name"));
+      return Result<FunctionParams, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, m_CurrToken.m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "expect param name"));
     }
     auto paramIdentifier = std::make_shared<ExpressionIdentifier>(m_CurrToken.m_Position, m_CurrToken.m_Lexeme);
     Position paramPosition = Next().unwrap();
@@ -129,7 +129,7 @@ Result<std::shared_ptr<StatementFunction>, Diagnostic> Parser::ParseStatementFun
   Position position = Expect(TokenType::FUN).unwrap();
   if (TokenType::IDENTIFIER != m_CurrToken.m_Type)
   {
-    return Result<std::shared_ptr<StatementFunction>, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, m_CurrToken.m_Position, m_Lexer.m_Source, DiagnosticSeverity::ERROR, "expect identifier after 'fn'"));
+    return Result<std::shared_ptr<StatementFunction>, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, m_CurrToken.m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "expect identifier after 'fn'"));
   }
   auto name = std::make_shared<ExpressionIdentifier>(m_CurrToken.m_Position, m_CurrToken.m_Lexeme);
   Next();
@@ -243,7 +243,7 @@ Result<std::shared_ptr<Expression>, Diagnostic> Parser::ParseExpressionLhs()
     return Result<std::shared_ptr<Expression>, Diagnostic>(std::make_shared<ExpressionIdentifier>(ExpressionIdentifier(m_CurrToken.m_Position, m_CurrToken.m_Lexeme)));
   default:
     // TODO: display expression
-    return Result<std::shared_ptr<Expression>, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, m_CurrToken.m_Position, m_Lexer.m_Source, DiagnosticSeverity::ERROR, "invalid left side expression"));
+    return Result<std::shared_ptr<Expression>, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, m_CurrToken.m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "invalid left side expression"));
   }
 }
 
@@ -293,7 +293,7 @@ Result<std::shared_ptr<type::Type>, Diagnostic> Parser::ParseTypeAnnotation()
   case TokenType::STRING_T:
     return Result<std::shared_ptr<type::Type>, Diagnostic>(std::make_shared<type::Type>(type::Type(type::Base::STRING)));
   default:
-    return Result<std::shared_ptr<type::Type>, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, m_CurrToken.m_Position, m_Lexer.m_Source, DiagnosticSeverity::ERROR, "expect type annotation, try 'i32', 'string', ..."));
+    return Result<std::shared_ptr<type::Type>, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, m_CurrToken.m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "expect type annotation, try 'i32', 'string', ..."));
   }
 }
 
@@ -315,7 +315,7 @@ Result<Position, Diagnostic> Parser::Expect(TokenType tokenType)
   if (tokenType != m_CurrToken.m_Type)
   {
     // TODO: display token, token_type
-    return Result<Position, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, m_CurrToken.m_Position, m_Lexer.m_Source, DiagnosticSeverity::ERROR, "syntax error: expect {} but got {}."));
+    return Result<Position, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, m_CurrToken.m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "syntax error: expect {} but got {}."));
   }
   return Next();
 }

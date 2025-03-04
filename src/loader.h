@@ -1,32 +1,30 @@
 #pragma once
 
 #include <cstddef>
+#include <map>
 #include <memory>
-#include <optional>
 #include <string>
-#include <vector>
 
 #include "error.h"
 #include "result.h"
 
-class Source
+using ModuleID = size_t;
+
+class Module
 {
 public:
-  size_t m_ID;
   std::string m_Path;
   std::string m_Content;
 
-  Source(size_t id, std::string path, std::string content) : m_ID(id), m_Path(path), m_Content(content) {};
+  Module(std::string path, std::string content) : m_Path(path), m_Content(content) {};
 };
 
-class Loader
+class ModuleManager
 {
 public:
-  Loader() : m_Sources() {};
+  std::map<ModuleID, std::shared_ptr<Module>> m_Modules;
 
-  Result<std::shared_ptr<Source>, Error> Load(std::string path);
-  std::optional<std::shared_ptr<Source>> FindSource(size_t id);
+  ModuleManager() : m_Modules() {};
 
-private:
-  std::vector<std::shared_ptr<Source>> m_Sources;
+  Result<ModuleID, Error> Load(std::string);
 };
