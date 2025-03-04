@@ -43,12 +43,6 @@ private:
   std::optional<std::shared_ptr<Binding>> LookupBind(std::string name);
   void SaveBind(std::string name, std::shared_ptr<Binding> bind);
 
-  std::string GetTmpName()
-  {
-    static int counter = 0;
-    return std::string("t___m___p___n___a___m___e___") + std::to_string(counter++);
-  }
-
   bool IsWithinScope(ScopeType);
 
   std::optional<std::shared_ptr<Binding>> CheckStatement(std::shared_ptr<Statement>);
