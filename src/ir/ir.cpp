@@ -88,7 +88,7 @@ void IRGenerator::EmitExpression(std::shared_ptr<Expression> expression)
   switch (expression.get()->m_Type)
   {
   case ExpressionType::ASSIGN:
-    break;
+    return EmitExpressionAssign(std::static_pointer_cast<ExpressionAssign>(expression));
   case ExpressionType::CALL:
     return EmitExpressionCall(std::static_pointer_cast<ExpressionCall>(expression));
   case ExpressionType::STRING:
@@ -106,6 +106,20 @@ void IRGenerator::EmitExpressionCall(std::shared_ptr<ExpressionCall> callExpress
   }
   EmitExpression(callExpression.get()->m_Callee);
   PushInstruction(std::make_shared<lib::InstructionCall>());
+}
+
+void IRGenerator::EmitExpressionAssign(std::shared_ptr<ExpressionAssign> assignExpression)
+{
+  EmitExpression(assignExpression.get()->m_Value);
+  auto symbol = ResolveName(assignExpression.get()->m_Assignee.get()->m_Value).value();
+  if (symbol.m_IsGlobal)
+  {
+    PushInstruction(std::make_shared<lib::InstructionStoreGlobal>(lib::InstructionStoreGlobal(symbol.m_Index)));
+  }
+  else
+  {
+    PushInstruction(std::make_shared<lib::InstructionStoreLocal>(lib::InstructionStoreLocal(symbol.m_Index)));
+  }
 }
 
 uint32_t IRGenerator::SaveIdentifierConstIfNotExist(std::string utf8)
@@ -243,7 +257,10 @@ void IRDisassembler::DisassembleBytecode(lib::ByteCode byteCode)
       DisassembleLoadConst(std::static_pointer_cast<lib::InstructionLoadConst>(instruction));
       break;
     case lib::OPCode::STOREL:
-      DisassembleStore(std::static_pointer_cast<lib::InstructionStoreLocal>(instruction));
+      DisassembleStoreLocal(std::static_pointer_cast<lib::InstructionStoreLocal>(instruction));
+      break;
+    case lib::OPCode::STOREG:
+      DisassembleStoreGlobal(std::static_pointer_cast<lib::InstructionStoreGlobal>(instruction));
       break;
     case lib::OPCode::CALL:
       DisassembleCall(std::static_pointer_cast<lib::InstructionCall>(instruction));
@@ -270,9 +287,14 @@ void IRDisassembler::DisassembleLoadConst(std::shared_ptr<lib::InstructionLoadCo
   Writeln(std::format("loadc\t{}", ldc.get()->m_Index));
 }
 
-void IRDisassembler::DisassembleStore(std::shared_ptr<lib::InstructionStoreLocal> store)
+void IRDisassembler::DisassembleStoreLocal(std::shared_ptr<lib::InstructionStoreLocal> store)
 {
   Writeln(std::format("store\t{}", store.get()->m_Index));
+}
+
+void IRDisassembler::DisassembleStoreGlobal(std::shared_ptr<lib::InstructionStoreGlobal> storeg)
+{
+  Writeln(std::format("storeg\t{}", storeg.get()->m_Index));
 }
 
 void IRDisassembler::DisassembleCall(std::shared_ptr<lib::InstructionCall>)

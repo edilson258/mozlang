@@ -43,8 +43,9 @@ enum class OPCode
   /* Load constant value from constant pool */
   LOADC = 0x03,
   STOREL = 0x04,
-  CALL = 0x05,
-  RETURN = 0x06,
+  STOREG = 0x5,
+  CALL = 0x06,
+  RETURN = 0x07,
 };
 
 class Instruction
@@ -82,6 +83,13 @@ class InstructionStoreLocal : public Instruction
 public:
   uint32_t m_Index;
   InstructionStoreLocal(uint32_t index) : Instruction(OPCode::STOREL), m_Index(index) {};
+};
+
+class InstructionStoreGlobal : public Instruction
+{
+public:
+  uint32_t m_Index;
+  InstructionStoreGlobal(uint32_t index) : Instruction(OPCode::STOREG), m_Index(index) {};
 };
 
 class InstructionCall : public Instruction

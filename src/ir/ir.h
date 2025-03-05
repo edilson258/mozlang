@@ -64,6 +64,7 @@ private:
   void EmitStatementLet(std::shared_ptr<StatementLet>);
   void EmitExpression(std::shared_ptr<Expression>);
   void EmitExpressionCall(std::shared_ptr<ExpressionCall>);
+  void EmitExpressionAssign(std::shared_ptr<ExpressionAssign>);
   void EmitExpressionIdentifier(std::shared_ptr<ExpressionIdentifier>);
   void EmitExpressionString(std::shared_ptr<ExpressionString>);
 };
@@ -94,7 +95,8 @@ private:
   void DisassembleLoadLocal(std::shared_ptr<lib::InstructionLoad>);
   void DisassembleLoadGlobal(std::shared_ptr<lib::InstructionLoadGlobal>);
   void DisassembleLoadConst(std::shared_ptr<lib::InstructionLoadConst>);
-  void DisassembleStore(std::shared_ptr<lib::InstructionStoreLocal>);
+  void DisassembleStoreLocal(std::shared_ptr<lib::InstructionStoreLocal>);
+  void DisassembleStoreGlobal(std::shared_ptr<lib::InstructionStoreGlobal>);
   void DisassembleCall(std::shared_ptr<lib::InstructionCall>);
   void DisassembleReturn(std::shared_ptr<lib::InstructionReturn>);
 };
