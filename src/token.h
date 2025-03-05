@@ -13,6 +13,8 @@ enum class TokenType
   FUN,
   RETURN,
   LET,
+  IMPORT,
+  FROM,
 
   // Types
   I32,
@@ -27,6 +29,7 @@ enum class TokenType
   RBRACE,
   EQUAL,
   SEMICOLON,
+  DOT,
 
   PLUS,
 };

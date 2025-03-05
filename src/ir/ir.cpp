@@ -27,6 +27,8 @@ void IRGenerator::EmitStatement(std::shared_ptr<Statement> statement)
 {
   switch (statement.get()->m_Type)
   {
+  case StatementType::IMPORT:
+    break;
   case StatementType::LET:
     return EmitStatementLet(std::static_pointer_cast<StatementLet>(statement));
   case StatementType::BLOCK:
@@ -87,6 +89,8 @@ void IRGenerator::EmitExpression(std::shared_ptr<Expression> expression)
 {
   switch (expression.get()->m_Type)
   {
+  case ExpressionType::FIELD_ACCESS:
+    break;
   case ExpressionType::ASSIGN:
     return EmitExpressionAssign(std::static_pointer_cast<ExpressionAssign>(expression));
   case ExpressionType::CALL:

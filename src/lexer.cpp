@@ -43,6 +43,8 @@ Result<Token, Diagnostic> Lexer::Next()
     return MakeTokenSimple(TokenType::EQUAL);
   case ',':
     return MakeTokenSimple(TokenType::COMMA);
+  case '.':
+    return MakeTokenSimple(TokenType::DOT);
   case '"':
     return MakeTokenString();
   }
@@ -74,10 +76,9 @@ Result<Token, Diagnostic> Lexer::MakeTokenSimple(TokenType tt)
 
 Result<Token, Diagnostic> Lexer::MakeTokenString()
 {
-  size_t at = m_Cursor;
   size_t atColumn = m_Column;
-
   Advance();
+  size_t at = m_Cursor;
   for (;;)
   {
     char current = PeekOne();
@@ -87,13 +88,15 @@ Result<Token, Diagnostic> Lexer::MakeTokenString()
     }
     if ('"' == current)
     {
-      Advance();
       break;
     }
     Advance();
   }
 
-  return Result<Token, Diagnostic>(Token(Position(m_Line, atColumn, at, m_Cursor - 1), TokenType::STRING, m_ModuleContent.substr(at, m_Cursor - at)));
+  size_t len = m_Cursor - at;
+  Advance();
+
+  return Result<Token, Diagnostic>(Token(Position(m_Line, atColumn, at, m_Cursor - 1), TokenType::STRING, m_ModuleContent.substr(at, len)));
 }
 
 bool Lexer::IsEof()

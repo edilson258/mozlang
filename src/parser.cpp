@@ -2,6 +2,7 @@
 #include <cmath>
 #include <memory>
 #include <optional>
+#include <string>
 #include <vector>
 
 #include "ast.h"
@@ -57,6 +58,16 @@ Result<std::shared_ptr<Statement>, Diagnostic> Parser::ParseStatement()
   if (TokenType::LET == m_CurrToken.m_Type)
   {
     auto result = ParseStatementLet();
+    if (result.is_err())
+    {
+      return Result<std::shared_ptr<Statement>, Diagnostic>(result.unwrap_err());
+    }
+    return Result<std::shared_ptr<Statement>, Diagnostic>(result.unwrap());
+  }
+
+  if (TokenType::IMPORT == m_CurrToken.m_Type)
+  {
+    auto result = ParseStatementImport();
     if (result.is_err())
     {
       return Result<std::shared_ptr<Statement>, Diagnostic>(result.unwrap_err());
@@ -213,6 +224,26 @@ Result<std::shared_ptr<StatementLet>, Diagnostic> Parser::ParseStatementLet()
   return Result<std::shared_ptr<StatementLet>, Diagnostic>(std::make_shared<StatementLet>(StatementLet(position, identifier, typeAnnotation, initializerOpt)));
 }
 
+Result<std::shared_ptr<StatementImport>, Diagnostic> Parser::ParseStatementImport()
+{
+  Position position = Expect(TokenType::IMPORT).unwrap();
+  auto aliasRes = ParseExpressionIdentifier();
+  if (aliasRes.is_err())
+  {
+    return Result<std::shared_ptr<StatementImport>, Diagnostic>(aliasRes.unwrap_err());
+  }
+  auto alias = aliasRes.unwrap();
+  Expect(TokenType::FROM).unwrap();
+  if (TokenType::STRING != m_CurrToken.m_Type)
+  {
+    return Result<std::shared_ptr<StatementImport>, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, m_CurrToken.m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "expect module path"));
+  }
+  std::string path = m_CurrToken.m_Lexeme;
+  position.m_End = Next().unwrap().m_End;
+  Expect(TokenType::SEMICOLON).unwrap();
+  return Result<std::shared_ptr<StatementImport>, Diagnostic>(std::make_shared<StatementImport>(StatementImport(position, alias, path)));
+}
+
 Result<std::shared_ptr<StatementReturn>, Diagnostic> Parser::ParseStatementReturn()
 {
   Position position = Expect(TokenType::RETURN).unwrap();
@@ -239,6 +270,8 @@ Precedence token2precedence(TokenType tokenType)
     return Precedence::CALL;
   case TokenType::EQUAL:
     return Precedence::ASSIGN;
+  case TokenType::DOT:
+    return Precedence::FIELD_ACCESS;
   default:
     return Precedence::LOWEST;
   }
@@ -273,6 +306,16 @@ Result<std::shared_ptr<Expression>, Diagnostic> Parser::ParseExpression(Preceden
     case TokenType::EQUAL:
     {
       auto assignRes = ParseExpressionAssign(lhsRes.unwrap());
+      if (assignRes.is_err())
+      {
+        return Result<std::shared_ptr<Expression>, Diagnostic>(lhsRes.unwrap_err());
+      }
+      lhsRes.set_val(assignRes.unwrap());
+    }
+    break;
+    case TokenType::DOT:
+    {
+      auto assignRes = ParseExpressionFieldAccess(lhsRes.unwrap());
       if (assignRes.is_err())
       {
         return Result<std::shared_ptr<Expression>, Diagnostic>(lhsRes.unwrap_err());
@@ -354,6 +397,19 @@ Result<std::shared_ptr<ExpressionAssign>, Diagnostic> Parser::ParseExpressionAss
   }
   position.m_End = valueRes.unwrap().get()->m_Position.m_End;
   return Result<std::shared_ptr<ExpressionAssign>, Diagnostic>(std::make_shared<ExpressionAssign>(ExpressionAssign(position, std::static_pointer_cast<ExpressionIdentifier>(assignee), valueRes.unwrap())));
+}
+
+Result<std::shared_ptr<ExpressionFieldAccess>, Diagnostic> Parser::ParseExpressionFieldAccess(std::shared_ptr<Expression> value)
+{
+  Position position = value.get()->m_Position;
+  Expect(TokenType::DOT).unwrap();
+  auto fieldNameRes = ParseExpressionIdentifier();
+  if (fieldNameRes.is_err())
+  {
+    return Result<std::shared_ptr<ExpressionFieldAccess>, Diagnostic>(fieldNameRes.unwrap_err());
+  }
+  position.m_End = fieldNameRes.unwrap().get()->m_Position.m_End;
+  return Result<std::shared_ptr<ExpressionFieldAccess>, Diagnostic>(std::make_shared<ExpressionFieldAccess>(ExpressionFieldAccess(position, value, fieldNameRes.unwrap())));
 }
 
 Result<std::shared_ptr<ExpressionIdentifier>, Diagnostic> Parser::ParseExpressionIdentifier()

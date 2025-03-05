@@ -11,11 +11,12 @@
 
 enum class BindType
 {
-  EXPRESSION,
+  EXPRESSION = 1,
   FUNCTION,
   VARIABLE,
   PARAMETER,
   RETURN_VALUE,
+  MODULE,
 };
 
 class Binding
@@ -37,6 +38,15 @@ public:
   Position ParamsPosition;
 
   BindingFunction(Position position, Position namePosition, Position paramsPosition, std::shared_ptr<type::Function> functionType, ModuleID moduleID, bool used = false) : Binding(BindType::FUNCTION, functionType, moduleID, position, used), NamePosition(namePosition), ParamsPosition(paramsPosition) {};
+};
+
+class BindingModule : public Binding
+{
+public:
+  Position m_AliasPosition;
+  std::shared_ptr<class Context> m_Context;
+
+  BindingModule(Position position, Position aliasPosition, ModuleID moduleID, std::shared_ptr<class Context> context, std::shared_ptr<type::Object> objectType) : Binding(BindType::MODULE, objectType, moduleID, position), m_AliasPosition(aliasPosition), m_Context(context) {}
 };
 
 class Context
