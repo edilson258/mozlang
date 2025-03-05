@@ -27,9 +27,11 @@ private:
   void InspectStatement(std::shared_ptr<Statement>);
   void InspectStatementBlock(std::shared_ptr<StatementBlock>);
   void InspectStatementReturn(std::shared_ptr<StatementReturn>);
+  void InspectStatementLet(std::shared_ptr<StatementLet>);
   void InspectStatementFunction(std::shared_ptr<StatementFunction>);
   void InspectExpression(std::shared_ptr<Expression>);
   void InspectExpressionCall(std::shared_ptr<ExpressionCall>);
+  void InspectExpressionAssign(std::shared_ptr<ExpressionAssign>);
   void InspectExpressionString(std::shared_ptr<ExpressionString>);
   void InspectEpressionIdentifier(std::shared_ptr<ExpressionIdentifier>);
 };
@@ -72,7 +74,7 @@ void ASTInspector::InspectStatement(std::shared_ptr<Statement> statement)
   switch (statement.get()->m_Type)
   {
   case StatementType::LET:
-    break;
+    return InspectStatementLet(std::static_pointer_cast<StatementLet>(statement));
   case StatementType::BLOCK:
     return InspectStatementBlock(std::static_pointer_cast<StatementBlock>(statement));
   case StatementType::RETURN:
@@ -82,6 +84,25 @@ void ASTInspector::InspectStatement(std::shared_ptr<Statement> statement)
   case StatementType ::EXPRESSION:
     return InspectExpression(std::static_pointer_cast<Expression>(statement));
   }
+}
+
+void ASTInspector::InspectStatementLet(std::shared_ptr<StatementLet> letStatement)
+{
+  Writeln("Let Statement:");
+  Tab();
+  Writeln(std::format("Name: {}", letStatement.get()->m_Identifier.get()->m_Value));
+  Writeln("Value:");
+  Tab();
+  if (letStatement.get()->m_Initializer.has_value())
+  {
+    InspectExpression(letStatement.get()->m_Initializer.value());
+  }
+  else
+  {
+    Writeln("<no value>");
+  }
+  UnTab();
+  UnTab();
 }
 
 void ASTInspector::InspectStatementBlock(std::shared_ptr<StatementBlock> blockStatement)
@@ -120,7 +141,7 @@ void ASTInspector::InspectExpression(std::shared_ptr<Expression> expression)
   switch (expression.get()->m_Type)
   {
   case ExpressionType::ASSIGN:
-    break;
+    return InspectExpressionAssign(std::static_pointer_cast<ExpressionAssign>(expression));
   case ExpressionType::CALL:
     return InspectExpressionCall(std::static_pointer_cast<ExpressionCall>(expression));
   case ExpressionType::STRING:
@@ -150,6 +171,18 @@ void ASTInspector::InspectExpressionCall(std::shared_ptr<ExpressionCall> callExp
   UnTab();
   Writeln("]");
 
+  UnTab();
+}
+
+void ASTInspector::InspectExpressionAssign(std::shared_ptr<ExpressionAssign> assignExpression)
+{
+  Writeln("Assign Expression:");
+  Tab();
+  Writeln(std::format("Assignee: {}", assignExpression.get()->m_Assignee.get()->m_Value));
+  Writeln("Value:");
+  Tab();
+  InspectExpression(assignExpression.get()->m_Value);
+  UnTab();
   UnTab();
 }
 
