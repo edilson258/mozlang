@@ -32,6 +32,7 @@ private:
   void InspectExpression(std::shared_ptr<Expression>);
   void InspectExpressionCall(std::shared_ptr<ExpressionCall>);
   void InspectExpressionAssign(std::shared_ptr<ExpressionAssign>);
+  void InspectExpressionFieldAccess(std::shared_ptr<ExpressionFieldAccess>);
   void InspectExpressionString(std::shared_ptr<ExpressionString>);
   void InspectEpressionIdentifier(std::shared_ptr<ExpressionIdentifier>);
 };
@@ -73,6 +74,8 @@ void ASTInspector::InspectStatement(std::shared_ptr<Statement> statement)
 {
   switch (statement.get()->m_Type)
   {
+  case StatementType::IMPORT:
+    break;
   case StatementType::LET:
     return InspectStatementLet(std::static_pointer_cast<StatementLet>(statement));
   case StatementType::BLOCK:
@@ -140,6 +143,8 @@ void ASTInspector::InspectExpression(std::shared_ptr<Expression> expression)
 {
   switch (expression.get()->m_Type)
   {
+  case ExpressionType::FIELD_ACCESS:
+    return InspectExpressionFieldAccess(std::static_pointer_cast<ExpressionFieldAccess>(expression));
   case ExpressionType::ASSIGN:
     return InspectExpressionAssign(std::static_pointer_cast<ExpressionAssign>(expression));
   case ExpressionType::CALL:
@@ -182,6 +187,18 @@ void ASTInspector::InspectExpressionAssign(std::shared_ptr<ExpressionAssign> ass
   Writeln("Value:");
   Tab();
   InspectExpression(assignExpression.get()->m_Value);
+  UnTab();
+  UnTab();
+}
+
+void ASTInspector::InspectExpressionFieldAccess(std::shared_ptr<ExpressionFieldAccess> fieldAccessExpression)
+{
+  Writeln("Field Access Expression:");
+  Tab();
+  Writeln(std::format("Field Name: {}", fieldAccessExpression.get()->m_FieldName.get()->m_Value));
+  Writeln("Value:");
+  Tab();
+  InspectExpression(fieldAccessExpression.get()->m_Value);
   UnTab();
   UnTab();
 }

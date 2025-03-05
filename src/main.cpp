@@ -1,8 +1,10 @@
 #include <cstdio>
 #include <iostream>
+#include <memory>
 #include <string>
 
 #include "checker.h"
+#include "context.h"
 #include "diagnostic.h"
 #include "ir/ir.h"
 #include "lexer.h"
@@ -31,8 +33,9 @@ int main(int argc, char *argv[])
   }
   AST ast = astRes.unwrap();
   std::cout << ast.Inspect() << std::endl;
-  Checker checker(ast);
-  auto diagnostics = checker.check();
+  auto outContext = std::make_shared<Context>(Context());
+  Checker checker(ast, moduleManager, outContext);
+  auto diagnostics = checker.Check();
   bool hasErrorDiagnostic = false;
   for (auto &diagnostic : diagnostics)
   {

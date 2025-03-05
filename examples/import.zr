@@ -1,0 +1,6 @@
+import hello from "examples/hello.zr";
+
+hello.say_hello();
+hello.hi();
+
+"Hi";

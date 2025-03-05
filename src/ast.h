@@ -11,9 +11,10 @@
 
 enum class Precedence
 {
-  LOWEST = 0,
-  ASSIGN = 1,
+  LOWEST = 1,
+  ASSIGN = 2,
   CALL = 10,
+  FIELD_ACCESS = 11,
 };
 
 enum class StatementType
@@ -23,6 +24,7 @@ enum class StatementType
   RETURN,
   EXPRESSION,
   LET,
+  IMPORT,
 };
 
 enum class ExpressionType
@@ -31,6 +33,7 @@ enum class ExpressionType
   IDENTIFIER,
   STRING,
   ASSIGN,
+  FIELD_ACCESS,
 };
 
 class Statement
@@ -114,6 +117,15 @@ public:
   StatementLet(Position position, std::shared_ptr<class ExpressionIdentifier> identifier, TypeAnnotationToken typeAnnotation, std::optional<std::shared_ptr<class Expression>> initializer) : Statement(position, StatementType::LET), m_Identifier(identifier), m_TypeAnnotation(typeAnnotation), m_Initializer(initializer) {};
 };
 
+class StatementImport : public Statement
+{
+public:
+  std::shared_ptr<class ExpressionIdentifier> m_Alias;
+  std::string m_Path;
+
+  StatementImport(Position position, std::shared_ptr<class ExpressionIdentifier> alias, std::string path) : Statement(position, StatementType::IMPORT), m_Alias(alias), m_Path(path) {};
+};
+
 class Expression : public Statement
 {
 public:
@@ -148,6 +160,15 @@ public:
   std::shared_ptr<Expression> m_Value;
 
   ExpressionAssign(Position position, std::shared_ptr<ExpressionIdentifier> assignee, std::shared_ptr<Expression> value) : Expression(position, ExpressionType::ASSIGN), m_Assignee(assignee), m_Value(value) {};
+};
+
+class ExpressionFieldAccess : public Expression
+{
+public:
+  std::shared_ptr<Expression> m_Value;
+  std::shared_ptr<ExpressionIdentifier> m_FieldName;
+
+  ExpressionFieldAccess(Position position, std::shared_ptr<Expression> value, std::shared_ptr<ExpressionIdentifier> fieldName) : Expression(position, ExpressionType::FIELD_ACCESS), m_Value(value), m_FieldName(fieldName) {};
 };
 
 class ExpressionString : public Expression

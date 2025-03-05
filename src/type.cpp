@@ -16,9 +16,11 @@ std::string InspectBase(Base base)
   case Base::F_STRING:
     return "format string";
   case Base::FUNCTION:
-    return "fun() -> void";
+    return "function";
   case Base::ANY:
     return "any";
+  case Base::OBJECT:
+    return "object";
   }
   return "UNKNWON TYPE";
 }

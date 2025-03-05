@@ -1,5 +1,4 @@
 #include <filesystem>
-#include <format>
 #include <fstream>
 #include <memory>
 
@@ -14,7 +13,7 @@ Result<ModuleID, Error> ModuleManager::Load(std::string path)
   {
     std::error_code errorCode;
     (void)std::filesystem::status(path, errorCode);
-    return Result<ModuleID, Error>(Error(Errno::FS_ERROR, std::format("Couldn't open file {}: {}", path, errorCode.message())));
+    return Result<ModuleID, Error>(Error(Errno::FS_ERROR, errorCode.message()));
   }
   std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
   ModuleID id = m_Modules.size();
