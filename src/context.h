@@ -11,10 +11,9 @@
 
 enum class BindType
 {
-  LITERAL = 1,
+  EXPRESSION,
   FUNCTION,
   PARAMETER,
-  IDENTIFIER,
   RETURN_VALUE,
 };
 

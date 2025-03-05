@@ -60,9 +60,9 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementFunction(std::sha
   std::vector<std::shared_ptr<type::Type>> functionArgsTypes;
   for (auto &param : functionStatement.get()->m_Params.m_Params)
   {
-    functionArgsTypes.push_back(param.m_TypeAnnotation.m_ReturnType);
+    functionArgsTypes.push_back(param.m_TypeAnnotation.m_Type);
   }
-  auto functionType = std::make_shared<type::Function>(type::Function(functionStatement.get()->m_Params.m_Params.size(), std::move(functionArgsTypes), functionStatement.get()->m_ReturnTypeAnnotation.m_ReturnType));
+  auto functionType = std::make_shared<type::Function>(type::Function(functionStatement.get()->m_Params.m_Params.size(), std::move(functionArgsTypes), functionStatement.get()->m_ReturnTypeAnnotation.m_Type));
   auto functionBind = std::make_shared<BindingFunction>(BindingFunction(functionStatement.get()->m_Position, functionStatement.get()->m_Identifier.get()->m_Position, functionStatement.get()->m_Params.m_Position, functionType, 0));
   SaveBind(functionStatement.get()->m_Identifier.get()->m_Value, functionBind);
 
@@ -72,11 +72,11 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementFunction(std::sha
   {
     if (m_Scopes.back().m_Context.Get(param.m_Identifier.get()->m_Value).has_value())
     {
-      DiagnosticReference reference(Errno::OK, 0, m_Scopes.back().m_Context.Get(param.m_Identifier.get()->m_Value).value().get()->m_Position, "first used here");
+      DiagnosticReference reference(Errno::OK, m_Scopes.back().m_Context.Get(param.m_Identifier.get()->m_Value).value().get()->m_ModuleID, m_Scopes.back().m_Context.Get(param.m_Identifier.get()->m_Value).value().get()->m_Position, "first used here");
       m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, param.m_Position, m_ModuleID, DiagnosticSeverity::ERROR, std::format("duplicated param name '{}'", param.m_Identifier->m_Value), reference));
       continue;
     }
-    SaveBind(param.m_Identifier.get()->m_Value, std::make_shared<Binding>(Binding(BindType::PARAMETER, param.m_TypeAnnotation.m_ReturnType, m_ModuleID, param.m_Position)));
+    SaveBind(param.m_Identifier.get()->m_Value, std::make_shared<Binding>(Binding(BindType::PARAMETER, param.m_TypeAnnotation.m_Type, m_ModuleID, param.m_Position)));
   }
 
   auto blockReturnBind = CheckStatementBlock(functionStatement.get()->m_Body);
@@ -84,15 +84,15 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementFunction(std::sha
   // TODO: make deep types comparison
   if (blockReturnBind.has_value())
   {
-    if (!type::MatchBaseTypes(blockReturnBind->get()->m_Type.get()->m_Base, functionStatement.get()->m_ReturnTypeAnnotation.m_ReturnType.get()->m_Base))
+    if (!type::MatchBaseTypes(blockReturnBind->get()->m_Type.get()->m_Base, functionStatement.get()->m_ReturnTypeAnnotation.m_Type.get()->m_Base))
     {
-      DiagnosticReference reference(Errno::OK, 0, functionStatement.get()->m_ReturnTypeAnnotation.m_Position.value(), std::format("expect '{}' due to here", type::InspectBase(functionStatement.get()->m_ReturnTypeAnnotation.m_ReturnType.get()->m_Base)));
-      m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, blockReturnBind->get()->m_Position, m_ModuleID, DiagnosticSeverity::ERROR, std::format("return type mismatch, expect '{}' but got '{}'", type::InspectBase(functionStatement.get()->m_ReturnTypeAnnotation.m_ReturnType.get()->m_Base), type::InspectBase(blockReturnBind->get()->m_Type.get()->m_Base)), reference));
+      DiagnosticReference reference(Errno::OK, m_ModuleID, functionStatement.get()->m_ReturnTypeAnnotation.m_Position.value(), std::format("expect '{}' due to here", type::InspectBase(functionStatement.get()->m_ReturnTypeAnnotation.m_Type.get()->m_Base)));
+      m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, blockReturnBind->get()->m_Position, m_ModuleID, DiagnosticSeverity::ERROR, std::format("return type mismatch, expect '{}' but got '{}'", type::InspectBase(functionStatement.get()->m_ReturnTypeAnnotation.m_Type.get()->m_Base), type::InspectBase(blockReturnBind->get()->m_Type.get()->m_Base)), reference));
     }
   }
   else
   {
-    if (!type::MatchBaseTypes(type::Base::VOID, functionStatement.get()->m_ReturnTypeAnnotation.m_ReturnType.get()->m_Base))
+    if (!type::MatchBaseTypes(type::Base::VOID, functionStatement.get()->m_ReturnTypeAnnotation.m_Type.get()->m_Base))
     {
       m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, functionStatement.get()->m_ReturnTypeAnnotation.m_Position.value(), m_ModuleID, DiagnosticSeverity::ERROR, "non-void function doesn't have return value"));
     }
@@ -223,7 +223,7 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionIdentifier(std::
   if (bind.has_value())
   {
     bind.value().get()->m_IsUsed = true;
-    auto identifierBind = std::make_shared<Binding>(Binding(BindType::IDENTIFIER, bind.value().get()->m_Type, m_ModuleID, identifierExpression.get()->m_Position));
+    auto identifierBind = std::make_shared<Binding>(Binding(BindType::EXPRESSION, bind.value().get()->m_Type, m_ModuleID, identifierExpression.get()->m_Position));
     return identifierBind;
   }
   m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, identifierExpression.get()->m_Position, m_ModuleID, DiagnosticSeverity::ERROR, std::format("undefined name: '{}'", identifierExpression.get()->m_Value)));
@@ -232,7 +232,7 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionIdentifier(std::
 
 std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionString(std::shared_ptr<ExpressionString> stringExpression)
 {
-  auto stringLiteralBind = std::make_shared<Binding>(Binding(BindType::LITERAL, std::make_shared<type::Type>(type::Type(type::Base::STRING)), m_ModuleID, stringExpression.get()->m_Position));
+  auto stringLiteralBind = std::make_shared<Binding>(Binding(BindType::EXPRESSION, std::make_shared<type::Type>(type::Type(type::Base::STRING)), m_ModuleID, stringExpression.get()->m_Position));
   return stringLiteralBind;
 }
 
@@ -251,8 +251,7 @@ void Checker::LeaveScope()
     }
     switch (bind.second.get()->m_BindType)
     {
-    case BindType::IDENTIFIER:
-    case BindType::LITERAL:
+    case BindType::EXPRESSION:
     case BindType::RETURN_VALUE:
       /* Values with these Bind types never get stored in the context */
       break;

@@ -14,8 +14,8 @@ namespace lib
 
 enum class ObjectType
 {
-  UTF_8,
-  STRING,
+  UTF_8 = 0x01,
+  STRING = 0x02,
 };
 
 using ObjectValue = std::variant<std::monostate, std::string>;

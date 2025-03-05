@@ -1,9 +1,10 @@
 fun foo(x: i32, y: string): i32 {
   y
+  x;
 }
 
 fun bar(x) {
-  "hello";
+  x;
   println(x);
 }
 
