@@ -24,9 +24,18 @@ std::vector<Diagnostic> Checker::Check()
   auto printlnBind = std::make_shared<BindingFunction>(Position(), Position(), Position(), printlnType, 0, true);
   SaveBind("println", printlnBind);
 
+  std::vector<std::shared_ptr<Binding>> statementsBinds = {};
   for (auto statement : m_Ast.m_Program)
   {
-    CheckStatement(statement);
+    auto statementBind = CheckStatement(statement);
+    if (statementBind.has_value())
+    {
+      statementsBinds.push_back(statementBind.value());
+    }
+  }
+  for (auto &bind : statementsBinds)
+  {
+    m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, bind.get()->m_Position, bind.get()->m_ModuleID, DiagnosticSeverity::WARN, "expression results to unused value"));
   }
 
   LeaveScope();
@@ -306,8 +315,8 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionIdentifier(std::
   if (bind.has_value())
   {
     bind.value().get()->m_IsUsed = true;
-    // auto identifierBind = std::make_shared<Binding>(Binding(BindType::EXPRESSION, bind.value().get()->m_Type, m_ModuleID, identifierExpression.get()->m_Position));
-    return bind;
+    auto identifierBind = std::make_shared<Binding>(Binding(BindType::EXPRESSION, bind.value().get()->m_Type, m_ModuleID, identifierExpression.get()->m_Position));
+    return identifierBind;
   }
   m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, identifierExpression.get()->m_Position, m_ModuleID, DiagnosticSeverity::ERROR, std::format("undefined name: '{}'", identifierExpression.get()->m_Value)));
   return std::nullopt;
@@ -349,20 +358,20 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionFieldAccess(std:
     return std::nullopt;
   }
   auto valueBind = valueBindOpt.value();
-  if (BindType::MODULE != valueBind.get()->m_BindType)
+  if (type::Base::OBJECT != valueBind.get()->m_Type.get()->m_Base)
   {
     m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, fieldAccessExpression.get()->m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "left side of field access must be an object"));
     return std::nullopt;
   }
-  auto moduleBind = std::static_pointer_cast<BindingModule>(valueBind);
   auto bindObjectType = std::static_pointer_cast<type::Object>(valueBind.get()->m_Type);
   if (bindObjectType.get()->m_Entries.find(fieldAccessExpression.get()->m_FieldName.get()->m_Value) == bindObjectType.get()->m_Entries.end())
   {
     m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, fieldAccessExpression.get()->m_FieldName.get()->m_Position, m_ModuleID, DiagnosticSeverity::ERROR, std::format("object has no field '{}'", fieldAccessExpression.get()->m_FieldName.get()->m_Value)));
     return std::nullopt;
   }
-  auto outBind = moduleBind.get()->m_Context.get()->Get(fieldAccessExpression.get()->m_FieldName.get()->m_Value).value();
-  return outBind;
+
+  auto bind = std::make_shared<Binding>(Binding(BindType::EXPRESSION, bindObjectType.get()->m_Entries.at(fieldAccessExpression.get()->m_FieldName.get()->m_Value), m_ModuleID, fieldAccessExpression.get()->m_Position));
+  return bind;
 }
 
 std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionString(std::shared_ptr<ExpressionString> stringExpression)

@@ -1,6 +1,11 @@
 import hello from "examples/hello.zr";
 
-hello.say_hello();
 hello.hi();
 
+hello.say_hello();
+
+hello.say_hello("Edilson");
+
 "Hi";
+
+hello.name();
