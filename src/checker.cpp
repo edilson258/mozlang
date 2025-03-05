@@ -36,6 +36,8 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatement(std::shared_ptr<
 {
   switch (statement.get()->m_Type)
   {
+  case StatementType::LET:
+    return CheckStatementLet(std::static_pointer_cast<StatementLet>(statement));
   case StatementType::BLOCK:
     return CheckStatementBlock(std::static_pointer_cast<StatementBlock>(statement));
   case StatementType::RETURN:
@@ -162,6 +164,39 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementBlock(std::shared
   return returnBind;
 }
 
+std::optional<std::shared_ptr<Binding>> Checker::CheckStatementLet(std::shared_ptr<StatementLet> letStatement)
+{
+  auto bindWithSameName = m_Scopes.back().m_Context.Get(letStatement.get()->m_Identifier.get()->m_Value);
+  if (bindWithSameName.has_value())
+  {
+    DiagnosticReference reference(Errno::OK, bindWithSameName.value().get()->m_ModuleID, bindWithSameName.value()->m_Position, "name used here");
+    m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, letStatement.get()->m_Identifier.get()->m_Position, m_ModuleID, DiagnosticSeverity::ERROR, std::format("name '{}' already in use", letStatement.get()->m_Identifier.get()->m_Value), reference));
+    return std::nullopt;
+  }
+
+  auto varType = letStatement.get()->m_TypeAnnotation.m_Type;
+
+  if (letStatement.get()->m_Initializer.has_value())
+  {
+    auto initializerBindOpt = CheckExpression(letStatement.get()->m_Initializer.value());
+    if (!initializerBindOpt.has_value())
+    {
+      goto defer;
+    }
+    auto initializerBind = initializerBindOpt.value();
+    if (!type::MatchBaseTypes(letStatement.get()->m_TypeAnnotation.m_Type.get()->m_Base, initializerBind.get()->m_Type.get()->m_Base))
+    {
+      DiagnosticReference reference(Errno::OK, m_ModuleID, letStatement.get()->m_TypeAnnotation.m_Position.value(), std::format("expect '{}' due to here", type::InspectBase(letStatement.get()->m_TypeAnnotation.m_Type.get()->m_Base)));
+      m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, initializerBind.get()->m_Position, initializerBind.get()->m_ModuleID, DiagnosticSeverity::ERROR, std::format("expect value of type '{}' but got '{}'", type::InspectBase(letStatement.get()->m_TypeAnnotation.m_Type.get()->m_Base), type::InspectBase(initializerBind.get()->m_Type.get()->m_Base)), reference));
+    }
+    varType = initializerBind.get()->m_Type;
+  }
+
+defer:
+  SaveBind(letStatement.get()->m_Identifier.get()->m_Value, std::make_shared<Binding>(Binding(BindType::VARIABLE, varType, m_ModuleID, letStatement.get()->m_Identifier.get()->m_Position)));
+  return std::nullopt;
+}
+
 std::optional<std::shared_ptr<Binding>> Checker::CheckExpression(std::shared_ptr<Expression> expression)
 {
   switch (expression.get()->m_Type)
@@ -255,11 +290,14 @@ void Checker::LeaveScope()
     case BindType::RETURN_VALUE:
       /* Values with these Bind types never get stored in the context */
       break;
+    case BindType::VARIABLE:
+      m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, bind.second.get()->m_Position, bind.second.get()->m_ModuleID, DiagnosticSeverity::WARN, "unused variable"));
+      break;
     case BindType::PARAMETER:
-      m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, bind.second.get()->m_Position, m_ModuleID, DiagnosticSeverity::WARN, "unused parameter"));
+      m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, bind.second.get()->m_Position, bind.second.get()->m_ModuleID, DiagnosticSeverity::WARN, "unused parameter"));
       break;
     case BindType::FUNCTION:
-      m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, std::static_pointer_cast<BindingFunction>(bind.second).get()->NamePosition, m_ModuleID, DiagnosticSeverity::WARN, std::format("function '{}' never gets called", bind.first)));
+      m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, std::static_pointer_cast<BindingFunction>(bind.second).get()->NamePosition, bind.second.get()->m_ModuleID, DiagnosticSeverity::WARN, std::format("function '{}' never gets called", bind.first)));
       break;
     }
   }

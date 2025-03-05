@@ -21,6 +21,7 @@ enum class StatementType
   FUNCTION,
   RETURN,
   EXPRESSION,
+  LET,
 };
 
 enum class ExpressionType
@@ -99,6 +100,16 @@ public:
   TypeAnnotationToken m_ReturnTypeAnnotation;
 
   StatementFunction(Position position, std::shared_ptr<class ExpressionIdentifier> identifier, FunctionParams params, std::shared_ptr<StatementBlock> body, TypeAnnotationToken typeAnnotationToken) : Statement(position, StatementType::FUNCTION), m_Params(params), m_Body(body), m_Identifier(identifier), m_ReturnTypeAnnotation(typeAnnotationToken) {};
+};
+
+class StatementLet : public Statement
+{
+public:
+  std::shared_ptr<class ExpressionIdentifier> m_Identifier;
+  TypeAnnotationToken m_TypeAnnotation;
+  std::optional<std::shared_ptr<class Expression>> m_Initializer;
+
+  StatementLet(Position position, std::shared_ptr<class ExpressionIdentifier> identifier, TypeAnnotationToken typeAnnotation, std::optional<std::shared_ptr<class Expression>> initializer) : Statement(position, StatementType::LET), m_Identifier(identifier), m_TypeAnnotation(typeAnnotation), m_Initializer(initializer) {};
 };
 
 class Expression : public Statement

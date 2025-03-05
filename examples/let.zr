@@ -1,0 +1,8 @@
+let hello;
+
+fun hello() {
+  let age = "23";
+  hello = "";
+}
+
+let name = "Edilson";

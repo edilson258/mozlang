@@ -61,6 +61,7 @@ private:
   void EmitStatementFunction(std::shared_ptr<StatementFunction>);
   void EmitStatementBlock(std::shared_ptr<StatementBlock>);
   void EmitStatementReturn(std::shared_ptr<StatementReturn>);
+  void EmitStatementLet(std::shared_ptr<StatementLet>);
   void EmitExpression(std::shared_ptr<Expression>);
   void EmitExpressionCall(std::shared_ptr<ExpressionCall>);
   void EmitExpressionIdentifier(std::shared_ptr<ExpressionIdentifier>);

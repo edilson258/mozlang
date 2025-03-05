@@ -27,8 +27,10 @@ private:
   Result<std::shared_ptr<StatementFunction>, Diagnostic> ParseStatementFunction();
   Result<std::shared_ptr<StatementReturn>, Diagnostic> ParseStatementReturn();
   Result<std::shared_ptr<StatementBlock>, Diagnostic> ParseStatementBlock();
+  Result<std::shared_ptr<StatementLet>, Diagnostic> ParseStatementLet();
   Result<std::shared_ptr<Expression>, Diagnostic> ParseExpression(Precedence);
-  Result<std::shared_ptr<Expression>, Diagnostic> ParseExpressionLhs();
+  Result<std::shared_ptr<Expression>, Diagnostic> ParseExpressionPrimary();
+  Result<std::shared_ptr<ExpressionIdentifier>, Diagnostic> ParseExpressionIdentifier();
   Result<std::shared_ptr<ExpressionCall>, Diagnostic> ParseExpressionCall(std::shared_ptr<Expression>);
 
   Result<FunctionParams, Diagnostic> ParseFunctionParams();

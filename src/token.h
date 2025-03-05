@@ -12,6 +12,7 @@ enum class TokenType
   // Keywords
   FUN,
   RETURN,
+  LET,
 
   // Types
   I32,
@@ -24,6 +25,7 @@ enum class TokenType
   RPAREN,
   LBRACE,
   RBRACE,
+  EQUAL,
   SEMICOLON,
 
   PLUS,

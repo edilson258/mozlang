@@ -71,6 +71,8 @@ void ASTInspector::InspectStatement(std::shared_ptr<Statement> statement)
 {
   switch (statement.get()->m_Type)
   {
+  case StatementType::LET:
+    break;
   case StatementType::BLOCK:
     return InspectStatementBlock(std::static_pointer_cast<StatementBlock>(statement));
   case StatementType::RETURN:
