@@ -85,16 +85,11 @@ Result<FunctionParams, Diagnostic> Parser::ParseFunctionParams()
 
   std::vector<FunctionParam> params;
 
-  while (!IsEof())
+  while (!IsEof() && TokenType::RPAREN != m_CurrToken.m_Type)
   {
-    if (TokenType::RPAREN == m_CurrToken.m_Type)
-    {
-      break;
-    }
-
     if (TokenType::IDENTIFIER != m_CurrToken.m_Type)
     {
-      return Result<FunctionParams, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, m_CurrToken.m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "expect param name"));
+      return Result<FunctionParams, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, m_CurrToken.m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "expect param name or ')'"));
     }
     auto paramIdentifier = std::make_shared<ExpressionIdentifier>(m_CurrToken.m_Position, m_CurrToken.m_Lexeme);
     Position paramPosition = Next().unwrap();
@@ -102,7 +97,7 @@ Result<FunctionParams, Diagnostic> Parser::ParseFunctionParams()
     if (TokenType::COLON == m_CurrToken.m_Type)
     {
       Expect(TokenType::COLON).unwrap();
-      typeAnnotation.m_ReturnType = ParseTypeAnnotation().unwrap();
+      typeAnnotation.m_Type = ParseTypeAnnotation().unwrap();
       typeAnnotation.m_Position = Next().unwrap();
     }
     params.push_back(FunctionParam(paramPosition, paramIdentifier, typeAnnotation));
@@ -138,7 +133,7 @@ Result<std::shared_ptr<StatementFunction>, Diagnostic> Parser::ParseStatementFun
   if (TokenType::COLON == m_CurrToken.m_Type)
   {
     Expect(TokenType::COLON).unwrap();
-    typeAnnotation.m_ReturnType = ParseTypeAnnotation().unwrap();
+    typeAnnotation.m_Type = ParseTypeAnnotation().unwrap();
     typeAnnotation.m_Position = Next().unwrap();
   }
   if (paramsRes.is_err())

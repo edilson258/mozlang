@@ -66,9 +66,9 @@ class TypeAnnotationToken
 {
 public:
   std::optional<Position> m_Position;
-  std::shared_ptr<type::Type> m_ReturnType;
+  std::shared_ptr<type::Type> m_Type;
 
-  TypeAnnotationToken(std::optional<Position> position, std::shared_ptr<type::Type> returnType) : m_Position(position), m_ReturnType(returnType) {};
+  TypeAnnotationToken(std::optional<Position> position, std::shared_ptr<type::Type> returnType) : m_Position(position), m_Type(returnType) {};
 };
 
 class FunctionParam
