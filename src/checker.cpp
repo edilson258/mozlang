@@ -55,7 +55,8 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementFunction(std::sha
   auto bindWithSameName = m_Scopes.back().m_Context.Get(functionStatement.get()->m_Identifier.get()->m_Value);
   if (bindWithSameName.has_value())
   {
-    m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, functionStatement.get()->m_Identifier.get()->m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "name already in use"));
+    DiagnosticReference reference(Errno::OK, bindWithSameName.value().get()->m_ModuleID, bindWithSameName.value()->m_Position, "name used here");
+    m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, functionStatement.get()->m_Identifier.get()->m_Position, m_ModuleID, DiagnosticSeverity::ERROR, std::format("name '{}' already in use", functionStatement.get()->m_Identifier.get()->m_Value), reference));
     return std::nullopt;
   }
 
@@ -184,12 +185,15 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementLet(std::shared_p
       goto defer;
     }
     auto initializerBind = initializerBindOpt.value();
-    if (!type::MatchBaseTypes(letStatement.get()->m_TypeAnnotation.m_Type.get()->m_Base, initializerBind.get()->m_Type.get()->m_Base))
+    if (type::MatchBaseTypes(letStatement.get()->m_TypeAnnotation.m_Type.get()->m_Base, initializerBind.get()->m_Type.get()->m_Base))
+    {
+      varType = initializerBind.get()->m_Type;
+    }
+    else
     {
       DiagnosticReference reference(Errno::OK, m_ModuleID, letStatement.get()->m_TypeAnnotation.m_Position.value(), std::format("expect '{}' due to here", type::InspectBase(letStatement.get()->m_TypeAnnotation.m_Type.get()->m_Base)));
       m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, initializerBind.get()->m_Position, initializerBind.get()->m_ModuleID, DiagnosticSeverity::ERROR, std::format("expect value of type '{}' but got '{}'", type::InspectBase(letStatement.get()->m_TypeAnnotation.m_Type.get()->m_Base), type::InspectBase(initializerBind.get()->m_Type.get()->m_Base)), reference));
     }
-    varType = initializerBind.get()->m_Type;
   }
 
 defer:
@@ -201,6 +205,8 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckExpression(std::shared_ptr
 {
   switch (expression.get()->m_Type)
   {
+  case ExpressionType::ASSIGN:
+    return CheckExpressionAssign(std::static_pointer_cast<ExpressionAssign>(expression));
   case ExpressionType::CALL:
     return CheckExpressionCall(std::static_pointer_cast<ExpressionCall>(expression));
   case ExpressionType::STRING:
@@ -263,6 +269,34 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionIdentifier(std::
   }
   m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, identifierExpression.get()->m_Position, m_ModuleID, DiagnosticSeverity::ERROR, std::format("undefined name: '{}'", identifierExpression.get()->m_Value)));
   return std::nullopt;
+}
+
+std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionAssign(std::shared_ptr<ExpressionAssign> assignExpression)
+{
+  // assignee
+  auto assigneeBindOpt = CheckExpressionIdentifier(assignExpression.get()->m_Assignee);
+  if (!assigneeBindOpt.has_value())
+  {
+    return std::nullopt;
+  }
+  auto assigneeBind = assigneeBindOpt.value();
+  // value
+  auto valueBindOpt = CheckExpression(assignExpression.get()->m_Value);
+  if (!valueBindOpt.has_value())
+  {
+    return std::nullopt;
+  }
+  auto valueBind = valueBindOpt.value();
+  // match types
+  if (!type::MatchBaseTypes(assigneeBind.get()->m_Type.get()->m_Base, valueBind.get()->m_Type.get()->m_Base))
+  {
+    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, valueBind.get()->m_Position, valueBind.get()->m_ModuleID, DiagnosticSeverity::ERROR, std::format("expect value of type '{}' but got '{}'", type::InspectBase(assigneeBind.get()->m_Type.get()->m_Base), type::InspectBase(valueBind.get()->m_Type.get()->m_Base))));
+    return std::nullopt;
+  }
+  // narrow types
+  valueBind.get()->m_IsUsed = true;
+  assigneeBind.get()->m_Type = valueBind.get()->m_Type;
+  return assigneeBind;
 }
 
 std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionString(std::shared_ptr<ExpressionString> stringExpression)

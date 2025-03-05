@@ -54,4 +54,5 @@ private:
   std::optional<std::shared_ptr<Binding>> CheckExpressionCall(std::shared_ptr<ExpressionCall>);
   std::optional<std::shared_ptr<Binding>> CheckExpressionString(std::shared_ptr<ExpressionString>);
   std::optional<std::shared_ptr<Binding>> CheckExpressionIdentifier(std::shared_ptr<ExpressionIdentifier>);
+  std::optional<std::shared_ptr<Binding>> CheckExpressionAssign(std::shared_ptr<ExpressionAssign>);
 };
