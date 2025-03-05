@@ -4,6 +4,7 @@
 #include <string>
 
 #include "ast.h"
+#include "token.h"
 
 class ASTInspector
 {
@@ -193,7 +194,8 @@ void ASTInspector::InspectExpressionAssign(std::shared_ptr<ExpressionAssign> ass
 
 void ASTInspector::InspectExpressionFieldAccess(std::shared_ptr<ExpressionFieldAccess> fieldAccessExpression)
 {
-  Writeln("Field Access Expression:");
+  Position pos = fieldAccessExpression.get()->m_Position;
+  Writeln(std::format("Field Access Expression: {}:{}:{}:{}", pos.m_Line, pos.m_Column, pos.m_Start, pos.m_End));
   Tab();
   Writeln(std::format("Field Name: {}", fieldAccessExpression.get()->m_FieldName.get()->m_Value));
   Writeln("Value:");

@@ -1,9 +1,9 @@
 #pragma once
 
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
-#include <unordered_map>
 
 #include "loader.h"
 #include "token.h"
@@ -52,7 +52,7 @@ public:
 class Context
 {
 public:
-  std::unordered_map<std::string, std::shared_ptr<Binding>> Store;
+  std::map<std::string, std::shared_ptr<Binding>> Store;
 
   Context() : Store() {};
 
