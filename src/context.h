@@ -13,6 +13,7 @@ enum class BindType
 {
   EXPRESSION,
   FUNCTION,
+  VARIABLE,
   PARAMETER,
   RETURN_VALUE,
 };

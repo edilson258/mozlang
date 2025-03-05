@@ -39,6 +39,8 @@ Result<Token, Diagnostic> Lexer::Next()
     return MakeTokenSimple(TokenType::COLON);
   case ';':
     return MakeTokenSimple(TokenType::SEMICOLON);
+  case '=':
+    return MakeTokenSimple(TokenType::EQUAL);
   case ',':
     return MakeTokenSimple(TokenType::COMMA);
   case '"':

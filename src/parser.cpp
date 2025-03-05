@@ -1,4 +1,5 @@
 #include <cassert>
+#include <cmath>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -46,6 +47,16 @@ Result<std::shared_ptr<Statement>, Diagnostic> Parser::ParseStatement()
   if (TokenType::RETURN == m_CurrToken.m_Type)
   {
     auto result = ParseStatementReturn();
+    if (result.is_err())
+    {
+      return Result<std::shared_ptr<Statement>, Diagnostic>(result.unwrap_err());
+    }
+    return Result<std::shared_ptr<Statement>, Diagnostic>(result.unwrap());
+  }
+
+  if (TokenType::LET == m_CurrToken.m_Type)
+  {
+    auto result = ParseStatementLet();
     if (result.is_err())
     {
       return Result<std::shared_ptr<Statement>, Diagnostic>(result.unwrap_err());
@@ -166,6 +177,42 @@ Result<std::shared_ptr<StatementBlock>, Diagnostic> Parser::ParseStatementBlock(
   return Result<std::shared_ptr<StatementBlock>, Diagnostic>(std::make_shared<StatementBlock>(position, std::move(statements)));
 }
 
+Result<std::shared_ptr<StatementLet>, Diagnostic> Parser::ParseStatementLet()
+{
+  Position position = Expect(TokenType::LET).unwrap();
+  // var name
+  auto identifierRes = ParseExpressionIdentifier();
+  if (identifierRes.is_err())
+  {
+    return Result<std::shared_ptr<StatementLet>, Diagnostic>(identifierRes.unwrap_err());
+  }
+  auto identifier = identifierRes.unwrap();
+  position.m_End = identifier.get()->m_Position.m_End;
+  // var type
+  TypeAnnotationToken typeAnnotation(std::nullopt, std::make_shared<type::Type>(type::Type(type::Base::ANY)));
+  if (TokenType::COLON == m_CurrToken.m_Type)
+  {
+    Expect(TokenType::COLON).unwrap();
+    typeAnnotation.m_Type = ParseTypeAnnotation().unwrap();
+    typeAnnotation.m_Position = Next().unwrap();
+  }
+  // init value
+  std::optional<std::shared_ptr<Expression>> initializerOpt;
+  if (TokenType::EQUAL == m_CurrToken.m_Type)
+  {
+    Expect(TokenType::EQUAL).unwrap();
+    auto initializerRes = ParseExpression(Precedence::LOWEST);
+    if (initializerRes.is_err())
+    {
+      return Result<std::shared_ptr<StatementLet>, Diagnostic>(initializerRes.unwrap_err());
+    }
+    initializerOpt = initializerRes.unwrap();
+    position.m_End = initializerOpt.value().get()->m_Position.m_End;
+  }
+  Expect(TokenType::SEMICOLON).unwrap();
+  return Result<std::shared_ptr<StatementLet>, Diagnostic>(std::make_shared<StatementLet>(StatementLet(position, identifier, typeAnnotation, initializerOpt)));
+}
+
 Result<std::shared_ptr<StatementReturn>, Diagnostic> Parser::ParseStatementReturn()
 {
   Position position = Expect(TokenType::RETURN).unwrap();
@@ -197,7 +244,7 @@ Precedence token2precedence(TokenType tokenType)
 
 Result<std::shared_ptr<Expression>, Diagnostic> Parser::ParseExpression(Precedence prec)
 {
-  auto lhsRes = ParseExpressionLhs();
+  auto lhsRes = ParseExpressionPrimary();
   if (lhsRes.is_err())
   {
     return Result<std::shared_ptr<Expression>, Diagnostic>(lhsRes.unwrap_err());
@@ -228,7 +275,7 @@ defer:
   return Result<std::shared_ptr<Expression>, Diagnostic>(lhsRes.unwrap());
 }
 
-Result<std::shared_ptr<Expression>, Diagnostic> Parser::ParseExpressionLhs()
+Result<std::shared_ptr<Expression>, Diagnostic> Parser::ParseExpressionPrimary()
 {
   switch (m_CurrToken.m_Type)
   {
@@ -277,6 +324,17 @@ Result<std::shared_ptr<ExpressionCall>, Diagnostic> Parser::ParseExpressionCall(
   position.m_End = expectRes.unwrap().m_End;
   argsPosition.m_End = expectRes.unwrap().m_End;
   return Result<std::shared_ptr<ExpressionCall>, Diagnostic>(std::make_shared<ExpressionCall>(position, callee, args, argsPosition));
+}
+
+Result<std::shared_ptr<ExpressionIdentifier>, Diagnostic> Parser::ParseExpressionIdentifier()
+{
+  if (TokenType::IDENTIFIER != m_CurrToken.m_Type)
+  {
+    return Result<std::shared_ptr<ExpressionIdentifier>, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, m_CurrToken.m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "expect an idetifier"));
+  }
+  auto identifierExpression = std::make_shared<ExpressionIdentifier>(ExpressionIdentifier(m_CurrToken.m_Position, m_CurrToken.m_Lexeme));
+  Next().unwrap();
+  return Result<std::shared_ptr<ExpressionIdentifier>, Diagnostic>(identifierExpression);
 }
 
 Result<std::shared_ptr<type::Type>, Diagnostic> Parser::ParseTypeAnnotation()

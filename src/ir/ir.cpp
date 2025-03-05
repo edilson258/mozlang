@@ -27,6 +27,8 @@ void IRGenerator::EmitStatement(std::shared_ptr<Statement> statement)
 {
   switch (statement.get()->m_Type)
   {
+  case StatementType::LET:
+    return EmitStatementLet(std::static_pointer_cast<StatementLet>(statement));
   case StatementType::BLOCK:
     return EmitStatementBlock(std::static_pointer_cast<StatementBlock>(statement));
   case StatementType::RETURN:
@@ -65,6 +67,20 @@ void IRGenerator::EmitStatementReturn(std::shared_ptr<StatementReturn> returnSta
     EmitExpression(returnStatement.get()->m_Value.value());
   }
   PushInstruction(std::make_shared<lib::InstructionReturn>(lib::InstructionReturn()));
+}
+
+void IRGenerator::EmitStatementLet(std::shared_ptr<StatementLet> letStatement)
+{
+  auto index = SaveLocal(letStatement.get()->m_Identifier.get()->m_Value);
+  if (letStatement.get()->m_Initializer.has_value())
+  {
+    EmitExpression(letStatement.get()->m_Initializer.value());
+    PushInstruction(std::make_shared<lib::InstructionStoreLocal>(lib::InstructionStoreLocal(index)));
+  }
+  else
+  {
+    // TODO: Store default value
+  }
 }
 
 void IRGenerator::EmitExpression(std::shared_ptr<Expression> expression)
