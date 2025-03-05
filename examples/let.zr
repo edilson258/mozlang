@@ -1,8 +1,8 @@
-let hello;
+let hellox;
 
 fun hello() {
   let age = "23";
-  hello = "";
+  hellox = "";
 }
 
 let name = "Edilson";

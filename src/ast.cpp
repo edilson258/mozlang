@@ -119,6 +119,8 @@ void ASTInspector::InspectExpression(std::shared_ptr<Expression> expression)
 {
   switch (expression.get()->m_Type)
   {
+  case ExpressionType::ASSIGN:
+    break;
   case ExpressionType::CALL:
     return InspectExpressionCall(std::static_pointer_cast<ExpressionCall>(expression));
   case ExpressionType::STRING:

@@ -237,6 +237,8 @@ Precedence token2precedence(TokenType tokenType)
   {
   case TokenType::LPAREN:
     return Precedence::CALL;
+  case TokenType::EQUAL:
+    return Precedence::ASSIGN;
   default:
     return Precedence::LOWEST;
   }
@@ -260,13 +262,24 @@ Result<std::shared_ptr<Expression>, Diagnostic> Parser::ParseExpression(Preceden
     {
     case TokenType::LPAREN:
     {
-      auto expr_call_res = ParseExpressionCall(lhsRes.unwrap());
-      if (expr_call_res.is_err())
+      auto callRes = ParseExpressionCall(lhsRes.unwrap());
+      if (callRes.is_err())
       {
         return Result<std::shared_ptr<Expression>, Diagnostic>(lhsRes.unwrap_err());
       }
-      lhsRes.set_val(expr_call_res.unwrap());
+      lhsRes.set_val(callRes.unwrap());
     }
+    break;
+    case TokenType::EQUAL:
+    {
+      auto assignRes = ParseExpressionAssign(lhsRes.unwrap());
+      if (assignRes.is_err())
+      {
+        return Result<std::shared_ptr<Expression>, Diagnostic>(lhsRes.unwrap_err());
+      }
+      lhsRes.set_val(assignRes.unwrap());
+    }
+    break;
     default:
       goto defer;
     }
@@ -324,6 +337,23 @@ Result<std::shared_ptr<ExpressionCall>, Diagnostic> Parser::ParseExpressionCall(
   position.m_End = expectRes.unwrap().m_End;
   argsPosition.m_End = expectRes.unwrap().m_End;
   return Result<std::shared_ptr<ExpressionCall>, Diagnostic>(std::make_shared<ExpressionCall>(position, callee, args, argsPosition));
+}
+
+Result<std::shared_ptr<ExpressionAssign>, Diagnostic> Parser::ParseExpressionAssign(std::shared_ptr<Expression> assignee)
+{
+  Position position = assignee.get()->m_Position;
+  position.m_End = Expect(TokenType::EQUAL).unwrap().m_End;
+  if (ExpressionType::IDENTIFIER != assignee.get()->m_Type)
+  {
+    return Result<std::shared_ptr<ExpressionAssign>, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, position, m_ModuleID, DiagnosticSeverity::ERROR, "can only assign to identifier"));
+  }
+  auto valueRes = ParseExpression(Precedence::LOWEST);
+  if (valueRes.is_err())
+  {
+    return Result<std::shared_ptr<ExpressionAssign>, Diagnostic>(valueRes.unwrap_err());
+  }
+  position.m_End = valueRes.unwrap().get()->m_Position.m_End;
+  return Result<std::shared_ptr<ExpressionAssign>, Diagnostic>(std::make_shared<ExpressionAssign>(ExpressionAssign(position, std::static_pointer_cast<ExpressionIdentifier>(assignee), valueRes.unwrap())));
 }
 
 Result<std::shared_ptr<ExpressionIdentifier>, Diagnostic> Parser::ParseExpressionIdentifier()

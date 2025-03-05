@@ -32,6 +32,7 @@ private:
   Result<std::shared_ptr<Expression>, Diagnostic> ParseExpressionPrimary();
   Result<std::shared_ptr<ExpressionIdentifier>, Diagnostic> ParseExpressionIdentifier();
   Result<std::shared_ptr<ExpressionCall>, Diagnostic> ParseExpressionCall(std::shared_ptr<Expression>);
+  Result<std::shared_ptr<ExpressionAssign>, Diagnostic> ParseExpressionAssign(std::shared_ptr<Expression>);
 
   Result<FunctionParams, Diagnostic> ParseFunctionParams();
   Result<std::shared_ptr<type::Type>, Diagnostic> ParseTypeAnnotation();

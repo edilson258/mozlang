@@ -12,6 +12,7 @@
 enum class Precedence
 {
   LOWEST = 0,
+  ASSIGN = 1,
   CALL = 10,
 };
 
@@ -29,6 +30,7 @@ enum class ExpressionType
   CALL = 1,
   IDENTIFIER,
   STRING,
+  ASSIGN,
 };
 
 class Statement
@@ -137,6 +139,15 @@ public:
   std::string m_Value;
 
   ExpressionIdentifier(Position position, std::string value) : Expression(position, ExpressionType::IDENTIFIER), m_Value(value) {};
+};
+
+class ExpressionAssign : public Expression
+{
+public:
+  std::shared_ptr<ExpressionIdentifier> m_Assignee;
+  std::shared_ptr<Expression> m_Value;
+
+  ExpressionAssign(Position position, std::shared_ptr<ExpressionIdentifier> assignee, std::shared_ptr<Expression> value) : Expression(position, ExpressionType::ASSIGN), m_Assignee(assignee), m_Value(value) {};
 };
 
 class ExpressionString : public Expression
