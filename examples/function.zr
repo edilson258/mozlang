@@ -3,9 +3,14 @@ fun foo(x: i32, y: string): i32 {
   x;
 }
 
-fun bar(x) {
+fun baz(): void
+{
+}
+
+fun bar(predicate: fun(char): bool): fun(): void {
   x;
   println(x);
+  bar
 }
 
 foo("hello", "hi");

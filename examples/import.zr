@@ -1,11 +1,7 @@
 import hello from "examples/hello.zr";
 
-hello.hi();
+fun foo(): i32 {
+  println("Hello, World!");
+}
 
-hello.say_hello();
-
-hello.say_hello("Edilson");
-
-"Hi";
-
-hello.name();
+hello.say_hello(foo);

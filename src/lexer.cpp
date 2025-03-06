@@ -45,6 +45,8 @@ Result<Token, Diagnostic> Lexer::Next()
     return MakeTokenSimple(TokenType::COMMA);
   case '.':
     return MakeTokenSimple(TokenType::DOT);
+  case '-':
+    return MakeIfNextCharOr('>', TokenType::ARROW, TokenType::MINUS);
   case '"':
     return MakeTokenString();
   }
@@ -71,6 +73,21 @@ Result<Token, Diagnostic> Lexer::MakeTokenSimple(TokenType tt)
 {
   Token token(Position(m_Line, m_Column, m_Cursor, m_Cursor), tt, std::string(1, PeekOne()));
   Advance();
+  return Result<Token, Diagnostic>(token);
+}
+
+Result<Token, Diagnostic> Lexer::MakeIfNextCharOr(char nextChar, TokenType tt1, TokenType tt2)
+{
+  Token token(Position(m_Line, m_Column, m_Cursor, m_Cursor), tt2, std::string(1, PeekOne()));
+  Advance();
+  if (PeekOne() == nextChar)
+  {
+    Advance();
+    token.m_Type = tt1;
+    token.m_Position.m_End = m_Cursor;
+    token.m_Lexeme.push_back(nextChar);
+    return Result<Token, Diagnostic>(token);
+  }
   return Result<Token, Diagnostic>(token);
 }
 
