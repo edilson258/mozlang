@@ -29,6 +29,7 @@ private:
   void InspectStatementBlock(std::shared_ptr<StatementBlock>);
   void InspectStatementReturn(std::shared_ptr<StatementReturn>);
   void InspectStatementLet(std::shared_ptr<StatementLet>);
+  void InspectStatementImport(std::shared_ptr<StatementImport>);
   void InspectStatementFunction(std::shared_ptr<StatementFunction>);
   void InspectExpression(std::shared_ptr<Expression>);
   void InspectExpressionCall(std::shared_ptr<ExpressionCall>);
@@ -76,7 +77,7 @@ void ASTInspector::InspectStatement(std::shared_ptr<Statement> statement)
   switch (statement.get()->m_Type)
   {
   case StatementType::IMPORT:
-    break;
+    return InspectStatementImport(std::static_pointer_cast<StatementImport>(statement));
   case StatementType::LET:
     return InspectStatementLet(std::static_pointer_cast<StatementLet>(statement));
   case StatementType::BLOCK:
@@ -106,6 +107,15 @@ void ASTInspector::InspectStatementLet(std::shared_ptr<StatementLet> letStatemen
     Writeln("<no value>");
   }
   UnTab();
+  UnTab();
+}
+
+void ASTInspector::InspectStatementImport(std::shared_ptr<StatementImport> importStatement)
+{
+  Writeln("Import Statement:");
+  Tab();
+  Writeln(std::format("Alias '{}'", importStatement.get()->m_Alias.get()->m_Value));
+  Writeln(std::format("Path '{}'", importStatement.get()->m_Path));
   UnTab();
 }
 

@@ -35,6 +35,10 @@ std::vector<Diagnostic> Checker::Check()
   }
   for (auto &bind : statementsBinds)
   {
+    if (type::Base::VOID == bind.get()->m_Type.get()->m_Base)
+    {
+      continue;
+    }
     m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, bind.get()->m_Position, bind.get()->m_ModuleID, DiagnosticSeverity::WARN, "expression results to unused value"));
   }
 
@@ -72,18 +76,27 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementFunction(std::sha
     m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, functionStatement.get()->m_Identifier.get()->m_Position, m_ModuleID, DiagnosticSeverity::ERROR, std::format("name '{}' already in use", functionStatement.get()->m_Identifier.get()->m_Value), reference));
     return std::nullopt;
   }
-
   std::vector<std::shared_ptr<type::Type>> functionArgsTypes;
   for (auto &param : functionStatement.get()->m_Params.m_Params)
   {
-    functionArgsTypes.push_back(param.m_TypeAnnotation.m_Type);
+    if (param.m_AstTypeAnnotationOpt.has_value())
+    {
+      functionArgsTypes.push_back(param.m_AstTypeAnnotationOpt.value().m_Type);
+    }
+    else
+    {
+      functionArgsTypes.push_back(std::make_shared<type::Type>(type::Base::ANY));
+    }
   }
-  auto functionType = std::make_shared<type::Function>(type::Function(functionStatement.get()->m_Params.m_Params.size(), std::move(functionArgsTypes), functionStatement.get()->m_ReturnTypeAnnotation.m_Type));
+  auto returnType = std::make_shared<type::Type>(type::Type(type::Base::VOID));
+  if (functionStatement.get()->m_ReturnTypeAnnotationOpt.has_value())
+  {
+    returnType = functionStatement.get()->m_ReturnTypeAnnotationOpt.value().m_Type;
+  }
+  auto functionType = std::make_shared<type::Function>(type::Function(functionStatement.get()->m_Params.m_Params.size(), std::move(functionArgsTypes), returnType));
   auto functionBind = std::make_shared<BindingFunction>(BindingFunction(functionStatement.get()->m_Position, functionStatement.get()->m_Identifier.get()->m_Position, functionStatement.get()->m_Params.m_Position, functionType, m_ModuleID));
   SaveBind(functionStatement.get()->m_Identifier.get()->m_Value, functionBind);
-
   EnterScope(ScopeType::FUNCTION);
-
   for (auto &param : functionStatement.get()->m_Params.m_Params)
   {
     if (m_Scopes.back().m_Context.Get(param.m_Identifier.get()->m_Value).has_value())
@@ -92,30 +105,42 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementFunction(std::sha
       m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, param.m_Position, m_ModuleID, DiagnosticSeverity::ERROR, std::format("duplicated param name '{}'", param.m_Identifier->m_Value), reference));
       continue;
     }
-    SaveBind(param.m_Identifier.get()->m_Value, std::make_shared<Binding>(Binding(BindType::PARAMETER, param.m_TypeAnnotation.m_Type, m_ModuleID, param.m_Position)));
+    auto paramType = std::make_shared<type::Type>(type::Type(type::Base::ANY));
+    if (param.m_AstTypeAnnotationOpt.has_value())
+    {
+      paramType = param.m_AstTypeAnnotationOpt.value().m_Type;
+    }
+    SaveBind(param.m_Identifier.get()->m_Value, std::make_shared<Binding>(Binding(BindType::PARAMETER, paramType, m_ModuleID, param.m_Position)));
   }
-
   auto blockReturnBind = CheckStatementBlock(functionStatement.get()->m_Body);
-
-  // TODO: make deep types comparison
   if (blockReturnBind.has_value())
   {
-    if (!type::MatchBaseTypes(blockReturnBind->get()->m_Type.get()->m_Base, functionStatement.get()->m_ReturnTypeAnnotation.m_Type.get()->m_Base))
+    if (type::Base::VOID == returnType.get()->m_Base)
     {
-      DiagnosticReference reference(Errno::OK, m_ModuleID, functionStatement.get()->m_ReturnTypeAnnotation.m_Position.value(), std::format("expect '{}' due to here", type::InspectBase(functionStatement.get()->m_ReturnTypeAnnotation.m_Type.get()->m_Base)));
-      m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, blockReturnBind->get()->m_Position, m_ModuleID, DiagnosticSeverity::ERROR, std::format("return type mismatch, expect '{}' but got '{}'", type::InspectBase(functionStatement.get()->m_ReturnTypeAnnotation.m_Type.get()->m_Base), type::InspectBase(blockReturnBind->get()->m_Type.get()->m_Base)), reference));
+      m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, blockReturnBind->get()->m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "void function does not accept return value"));
+    }
+    else
+    {
+      /* if the return type isn't 'void' we assume that the user explicitly wrote the return type like 'fun foo(): i32 {...}'
+       *                                                                                                           ^^^
+       */
+      auto returnTypeAnnotation = functionStatement.get()->m_ReturnTypeAnnotationOpt.value();
+      if (!type::MatchBaseTypes(returnType.get()->m_Base, blockReturnBind->get()->m_Type.get()->m_Base))
+      {
+        DiagnosticReference reference(Errno::OK, m_ModuleID, functionStatement.get()->m_ReturnTypeAnnotationOpt.value().m_Token.m_Position, std::format("expect '{}' due to here", type::InspectBase(functionStatement.get()->m_ReturnTypeAnnotationOpt.value().m_Type.get()->m_Base)));
+        m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, blockReturnBind->get()->m_Position, m_ModuleID, DiagnosticSeverity::ERROR, std::format("return type mismatch, expect '{}' but got '{}'", type::InspectBase(returnType.get()->m_Base), type::InspectBase(blockReturnBind->get()->m_Type.get()->m_Base)), reference));
+      }
     }
   }
   else
   {
-    if (!type::MatchBaseTypes(type::Base::VOID, functionStatement.get()->m_ReturnTypeAnnotation.m_Type.get()->m_Base))
+    if (!type::MatchBaseTypes(type::Base::VOID, returnType.get()->m_Base))
     {
-      m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, functionStatement.get()->m_ReturnTypeAnnotation.m_Position.value(), m_ModuleID, DiagnosticSeverity::ERROR, "non-void function doesn't have return value"));
+      Position returnTypeAnnotationPosition = functionStatement.get()->m_ReturnTypeAnnotationOpt.value().m_Token.m_Position;
+      m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, returnTypeAnnotationPosition, m_ModuleID, DiagnosticSeverity::ERROR, "non-void function doesn't have return value"));
     }
   }
-
   LeaveScope();
-
   return std::nullopt;
 }
 
@@ -170,6 +195,10 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementBlock(std::shared
     {
       returnBind = bind;
     }
+    if (type::Base::VOID == bind.get()->m_Type.get()->m_Base)
+    {
+      continue;
+    }
     m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, bind.get()->m_Position, m_ModuleID, DiagnosticSeverity::WARN, "expression results to unused value"));
   }
   return returnBind;
@@ -177,6 +206,7 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementBlock(std::shared
 
 std::optional<std::shared_ptr<Binding>> Checker::CheckStatementLet(std::shared_ptr<StatementLet> letStatement)
 {
+  // let name
   auto bindWithSameName = m_Scopes.back().m_Context.Get(letStatement.get()->m_Identifier.get()->m_Value);
   if (bindWithSameName.has_value())
   {
@@ -184,9 +214,13 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementLet(std::shared_p
     m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, letStatement.get()->m_Identifier.get()->m_Position, m_ModuleID, DiagnosticSeverity::ERROR, std::format("name '{}' already in use", letStatement.get()->m_Identifier.get()->m_Value), reference));
     return std::nullopt;
   }
-
-  auto varType = letStatement.get()->m_TypeAnnotation.m_Type;
-
+  // let type
+  auto letType = std::make_shared<type::Type>(type::Type(type::Base::ANY));
+  if (letStatement.get()->m_AstTypeAnnotation.has_value())
+  {
+    letType = letStatement.get()->m_AstTypeAnnotation.value().m_Type;
+  }
+  // let initializer
   if (letStatement.get()->m_Initializer.has_value())
   {
     auto initializerBindOpt = CheckExpression(letStatement.get()->m_Initializer.value());
@@ -195,19 +229,19 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementLet(std::shared_p
       goto defer;
     }
     auto initializerBind = initializerBindOpt.value();
-    if (type::MatchBaseTypes(letStatement.get()->m_TypeAnnotation.m_Type.get()->m_Base, initializerBind.get()->m_Type.get()->m_Base))
+    if (type::MatchBaseTypes(letType.get()->m_Base, initializerBind.get()->m_Type.get()->m_Base))
     {
-      varType = initializerBind.get()->m_Type;
+      letType = initializerBind.get()->m_Type;
     }
     else
     {
-      DiagnosticReference reference(Errno::OK, m_ModuleID, letStatement.get()->m_TypeAnnotation.m_Position.value(), std::format("expect '{}' due to here", type::InspectBase(letStatement.get()->m_TypeAnnotation.m_Type.get()->m_Base)));
-      m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, initializerBind.get()->m_Position, initializerBind.get()->m_ModuleID, DiagnosticSeverity::ERROR, std::format("expect value of type '{}' but got '{}'", type::InspectBase(letStatement.get()->m_TypeAnnotation.m_Type.get()->m_Base), type::InspectBase(initializerBind.get()->m_Type.get()->m_Base)), reference));
+      Position letTypeAnnotationPosition = letStatement.get()->m_AstTypeAnnotation.value().m_Token.m_Position;
+      DiagnosticReference reference(Errno::OK, m_ModuleID, letTypeAnnotationPosition, std::format("expect '{}' due to here", type::InspectBase(letType.get()->m_Base)));
+      m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, initializerBind.get()->m_Position, initializerBind.get()->m_ModuleID, DiagnosticSeverity::ERROR, std::format("expect value of type '{}' but got '{}'", type::InspectBase(letType.get()->m_Base), type::InspectBase(initializerBind.get()->m_Type.get()->m_Base)), reference));
     }
   }
-
 defer:
-  SaveBind(letStatement.get()->m_Identifier.get()->m_Value, std::make_shared<Binding>(Binding(BindType::VARIABLE, varType, m_ModuleID, letStatement.get()->m_Identifier.get()->m_Position)));
+  SaveBind(letStatement.get()->m_Identifier.get()->m_Value, std::make_shared<Binding>(Binding(BindType::VARIABLE, letType, m_ModuleID, letStatement.get()->m_Identifier.get()->m_Position)));
   return std::nullopt;
 }
 
@@ -270,43 +304,52 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckExpression(std::shared_ptr
 
 std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionCall(std::shared_ptr<ExpressionCall> callExpression)
 {
+  // callee
   auto calleeBindOpt = CheckExpression(callExpression.get()->m_Callee);
   if (!calleeBindOpt.has_value())
   {
     return std::nullopt;
   }
-
   auto calleeBind = calleeBindOpt.value();
   if (type::Base::FUNCTION != calleeBind.get()->m_Type.get()->m_Base)
   {
     m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, callExpression.get()->m_Callee.get()->m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "call to non-callable object"));
     return std::nullopt;
   }
-
-  auto callee = std::static_pointer_cast<type::Function>(calleeBind->m_Type);
-
-  if (callee.get()->m_IsVariadicArguments)
+  auto calleeFnType = std::static_pointer_cast<type::Function>(calleeBind->m_Type);
+  // arguments
+  if (calleeFnType.get()->m_IsVariadicArguments)
   {
-    if (callee.get()->m_ReqArgsCount > callExpression.get()->m_Arguments.size())
+    if (calleeFnType.get()->m_ReqArgsCount > callExpression.get()->m_Arguments.size())
     {
-      m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, callExpression.get()->m_ArgumentsPosition, m_ModuleID, DiagnosticSeverity::ERROR, std::format("missing required arguments, expect {} but got {}", callee.get()->m_ReqArgsCount, callExpression.get()->m_Arguments.size())));
+      m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, callExpression.get()->m_ArgumentsPosition, m_ModuleID, DiagnosticSeverity::ERROR, std::format("missing required arguments, expect {} but got {}", calleeFnType.get()->m_ReqArgsCount, callExpression.get()->m_Arguments.size())));
+      return std::nullopt;
     }
   }
-  else if (callee.get()->m_ReqArgsCount != callExpression.get()->m_Arguments.size())
+  else if (calleeFnType.get()->m_ReqArgsCount != callExpression.get()->m_Arguments.size())
   {
-    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, callExpression.get()->m_ArgumentsPosition, m_ModuleID, DiagnosticSeverity::ERROR, std::format("missing required arguments, expect {} but got {}", callee.get()->m_ReqArgsCount, callExpression.get()->m_Arguments.size())));
+    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, callExpression.get()->m_ArgumentsPosition, m_ModuleID, DiagnosticSeverity::ERROR, std::format("arguments count mismatch, expect {} but got {}", calleeFnType.get()->m_ReqArgsCount, callExpression.get()->m_Arguments.size())));
+    return std::nullopt;
   }
-
-  for (auto argument : callExpression.get()->m_Arguments)
+  for (size_t i = 0; i < callExpression.get()->m_Arguments.size(); ++i)
   {
-    auto argumentBind = CheckExpression(argument);
+    auto argumentBind = CheckExpression(callExpression.get()->m_Arguments.at(i));
     if (!argumentBind.has_value())
     {
       continue;
     }
     argumentBind.value().get()->m_IsUsed = true;
+    if (i >= calleeFnType.get()->m_Arguments.size())
+    {
+      continue;
+    }
+    if (type::MatchBaseTypes(calleeFnType.get()->m_Arguments.at(i).get()->m_Base, argumentBind.value().get()->m_Type.get()->m_Base))
+    {
+      continue;
+    }
+    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, argumentBind.value().get()->m_Position, m_ModuleID, DiagnosticSeverity::ERROR, std::format("expect argument of type '{}' but got '{}'", type::InspectBase(calleeFnType.get()->m_Arguments.at(i).get()->m_Base), type::InspectBase(argumentBind.value().get()->m_Type.get()->m_Base))));
   }
-  return std::nullopt;
+  return std::make_shared<Binding>(Binding(BindType::EXPRESSION, calleeFnType.get()->m_ReturnType, m_ModuleID, callExpression.get()->m_Position));
 }
 
 std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionIdentifier(std::shared_ptr<ExpressionIdentifier> identifierExpression)
