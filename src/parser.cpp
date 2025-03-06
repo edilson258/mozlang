@@ -115,13 +115,11 @@ Result<FunctionParams, Diagnostic> Parser::ParseFunctionParams()
     }
     auto paramIdentifier = std::make_shared<ExpressionIdentifier>(m_CurrToken.m_Position, m_CurrToken.m_Lexeme);
     Position paramPosition = Next().unwrap();
-    std::optional<AstTypeAnnotation> paramType;
+    std::optional<AstType> paramType;
     if (TokenType::COLON == m_CurrToken.m_Type)
     {
       Expect(TokenType::COLON).unwrap();
-      auto typeAnnotation = ParseTypeAnnotation().unwrap();
-      paramType = AstTypeAnnotation(m_CurrToken, typeAnnotation);
-      Next().unwrap();
+      paramType = ParseTypeAnnotation().unwrap();
     }
     params.push_back(FunctionParam(paramPosition, paramIdentifier, paramType));
 
@@ -152,13 +150,11 @@ Result<std::shared_ptr<StatementFunction>, Diagnostic> Parser::ParseStatementFun
   auto name = std::make_shared<ExpressionIdentifier>(m_CurrToken.m_Position, m_CurrToken.m_Lexeme);
   Next();
   auto paramsRes = ParseFunctionParams();
-  std::optional<AstTypeAnnotation> returnType;
+  std::optional<AstType> returnType;
   if (TokenType::COLON == m_CurrToken.m_Type)
   {
     Expect(TokenType::COLON).unwrap();
-    auto typeAnnotation = ParseTypeAnnotation().unwrap();
-    returnType = AstTypeAnnotation(m_CurrToken, typeAnnotation);
-    Next().unwrap();
+    returnType = ParseTypeAnnotation().unwrap();
   }
   if (paramsRes.is_err())
   {
@@ -202,13 +198,11 @@ Result<std::shared_ptr<StatementLet>, Diagnostic> Parser::ParseStatementLet()
   auto identifier = identifierRes.unwrap();
   position.m_End = identifier.get()->m_Position.m_End;
   // var type
-  std::optional<AstTypeAnnotation> varType;
+  std::optional<AstType> varType;
   if (TokenType::COLON == m_CurrToken.m_Type)
   {
     Expect(TokenType::COLON).unwrap();
-    auto typeAnnotation = ParseTypeAnnotation().unwrap();
-    varType = AstTypeAnnotation(m_CurrToken, typeAnnotation);
-    Next().unwrap();
+    varType = ParseTypeAnnotation().unwrap();
   }
   // init value
   std::optional<std::shared_ptr<Expression>> initializerOpt;
@@ -426,17 +420,81 @@ Result<std::shared_ptr<ExpressionIdentifier>, Diagnostic> Parser::ParseExpressio
   return Result<std::shared_ptr<ExpressionIdentifier>, Diagnostic>(identifierExpression);
 }
 
-Result<std::shared_ptr<type::Type>, Diagnostic> Parser::ParseTypeAnnotation()
+Result<AstType, Diagnostic> Parser::ParseTypeAnnotation()
 {
+  std::shared_ptr<type::Type> type;
   switch (m_CurrToken.m_Type)
   {
+  case TokenType::I8:
+    type = type::Type::make_i8();
+    break;
+  case TokenType::I16:
+    type = type::Type::make_i16();
+    break;
   case TokenType::I32:
-    return Result<std::shared_ptr<type::Type>, Diagnostic>(std::make_shared<type::Type>(type::Type(type::Base::I32)));
+    type = type::Type::make_i32();
+    break;
+  case TokenType::I64:
+    type = type::Type::make_i64();
+    break;
+  case TokenType::U8:
+    type = type::Type::make_u8();
+    break;
+  case TokenType::U16:
+    type = type::Type::make_u16();
+    break;
+  case TokenType::U32:
+    type = type::Type::make_u32();
+    break;
+  case TokenType::U64:
+    type = type::Type::make_u64();
+    break;
+  case TokenType::F8:
+    type = type::Type::make_f8();
+    break;
+  case TokenType::F16:
+    type = type::Type::make_f16();
+    break;
+  case TokenType::F32:
+    type = type::Type::make_f32();
+    break;
+  case TokenType::F64:
+    type = type::Type::make_f64();
+    break;
+  case TokenType::VOID:
+    type = type::Type::make_void();
+    break;
   case TokenType::STRING_T:
-    return Result<std::shared_ptr<type::Type>, Diagnostic>(std::make_shared<type::Type>(type::Type(type::Base::STRING)));
+    type = type::Type::make_string();
+    break;
+  case TokenType::FUN:
+    return ParseTypeAnnotationFunction();
   default:
-    return Result<std::shared_ptr<type::Type>, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, m_CurrToken.m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "expect type annotation, try 'i32', 'string', ..."));
+    return Result<AstType, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, m_CurrToken.m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "expect type annotation, try 'i32', 'string', ..."));
   }
+  Position position = Next().unwrap();
+  return Result<AstType, Diagnostic>(AstType(position, type));
+}
+
+Result<AstType, Diagnostic> Parser::ParseTypeAnnotationFunction()
+{
+  Position position = Expect(TokenType::FUN).unwrap();
+  Expect(TokenType::LPAREN).unwrap();
+  std::vector<std::shared_ptr<type::Type>> argsTypes;
+  while (!IsEof() && TokenType::RPAREN != m_CurrToken.m_Type)
+  {
+    auto typeRes = ParseTypeAnnotation();
+    if (typeRes.is_err())
+    {
+      return Result<AstType, Diagnostic>(typeRes.unwrap_err());
+    }
+    argsTypes.push_back(typeRes.unwrap().m_Type);
+  }
+  Expect(TokenType::RPAREN).unwrap();
+  Expect(TokenType::ARROW).unwrap();
+  auto returnType = ParseTypeAnnotation().unwrap().m_Type;
+  auto functionType = std::make_shared<type::Function>(type::Function(argsTypes.size(), std::move(argsTypes), returnType));
+  return Result<AstType, Diagnostic>(AstType(position, functionType));
 }
 
 Result<Position, Diagnostic> Parser::Next()

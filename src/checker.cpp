@@ -89,9 +89,9 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementFunction(std::sha
     }
   }
   auto returnType = std::make_shared<type::Type>(type::Type(type::Base::VOID));
-  if (functionStatement.get()->m_ReturnTypeAnnotationOpt.has_value())
+  if (functionStatement.get()->m_ReturnTypeOpt.has_value())
   {
-    returnType = functionStatement.get()->m_ReturnTypeAnnotationOpt.value().m_Type;
+    returnType = functionStatement.get()->m_ReturnTypeOpt.value().m_Type;
   }
   auto functionType = std::make_shared<type::Function>(type::Function(functionStatement.get()->m_Params.m_Params.size(), std::move(functionArgsTypes), returnType));
   auto functionBind = std::make_shared<BindingFunction>(BindingFunction(functionStatement.get()->m_Position, functionStatement.get()->m_Identifier.get()->m_Position, functionStatement.get()->m_Params.m_Position, functionType, m_ModuleID));
@@ -121,23 +121,20 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementFunction(std::sha
     }
     else
     {
-      /* if the return type isn't 'void' we assume that the user explicitly wrote the return type like 'fun foo(): i32 {...}'
-       *                                                                                                           ^^^
-       */
-      auto returnTypeAnnotation = functionStatement.get()->m_ReturnTypeAnnotationOpt.value();
-      if (!type::MatchBaseTypes(returnType.get()->m_Base, blockReturnBind->get()->m_Type.get()->m_Base))
+      auto returnTypeAnnotation = functionStatement.get()->m_ReturnTypeOpt.value();
+      if (!returnType.get()->IsCompatibleWith(blockReturnBind.value().get()->m_Type))
       {
-        DiagnosticReference reference(Errno::OK, m_ModuleID, functionStatement.get()->m_ReturnTypeAnnotationOpt.value().m_Token.m_Position, std::format("expect '{}' due to here", type::InspectBase(functionStatement.get()->m_ReturnTypeAnnotationOpt.value().m_Type.get()->m_Base)));
-        m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, blockReturnBind->get()->m_Position, m_ModuleID, DiagnosticSeverity::ERROR, std::format("return type mismatch, expect '{}' but got '{}'", type::InspectBase(returnType.get()->m_Base), type::InspectBase(blockReturnBind->get()->m_Type.get()->m_Base)), reference));
+        DiagnosticReference reference(Errno::OK, m_ModuleID, functionStatement.get()->m_ReturnTypeOpt.value().m_Position, std::format("expect '{}' due to here", returnType.get()->Inspect()));
+        m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, blockReturnBind->get()->m_Position, m_ModuleID, DiagnosticSeverity::ERROR, std::format("return type mismatch, expect '{}' but got '{}'", returnType.get()->Inspect(), blockReturnBind.value().get()->m_Type.get()->Inspect()), reference));
       }
     }
   }
   else
   {
-    if (!type::MatchBaseTypes(type::Base::VOID, returnType.get()->m_Base))
+    if (type::Base::VOID != returnType.get()->m_Base)
     {
-      Position returnTypeAnnotationPosition = functionStatement.get()->m_ReturnTypeAnnotationOpt.value().m_Token.m_Position;
-      m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, returnTypeAnnotationPosition, m_ModuleID, DiagnosticSeverity::ERROR, "non-void function doesn't have return value"));
+      Position returnTypeAnnotationPosition = functionStatement.get()->m_ReturnTypeOpt.value().m_Position;
+      m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, returnTypeAnnotationPosition, m_ModuleID, DiagnosticSeverity::ERROR, "missing return value for non-void function"));
     }
   }
   LeaveScope();
@@ -216,9 +213,9 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementLet(std::shared_p
   }
   // let type
   auto letType = std::make_shared<type::Type>(type::Type(type::Base::ANY));
-  if (letStatement.get()->m_AstTypeAnnotation.has_value())
+  if (letStatement.get()->m_AstType.has_value())
   {
-    letType = letStatement.get()->m_AstTypeAnnotation.value().m_Type;
+    letType = letStatement.get()->m_AstType.value().m_Type;
   }
   // let initializer
   if (letStatement.get()->m_Initializer.has_value())
@@ -229,15 +226,15 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementLet(std::shared_p
       goto defer;
     }
     auto initializerBind = initializerBindOpt.value();
-    if (type::MatchBaseTypes(letType.get()->m_Base, initializerBind.get()->m_Type.get()->m_Base))
+    if (letType.get()->IsCompatibleWith(initializerBind.get()->m_Type))
     {
       letType = initializerBind.get()->m_Type;
     }
     else
     {
-      Position letTypeAnnotationPosition = letStatement.get()->m_AstTypeAnnotation.value().m_Token.m_Position;
-      DiagnosticReference reference(Errno::OK, m_ModuleID, letTypeAnnotationPosition, std::format("expect '{}' due to here", type::InspectBase(letType.get()->m_Base)));
-      m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, initializerBind.get()->m_Position, initializerBind.get()->m_ModuleID, DiagnosticSeverity::ERROR, std::format("expect value of type '{}' but got '{}'", type::InspectBase(letType.get()->m_Base), type::InspectBase(initializerBind.get()->m_Type.get()->m_Base)), reference));
+      Position letTypeAnnotationPosition = letStatement.get()->m_AstType.value().m_Position;
+      DiagnosticReference reference(Errno::OK, m_ModuleID, letTypeAnnotationPosition, std::format("expect '{}' due to here", letType.get()->Inspect()));
+      m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, initializerBind.get()->m_Position, initializerBind.get()->m_ModuleID, DiagnosticSeverity::ERROR, std::format("expect value of type '{}' but got '{}'", letType.get()->Inspect(), initializerBind.get()->m_Type.get()->Inspect()), reference));
     }
   }
 defer:
@@ -343,11 +340,11 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionCall(std::shared
     {
       continue;
     }
-    if (type::MatchBaseTypes(calleeFnType.get()->m_Arguments.at(i).get()->m_Base, argumentBind.value().get()->m_Type.get()->m_Base))
+    if (calleeFnType.get()->m_Arguments.at(i).get()->IsCompatibleWith(argumentBind.value().get()->m_Type))
     {
       continue;
     }
-    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, argumentBind.value().get()->m_Position, m_ModuleID, DiagnosticSeverity::ERROR, std::format("expect argument of type '{}' but got '{}'", type::InspectBase(calleeFnType.get()->m_Arguments.at(i).get()->m_Base), type::InspectBase(argumentBind.value().get()->m_Type.get()->m_Base))));
+    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, argumentBind.value().get()->m_Position, m_ModuleID, DiagnosticSeverity::ERROR, std::format("expect argument of type '{}' but got '{}'", calleeFnType.get()->m_Arguments.at(i).get()->Inspect(), argumentBind.value().get()->m_Type.get()->Inspect())));
   }
   return std::make_shared<Binding>(Binding(BindType::EXPRESSION, calleeFnType.get()->m_ReturnType, m_ModuleID, callExpression.get()->m_Position));
 }
@@ -382,9 +379,9 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionAssign(std::shar
   }
   auto valueBind = valueBindOpt.value();
   // match types
-  if (!type::MatchBaseTypes(assigneeBind.get()->m_Type.get()->m_Base, valueBind.get()->m_Type.get()->m_Base))
+  if (!assigneeBind.get()->m_Type.get()->IsCompatibleWith(valueBind.get()->m_Type))
   {
-    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, valueBind.get()->m_Position, valueBind.get()->m_ModuleID, DiagnosticSeverity::ERROR, std::format("expect value of type '{}' but got '{}'", type::InspectBase(assigneeBind.get()->m_Type.get()->m_Base), type::InspectBase(valueBind.get()->m_Type.get()->m_Base))));
+    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, valueBind.get()->m_Position, valueBind.get()->m_ModuleID, DiagnosticSeverity::ERROR, std::format("expect value of type '{}' but got '{}'", assigneeBind.get()->m_Type.get()->Inspect(), valueBind.get()->m_Type.get()->Inspect())));
     return std::nullopt;
   }
   // narrow types

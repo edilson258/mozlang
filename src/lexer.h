@@ -32,4 +32,5 @@ private:
 
   Result<Token, Diagnostic> MakeTokenString();
   Result<Token, Diagnostic> MakeTokenSimple(TokenType);
+  Result<Token, Diagnostic> MakeIfNextCharOr(char, TokenType, TokenType);
 };

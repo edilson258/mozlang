@@ -37,5 +37,6 @@ private:
   Result<std::shared_ptr<ExpressionFieldAccess>, Diagnostic> ParseExpressionFieldAccess(std::shared_ptr<Expression>);
 
   Result<FunctionParams, Diagnostic> ParseFunctionParams();
-  Result<std::shared_ptr<type::Type>, Diagnostic> ParseTypeAnnotation();
+  Result<AstType, Diagnostic> ParseTypeAnnotation();
+  Result<AstType, Diagnostic> ParseTypeAnnotationFunction();
 };

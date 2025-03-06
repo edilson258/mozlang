@@ -17,8 +17,25 @@ enum class TokenType
   FROM,
 
   // Types
-  I32,
+  VOID,
   STRING_T,
+  BYTE,
+  // numbers
+  // signed integers
+  I8,
+  I16,
+  I32,
+  I64,
+  // unsigned integers
+  U8,
+  U16,
+  U32,
+  U64,
+  // floating numbers
+  F8,
+  F16,
+  F32,
+  F64,
 
   // Punctuation
   COMMA,
@@ -30,8 +47,13 @@ enum class TokenType
   EQUAL,
   SEMICOLON,
   DOT,
+  ARROW, // ->
 
-  PLUS,
+  // arithmetic
+  PLUS,     // +
+  MINUS,    // -
+  ASTERISK, // *
+  SLASH,    // /
 };
 
 class Position

@@ -1,5 +1,5 @@
-fun say_hello(name: i32) {
-  println("Hello, {}!", name);
+fun say_hello(name: fun() -> void) {
+  name();
 }
 
 let name;
