@@ -115,14 +115,15 @@ Result<FunctionParams, Diagnostic> Parser::ParseFunctionParams()
     }
     auto paramIdentifier = std::make_shared<ExpressionIdentifier>(m_CurrToken.m_Position, m_CurrToken.m_Lexeme);
     Position paramPosition = Next().unwrap();
-    TypeAnnotationToken typeAnnotation(std::nullopt, std::make_shared<type::Type>(type::Type(type::Base::ANY)));
+    std::optional<AstTypeAnnotation> paramType;
     if (TokenType::COLON == m_CurrToken.m_Type)
     {
       Expect(TokenType::COLON).unwrap();
-      typeAnnotation.m_Type = ParseTypeAnnotation().unwrap();
-      typeAnnotation.m_Position = Next().unwrap();
+      auto typeAnnotation = ParseTypeAnnotation().unwrap();
+      paramType = AstTypeAnnotation(m_CurrToken, typeAnnotation);
+      Next().unwrap();
     }
-    params.push_back(FunctionParam(paramPosition, paramIdentifier, typeAnnotation));
+    params.push_back(FunctionParam(paramPosition, paramIdentifier, paramType));
 
     if (TokenType::RPAREN != m_CurrToken.m_Type)
     {
@@ -151,12 +152,13 @@ Result<std::shared_ptr<StatementFunction>, Diagnostic> Parser::ParseStatementFun
   auto name = std::make_shared<ExpressionIdentifier>(m_CurrToken.m_Position, m_CurrToken.m_Lexeme);
   Next();
   auto paramsRes = ParseFunctionParams();
-  TypeAnnotationToken typeAnnotation(std::nullopt, std::make_shared<type::Type>(type::Type(type::Base::ANY)));
+  std::optional<AstTypeAnnotation> returnType;
   if (TokenType::COLON == m_CurrToken.m_Type)
   {
     Expect(TokenType::COLON).unwrap();
-    typeAnnotation.m_Type = ParseTypeAnnotation().unwrap();
-    typeAnnotation.m_Position = Next().unwrap();
+    auto typeAnnotation = ParseTypeAnnotation().unwrap();
+    returnType = AstTypeAnnotation(m_CurrToken, typeAnnotation);
+    Next().unwrap();
   }
   if (paramsRes.is_err())
   {
@@ -168,7 +170,7 @@ Result<std::shared_ptr<StatementFunction>, Diagnostic> Parser::ParseStatementFun
     return Result<std::shared_ptr<StatementFunction>, Diagnostic>(bodyRes.unwrap_err());
   }
   position.m_End = bodyRes.unwrap().get()->m_Position.m_End;
-  return Result<std::shared_ptr<StatementFunction>, Diagnostic>(std::make_shared<StatementFunction>(StatementFunction(position, name, paramsRes.unwrap(), bodyRes.unwrap(), typeAnnotation)));
+  return Result<std::shared_ptr<StatementFunction>, Diagnostic>(std::make_shared<StatementFunction>(StatementFunction(position, name, paramsRes.unwrap(), bodyRes.unwrap(), returnType)));
 }
 
 Result<std::shared_ptr<StatementBlock>, Diagnostic> Parser::ParseStatementBlock()
@@ -200,12 +202,13 @@ Result<std::shared_ptr<StatementLet>, Diagnostic> Parser::ParseStatementLet()
   auto identifier = identifierRes.unwrap();
   position.m_End = identifier.get()->m_Position.m_End;
   // var type
-  TypeAnnotationToken typeAnnotation(std::nullopt, std::make_shared<type::Type>(type::Type(type::Base::ANY)));
+  std::optional<AstTypeAnnotation> varType;
   if (TokenType::COLON == m_CurrToken.m_Type)
   {
     Expect(TokenType::COLON).unwrap();
-    typeAnnotation.m_Type = ParseTypeAnnotation().unwrap();
-    typeAnnotation.m_Position = Next().unwrap();
+    auto typeAnnotation = ParseTypeAnnotation().unwrap();
+    varType = AstTypeAnnotation(m_CurrToken, typeAnnotation);
+    Next().unwrap();
   }
   // init value
   std::optional<std::shared_ptr<Expression>> initializerOpt;
@@ -221,7 +224,7 @@ Result<std::shared_ptr<StatementLet>, Diagnostic> Parser::ParseStatementLet()
     position.m_End = initializerOpt.value().get()->m_Position.m_End;
   }
   Expect(TokenType::SEMICOLON).unwrap();
-  return Result<std::shared_ptr<StatementLet>, Diagnostic>(std::make_shared<StatementLet>(StatementLet(position, identifier, typeAnnotation, initializerOpt)));
+  return Result<std::shared_ptr<StatementLet>, Diagnostic>(std::make_shared<StatementLet>(StatementLet(position, identifier, varType, initializerOpt)));
 }
 
 Result<std::shared_ptr<StatementImport>, Diagnostic> Parser::ParseStatementImport()

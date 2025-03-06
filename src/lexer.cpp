@@ -96,7 +96,7 @@ Result<Token, Diagnostic> Lexer::MakeTokenString()
   size_t len = m_Cursor - at;
   Advance();
 
-  return Result<Token, Diagnostic>(Token(Position(m_Line, atColumn, at, m_Cursor - 1), TokenType::STRING, m_ModuleContent.substr(at, len)));
+  return Result<Token, Diagnostic>(Token(Position(m_Line, atColumn, at - 1, m_Cursor - 1), TokenType::STRING, m_ModuleContent.substr(at, len)));
 }
 
 bool Lexer::IsEof()

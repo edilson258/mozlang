@@ -68,13 +68,13 @@ public:
   StatementReturn(Position position, std::optional<std::shared_ptr<class Expression>> value, StatementReturnType type = StatementReturnType::EXPLICITY) : Statement(position, StatementType::RETURN), m_Value(value), m_Type(type) {};
 };
 
-class TypeAnnotationToken
+class AstTypeAnnotation
 {
 public:
-  std::optional<Position> m_Position;
+  Token m_Token;
   std::shared_ptr<type::Type> m_Type;
 
-  TypeAnnotationToken(std::optional<Position> position, std::shared_ptr<type::Type> returnType) : m_Position(position), m_Type(returnType) {};
+  AstTypeAnnotation(Token token, std::shared_ptr<type::Type> type) : m_Token(token), m_Type(type) {};
 };
 
 class FunctionParam
@@ -82,9 +82,9 @@ class FunctionParam
 public:
   Position m_Position;
   std::shared_ptr<class ExpressionIdentifier> m_Identifier;
-  TypeAnnotationToken m_TypeAnnotation;
+  std::optional<AstTypeAnnotation> m_AstTypeAnnotationOpt;
 
-  FunctionParam(Position position, std::shared_ptr<class ExpressionIdentifier> identifier, TypeAnnotationToken typeAnnotation) : m_Position(position), m_Identifier(identifier), m_TypeAnnotation(typeAnnotation) {};
+  FunctionParam(Position position, std::shared_ptr<class ExpressionIdentifier> identifier, std::optional<AstTypeAnnotation> astTypeAnnotation) : m_Position(position), m_Identifier(identifier), m_AstTypeAnnotationOpt(astTypeAnnotation) {};
 };
 
 class FunctionParams
@@ -102,19 +102,19 @@ public:
   FunctionParams m_Params;
   std::shared_ptr<StatementBlock> m_Body;
   std::shared_ptr<class ExpressionIdentifier> m_Identifier;
-  TypeAnnotationToken m_ReturnTypeAnnotation;
+  std::optional<AstTypeAnnotation> m_ReturnTypeAnnotationOpt;
 
-  StatementFunction(Position position, std::shared_ptr<class ExpressionIdentifier> identifier, FunctionParams params, std::shared_ptr<StatementBlock> body, TypeAnnotationToken typeAnnotationToken) : Statement(position, StatementType::FUNCTION), m_Params(params), m_Body(body), m_Identifier(identifier), m_ReturnTypeAnnotation(typeAnnotationToken) {};
+  StatementFunction(Position position, std::shared_ptr<class ExpressionIdentifier> identifier, FunctionParams params, std::shared_ptr<StatementBlock> body, std::optional<AstTypeAnnotation> returnTypeAnnotation) : Statement(position, StatementType::FUNCTION), m_Params(params), m_Body(body), m_Identifier(identifier), m_ReturnTypeAnnotationOpt(returnTypeAnnotation) {};
 };
 
 class StatementLet : public Statement
 {
 public:
   std::shared_ptr<class ExpressionIdentifier> m_Identifier;
-  TypeAnnotationToken m_TypeAnnotation;
+  std::optional<AstTypeAnnotation> m_AstTypeAnnotation;
   std::optional<std::shared_ptr<class Expression>> m_Initializer;
 
-  StatementLet(Position position, std::shared_ptr<class ExpressionIdentifier> identifier, TypeAnnotationToken typeAnnotation, std::optional<std::shared_ptr<class Expression>> initializer) : Statement(position, StatementType::LET), m_Identifier(identifier), m_TypeAnnotation(typeAnnotation), m_Initializer(initializer) {};
+  StatementLet(Position position, std::shared_ptr<class ExpressionIdentifier> identifier, std::optional<AstTypeAnnotation> typeAnnotation, std::optional<std::shared_ptr<class Expression>> initializer) : Statement(position, StatementType::LET), m_Identifier(identifier), m_AstTypeAnnotation(typeAnnotation), m_Initializer(initializer) {};
 };
 
 class StatementImport : public Statement
