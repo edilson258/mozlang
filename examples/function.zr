@@ -7,7 +7,7 @@ fun baz(): void
 {
 }
 
-fun bar(predicate: fun(char): bool): fun(): void {
+fun bar(predicate: fun(char) -> bool): fun() -> void {
   x;
   println(x);
   bar

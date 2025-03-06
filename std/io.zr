@@ -1,0 +1,1 @@
+pub fun println(format: string, ...): void;

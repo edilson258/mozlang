@@ -17,13 +17,11 @@
 std::vector<Diagnostic> Checker::Check()
 {
   EnterScope(ScopeType::GLOBAL);
-
   auto printlnArgs = {std::make_shared<type::Type>(type::Base::F_STRING)};
   auto printlnType = std::make_shared<type::Function>(type::Function(0, std::move(printlnArgs), std::make_shared<type::Type>(type::Base::VOID), true));
   // TODO: module ID
   auto printlnBind = std::make_shared<BindingFunction>(Position(), Position(), Position(), printlnType, 0, true);
   SaveBind("println", printlnBind);
-
   std::vector<std::shared_ptr<Binding>> statementsBinds = {};
   for (auto statement : m_Ast.m_Program)
   {
@@ -41,9 +39,7 @@ std::vector<Diagnostic> Checker::Check()
     }
     m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, bind.get()->m_Position, bind.get()->m_ModuleID, DiagnosticSeverity::WARN, "expression results to unused value"));
   }
-
   LeaveScope();
-
   return std::move(m_Diagnostics);
 }
 
@@ -94,7 +90,7 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementFunction(std::sha
     returnType = functionStatement.get()->m_ReturnTypeOpt.value().m_Type;
   }
   auto functionType = std::make_shared<type::Function>(type::Function(functionStatement.get()->m_Params.m_Params.size(), std::move(functionArgsTypes), returnType));
-  auto functionBind = std::make_shared<BindingFunction>(BindingFunction(functionStatement.get()->m_Position, functionStatement.get()->m_Identifier.get()->m_Position, functionStatement.get()->m_Params.m_Position, functionType, m_ModuleID));
+  auto functionBind = std::make_shared<BindingFunction>(BindingFunction(functionStatement.get()->m_Position, functionStatement.get()->m_Identifier.get()->m_Position, functionStatement.get()->m_Params.m_Position, functionType, m_ModuleID, false, functionStatement.get()->m_IsPublic));
   SaveBind(functionStatement.get()->m_Identifier.get()->m_Value, functionBind);
   EnterScope(ScopeType::FUNCTION);
   for (auto &param : functionStatement.get()->m_Params.m_Params)
@@ -238,7 +234,7 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementLet(std::shared_p
     }
   }
 defer:
-  SaveBind(letStatement.get()->m_Identifier.get()->m_Value, std::make_shared<Binding>(Binding(BindType::VARIABLE, letType, m_ModuleID, letStatement.get()->m_Identifier.get()->m_Position)));
+  SaveBind(letStatement.get()->m_Identifier.get()->m_Value, std::make_shared<Binding>(Binding(BindType::VARIABLE, letType, m_ModuleID, letStatement.get()->m_Identifier.get()->m_Position, false, letStatement.get()->m_IsPublic)));
   return std::nullopt;
 }
 
@@ -429,7 +425,7 @@ void Checker::LeaveScope()
 {
   for (auto &bind : m_Scopes.back().m_Context.Store)
   {
-    if (bind.second.get()->m_IsUsed || bind.first.starts_with('_'))
+    if (bind.second.get()->m_IsUsed || bind.first.starts_with('_') || bind.second.get()->m_IsPublic)
     {
       continue;
     }
@@ -457,7 +453,10 @@ void Checker::LeaveScope()
   {
     for (auto &pair : m_Scopes.back().m_Context.Store)
     {
-      m_OutContext.get()->Store[pair.first] = pair.second;
+      if (pair.second.get()->m_IsPublic)
+      {
+        m_OutContext.get()->Store[pair.first] = pair.second;
+      }
     }
   }
 

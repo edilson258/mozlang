@@ -27,8 +27,9 @@ public:
   Position m_Position;
   std::shared_ptr<type::Type> m_Type;
   bool m_IsUsed;
+  bool m_IsPublic;
 
-  Binding(BindType bindType, std::shared_ptr<type::Type> type, ModuleID moduleID, Position pos, bool isUsed = false) : m_BindType(bindType), m_ModuleID(moduleID), m_Position(pos), m_Type(type), m_IsUsed(isUsed) {}
+  Binding(BindType bindType, std::shared_ptr<type::Type> type, ModuleID moduleID, Position pos, bool isUsed = false, bool isPublic = false) : m_BindType(bindType), m_ModuleID(moduleID), m_Position(pos), m_Type(type), m_IsUsed(isUsed), m_IsPublic(isPublic) {}
 };
 
 class BindingFunction : public Binding
@@ -37,7 +38,7 @@ public:
   Position NamePosition;
   Position ParamsPosition;
 
-  BindingFunction(Position position, Position namePosition, Position paramsPosition, std::shared_ptr<type::Function> functionType, ModuleID moduleID, bool used = false) : Binding(BindType::FUNCTION, functionType, moduleID, position, used), NamePosition(namePosition), ParamsPosition(paramsPosition) {};
+  BindingFunction(Position position, Position namePosition, Position paramsPosition, std::shared_ptr<type::Function> functionType, ModuleID moduleID, bool used = false, bool isPublic = false) : Binding(BindType::FUNCTION, functionType, moduleID, position, used, isPublic), NamePosition(namePosition), ParamsPosition(paramsPosition) {};
 };
 
 class BindingModule : public Binding

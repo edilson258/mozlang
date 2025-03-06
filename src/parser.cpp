@@ -35,9 +35,20 @@ Result<AST, Diagnostic> Parser::Parse()
 
 Result<std::shared_ptr<Statement>, Diagnostic> Parser::ParseStatement()
 {
+  bool isPub = false;
+  if (TokenType::PUB == m_CurrToken.m_Type)
+  {
+    Next().unwrap();
+    if (TokenType::LET != m_CurrToken.m_Type && TokenType::FUN != m_CurrToken.m_Type)
+    {
+      return Result<std::shared_ptr<Statement>, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, m_CurrToken.m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "expected 'let' or 'fun' after 'pub'"));
+    }
+    isPub = true;
+  }
+
   if (TokenType::FUN == m_CurrToken.m_Type)
   {
-    auto result = ParseStatementFunction();
+    auto result = ParseStatementFunction(isPub);
     if (result.is_err())
     {
       return Result<std::shared_ptr<Statement>, Diagnostic>(result.unwrap_err());
@@ -57,7 +68,7 @@ Result<std::shared_ptr<Statement>, Diagnostic> Parser::ParseStatement()
 
   if (TokenType::LET == m_CurrToken.m_Type)
   {
-    auto result = ParseStatementLet();
+    auto result = ParseStatementLet(isPub);
     if (result.is_err())
     {
       return Result<std::shared_ptr<Statement>, Diagnostic>(result.unwrap_err());
@@ -140,7 +151,7 @@ Result<FunctionParams, Diagnostic> Parser::ParseFunctionParams()
   return Result<FunctionParams, Diagnostic>(FunctionParams(position, std::move(params)));
 }
 
-Result<std::shared_ptr<StatementFunction>, Diagnostic> Parser::ParseStatementFunction()
+Result<std::shared_ptr<StatementFunction>, Diagnostic> Parser::ParseStatementFunction(bool isPub)
 {
   Position position = Expect(TokenType::FUN).unwrap();
   if (TokenType::IDENTIFIER != m_CurrToken.m_Type)
@@ -166,7 +177,7 @@ Result<std::shared_ptr<StatementFunction>, Diagnostic> Parser::ParseStatementFun
     return Result<std::shared_ptr<StatementFunction>, Diagnostic>(bodyRes.unwrap_err());
   }
   position.m_End = bodyRes.unwrap().get()->m_Position.m_End;
-  return Result<std::shared_ptr<StatementFunction>, Diagnostic>(std::make_shared<StatementFunction>(StatementFunction(position, name, paramsRes.unwrap(), bodyRes.unwrap(), returnType)));
+  return Result<std::shared_ptr<StatementFunction>, Diagnostic>(std::make_shared<StatementFunction>(StatementFunction(position, name, paramsRes.unwrap(), bodyRes.unwrap(), returnType, isPub)));
 }
 
 Result<std::shared_ptr<StatementBlock>, Diagnostic> Parser::ParseStatementBlock()
@@ -186,7 +197,7 @@ Result<std::shared_ptr<StatementBlock>, Diagnostic> Parser::ParseStatementBlock(
   return Result<std::shared_ptr<StatementBlock>, Diagnostic>(std::make_shared<StatementBlock>(position, std::move(statements)));
 }
 
-Result<std::shared_ptr<StatementLet>, Diagnostic> Parser::ParseStatementLet()
+Result<std::shared_ptr<StatementLet>, Diagnostic> Parser::ParseStatementLet(bool isPub)
 {
   Position position = Expect(TokenType::LET).unwrap();
   // var name
@@ -218,7 +229,7 @@ Result<std::shared_ptr<StatementLet>, Diagnostic> Parser::ParseStatementLet()
     position.m_End = initializerOpt.value().get()->m_Position.m_End;
   }
   Expect(TokenType::SEMICOLON).unwrap();
-  return Result<std::shared_ptr<StatementLet>, Diagnostic>(std::make_shared<StatementLet>(StatementLet(position, identifier, varType, initializerOpt)));
+  return Result<std::shared_ptr<StatementLet>, Diagnostic>(std::make_shared<StatementLet>(StatementLet(position, identifier, varType, initializerOpt, isPub)));
 }
 
 Result<std::shared_ptr<StatementImport>, Diagnostic> Parser::ParseStatementImport()

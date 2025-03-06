@@ -24,10 +24,10 @@ private:
   Result<Position, Diagnostic> Expect(TokenType);
 
   Result<std::shared_ptr<Statement>, Diagnostic> ParseStatement();
-  Result<std::shared_ptr<StatementFunction>, Diagnostic> ParseStatementFunction();
+  Result<std::shared_ptr<StatementFunction>, Diagnostic> ParseStatementFunction(bool isPub = false);
   Result<std::shared_ptr<StatementReturn>, Diagnostic> ParseStatementReturn();
   Result<std::shared_ptr<StatementBlock>, Diagnostic> ParseStatementBlock();
-  Result<std::shared_ptr<StatementLet>, Diagnostic> ParseStatementLet();
+  Result<std::shared_ptr<StatementLet>, Diagnostic> ParseStatementLet(bool isPub = false);
   Result<std::shared_ptr<StatementImport>, Diagnostic> ParseStatementImport();
   Result<std::shared_ptr<Expression>, Diagnostic> ParseExpression(Precedence);
   Result<std::shared_ptr<Expression>, Diagnostic> ParseExpressionPrimary();
