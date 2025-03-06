@@ -1,0 +1,4 @@
+import foo from "examples/foo.zr";
+
+foo.say_hello("World");
+println("The value of PI is {}", foo.PI);

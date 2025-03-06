@@ -1,0 +1,5 @@
+pub fun say_hello(name: i32): void {
+  println("Hello, {}!", name);
+}
+
+let PI = "3.141592653589793";

@@ -103,8 +103,9 @@ public:
   std::shared_ptr<StatementBlock> m_Body;
   std::shared_ptr<class ExpressionIdentifier> m_Identifier;
   std::optional<AstType> m_ReturnTypeOpt;
+  bool m_IsPublic;
 
-  StatementFunction(Position position, std::shared_ptr<class ExpressionIdentifier> identifier, FunctionParams params, std::shared_ptr<StatementBlock> body, std::optional<AstType> returnTypeAnnotation) : Statement(position, StatementType::FUNCTION), m_Params(params), m_Body(body), m_Identifier(identifier), m_ReturnTypeOpt(returnTypeAnnotation) {};
+  StatementFunction(Position position, std::shared_ptr<class ExpressionIdentifier> identifier, FunctionParams params, std::shared_ptr<StatementBlock> body, std::optional<AstType> returnTypeAnnotation, bool isPublic) : Statement(position, StatementType::FUNCTION), m_Params(params), m_Body(body), m_Identifier(identifier), m_ReturnTypeOpt(returnTypeAnnotation), m_IsPublic(isPublic) {};
 };
 
 class StatementLet : public Statement
@@ -113,8 +114,9 @@ public:
   std::shared_ptr<class ExpressionIdentifier> m_Identifier;
   std::optional<AstType> m_AstType;
   std::optional<std::shared_ptr<class Expression>> m_Initializer;
+  bool m_IsPublic;
 
-  StatementLet(Position position, std::shared_ptr<class ExpressionIdentifier> identifier, std::optional<AstType> typeAnnotation, std::optional<std::shared_ptr<class Expression>> initializer) : Statement(position, StatementType::LET), m_Identifier(identifier), m_AstType(typeAnnotation), m_Initializer(initializer) {};
+  StatementLet(Position position, std::shared_ptr<class ExpressionIdentifier> identifier, std::optional<AstType> typeAnnotation, std::optional<std::shared_ptr<class Expression>> initializer, bool isPublic) : Statement(position, StatementType::LET), m_Identifier(identifier), m_AstType(typeAnnotation), m_Initializer(initializer), m_IsPublic(isPublic) {};
 };
 
 class StatementImport : public Statement
