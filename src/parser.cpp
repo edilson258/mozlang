@@ -3,6 +3,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "ast.h"
@@ -17,7 +18,7 @@ Result<AST, Diagnostic> Parser::Parse()
   Next().unwrap();
   Next().unwrap();
 
-  AST ast(m_ModuleID);
+  AST ast;
   while (!IsEof())
   {
     auto stmtRes = ParseStatement();
@@ -35,20 +36,14 @@ Result<AST, Diagnostic> Parser::Parse()
 
 Result<std::shared_ptr<Statement>, Diagnostic> Parser::ParseStatement()
 {
-  bool isPub = false;
-  if (TokenType::PUB == m_CurrToken.m_Type)
+  if (TokenType::PUB == m_CurrToken.m_Type && (TokenType::LET != m_NextToken.m_Type && TokenType::FUN != m_NextToken.m_Type))
   {
-    Next().unwrap();
-    if (TokenType::LET != m_CurrToken.m_Type && TokenType::FUN != m_CurrToken.m_Type)
-    {
-      return Result<std::shared_ptr<Statement>, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, m_CurrToken.m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "expected 'let' or 'fun' after 'pub'"));
-    }
-    isPub = true;
+    return Result<std::shared_ptr<Statement>, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, m_CurrToken.m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "expected 'let' or 'fun' after 'pub'"));
   }
 
-  if (TokenType::FUN == m_CurrToken.m_Type)
+  if (TokenType::FUN == m_CurrToken.m_Type || (TokenType::PUB == m_CurrToken.m_Type && TokenType::FUN == m_NextToken.m_Type))
   {
-    auto result = ParseStatementFunction(isPub);
+    auto result = ParseStatementFunction();
     if (result.is_err())
     {
       return Result<std::shared_ptr<Statement>, Diagnostic>(result.unwrap_err());
@@ -66,9 +61,9 @@ Result<std::shared_ptr<Statement>, Diagnostic> Parser::ParseStatement()
     return Result<std::shared_ptr<Statement>, Diagnostic>(result.unwrap());
   }
 
-  if (TokenType::LET == m_CurrToken.m_Type)
+  if (TokenType::LET == m_CurrToken.m_Type || (TokenType::PUB == m_CurrToken.m_Type && TokenType::LET == m_NextToken.m_Type))
   {
-    auto result = ParseStatementLet(isPub);
+    auto result = ParseStatementLet();
     if (result.is_err())
     {
       return Result<std::shared_ptr<Statement>, Diagnostic>(result.unwrap_err());
@@ -102,9 +97,9 @@ Result<std::shared_ptr<Statement>, Diagnostic> Parser::ParseStatement()
   {
     if (TokenType::RBRACE != m_CurrToken.m_Type)
     {
-      return Result<std::shared_ptr<Statement>, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, expression.get()->m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "implicity return expression must be the last in a block, insert ';' at end"));
+      return Result<std::shared_ptr<Statement>, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, expression.get()->GetPosition(), m_ModuleID, DiagnosticSeverity::ERROR, "implicity return expression must be the last in a block, insert ';' at end"));
     }
-    return Result<std::shared_ptr<Statement>, Diagnostic>(std::make_shared<StatementReturn>(StatementReturn(expression->m_Position, expression, StatementReturnType::IMPLICITY)));
+    return Result<std::shared_ptr<Statement>, Diagnostic>(std::make_shared<StatementReturn>(StatementReturn(expression)));
   }
 
   return Result<std::shared_ptr<Statement>, Diagnostic>(expression);
@@ -112,75 +107,69 @@ Result<std::shared_ptr<Statement>, Diagnostic> Parser::ParseStatement()
 
 Result<FunctionParams, Diagnostic> Parser::ParseFunctionParams()
 {
-  auto expectRes = Expect(TokenType::LPAREN);
-  assert(expectRes.is_ok());
-  Position position = expectRes.unwrap();
-
+  assert(TokenType::LPAREN == m_CurrToken.m_Type);
+  Position position = Next().unwrap();
   std::vector<FunctionParam> params;
-
   while (!IsEof() && TokenType::RPAREN != m_CurrToken.m_Type)
   {
-    if (TokenType::IDENTIFIER != m_CurrToken.m_Type)
-    {
-      return Result<FunctionParams, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, m_CurrToken.m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "expect param name or ')'"));
-    }
-    auto paramIdentifier = std::make_shared<ExpressionIdentifier>(m_CurrToken.m_Position, m_CurrToken.m_Lexeme);
-    Position paramPosition = Next().unwrap();
+    assert(TokenType::IDENTIFIER == m_CurrToken.m_Type);
+    auto paramIdentifier = std::make_shared<ExpressionIdentifier>(m_CurrToken);
+    Next().unwrap();
     std::optional<AstType> paramType;
     if (TokenType::COLON == m_CurrToken.m_Type)
     {
       Expect(TokenType::COLON).unwrap();
       paramType = ParseTypeAnnotation().unwrap();
     }
-    params.push_back(FunctionParam(paramPosition, paramIdentifier, paramType));
-
+    params.push_back(FunctionParam(paramIdentifier, paramType));
     if (TokenType::RPAREN != m_CurrToken.m_Type)
     {
-      expectRes = Expect(TokenType::COMMA);
-      if (expectRes.is_err())
-      {
-        return Result<FunctionParams, Diagnostic>(expectRes.unwrap_err());
-      }
+      assert(TokenType::COMMA == m_CurrToken.m_Type);
+      Next().unwrap();
     }
   }
-
-  expectRes = Expect(TokenType::RPAREN);
-  assert(expectRes.is_ok());
-  position.m_End = expectRes.unwrap().m_End;
-
+  assert(TokenType::RPAREN == m_CurrToken.m_Type);
+  position.m_End = Next().unwrap().m_End;
   return Result<FunctionParams, Diagnostic>(FunctionParams(position, std::move(params)));
 }
 
-Result<std::shared_ptr<StatementFunction>, Diagnostic> Parser::ParseStatementFunction(bool isPub)
+Result<std::shared_ptr<Statement>, Diagnostic> Parser::ParseStatementFunction()
 {
-  Position position = Expect(TokenType::FUN).unwrap();
-  if (TokenType::IDENTIFIER != m_CurrToken.m_Type)
+  std::optional<PubAccessModifier> pubModifier;
+  if (TokenType::PUB == m_CurrToken.m_Type)
   {
-    return Result<std::shared_ptr<StatementFunction>, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, m_CurrToken.m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "expect identifier after 'fn'"));
+    pubModifier = PubAccessModifier(m_CurrToken);
+    Next().unwrap();
   }
-  auto name = std::make_shared<ExpressionIdentifier>(m_CurrToken.m_Position, m_CurrToken.m_Lexeme);
-  Next();
+  assert(TokenType::FUN == m_CurrToken.m_Type);
+  FunDeclarator funDeclarator(m_CurrToken);
+  Next().unwrap();
+  assert(TokenType::IDENTIFIER == m_CurrToken.m_Type);
+  auto identifier = std::make_shared<ExpressionIdentifier>(ExpressionIdentifier(m_CurrToken));
+  Next().unwrap();
   auto paramsRes = ParseFunctionParams();
   std::optional<AstType> returnType;
   if (TokenType::COLON == m_CurrToken.m_Type)
   {
-    Expect(TokenType::COLON).unwrap();
+    Next().unwrap();
     returnType = ParseTypeAnnotation().unwrap();
   }
-  if (paramsRes.is_err())
+  auto params = paramsRes.unwrap();
+  auto signature = std::make_shared<StatementFunctionSignature>(StatementFunctionSignature(pubModifier, funDeclarator, identifier, params, returnType));
+  if (TokenType::SEMICOLON == m_CurrToken.m_Type)
   {
-    return Result<std::shared_ptr<StatementFunction>, Diagnostic>(paramsRes.unwrap_err());
+    Next().unwrap();
+    return Result<std::shared_ptr<Statement>, Diagnostic>(signature);
   }
   auto bodyRes = ParseStatementBlock();
   if (bodyRes.is_err())
   {
-    return Result<std::shared_ptr<StatementFunction>, Diagnostic>(bodyRes.unwrap_err());
+    return Result<std::shared_ptr<Statement>, Diagnostic>(bodyRes.unwrap_err());
   }
-  position.m_End = bodyRes.unwrap().get()->m_Position.m_End;
-  return Result<std::shared_ptr<StatementFunction>, Diagnostic>(std::make_shared<StatementFunction>(StatementFunction(position, name, paramsRes.unwrap(), bodyRes.unwrap(), returnType, isPub)));
+  return Result<std::shared_ptr<Statement>, Diagnostic>(std::make_shared<StatementFunction>(StatementFunction(signature, std::static_pointer_cast<StatementBlock>(bodyRes.unwrap()))));
 }
 
-Result<std::shared_ptr<StatementBlock>, Diagnostic> Parser::ParseStatementBlock()
+Result<std::shared_ptr<Statement>, Diagnostic> Parser::ParseStatementBlock()
 {
   Position position = Expect(TokenType::LBRACE).unwrap();
   std::vector<std::shared_ptr<Statement>> statements = {};
@@ -189,85 +178,95 @@ Result<std::shared_ptr<StatementBlock>, Diagnostic> Parser::ParseStatementBlock(
     auto statementRes = ParseStatement();
     if (statementRes.is_err())
     {
-      return Result<std::shared_ptr<StatementBlock>, Diagnostic>(statementRes.unwrap_err());
+      return Result<std::shared_ptr<Statement>, Diagnostic>(statementRes.unwrap_err());
     }
     statements.push_back(statementRes.unwrap());
   }
   position.m_End = Expect(TokenType::RBRACE).unwrap().m_End;
-  return Result<std::shared_ptr<StatementBlock>, Diagnostic>(std::make_shared<StatementBlock>(position, std::move(statements)));
+  return Result<std::shared_ptr<Statement>, Diagnostic>(std::make_shared<StatementBlock>(position, std::move(statements)));
 }
 
-Result<std::shared_ptr<StatementLet>, Diagnostic> Parser::ParseStatementLet(bool isPub)
+Result<std::shared_ptr<Statement>, Diagnostic> Parser::ParseStatementLet()
 {
-  Position position = Expect(TokenType::LET).unwrap();
+  std::optional<PubAccessModifier> pubAccessModifier;
+  if (TokenType::PUB == m_CurrToken.m_Type)
+  {
+    pubAccessModifier = PubAccessModifier(m_CurrToken);
+    Next().unwrap();
+  }
+  assert(TokenType::LET == m_CurrToken.m_Type);
+  LetDeclarator letDeclarator(m_CurrToken);
+  Next().unwrap();
   // var name
   auto identifierRes = ParseExpressionIdentifier();
   if (identifierRes.is_err())
   {
-    return Result<std::shared_ptr<StatementLet>, Diagnostic>(identifierRes.unwrap_err());
+    return Result<std::shared_ptr<Statement>, Diagnostic>(identifierRes.unwrap_err());
   }
-  auto identifier = identifierRes.unwrap();
-  position.m_End = identifier.get()->m_Position.m_End;
   // var type
   std::optional<AstType> varType;
   if (TokenType::COLON == m_CurrToken.m_Type)
   {
-    Expect(TokenType::COLON).unwrap();
+    Next().unwrap();
     varType = ParseTypeAnnotation().unwrap();
   }
   // init value
   std::optional<std::shared_ptr<Expression>> initializerOpt;
   if (TokenType::EQUAL == m_CurrToken.m_Type)
   {
-    Expect(TokenType::EQUAL).unwrap();
+    Next().unwrap();
     auto initializerRes = ParseExpression(Precedence::LOWEST);
     if (initializerRes.is_err())
     {
-      return Result<std::shared_ptr<StatementLet>, Diagnostic>(initializerRes.unwrap_err());
+      return Result<std::shared_ptr<Statement>, Diagnostic>(initializerRes.unwrap_err());
     }
     initializerOpt = initializerRes.unwrap();
-    position.m_End = initializerOpt.value().get()->m_Position.m_End;
   }
-  Expect(TokenType::SEMICOLON).unwrap();
-  return Result<std::shared_ptr<StatementLet>, Diagnostic>(std::make_shared<StatementLet>(StatementLet(position, identifier, varType, initializerOpt, isPub)));
+  assert(TokenType::SEMICOLON == m_CurrToken.m_Type);
+  Next().unwrap();
+  return Result<std::shared_ptr<Statement>, Diagnostic>(std::make_shared<StatementLet>(StatementLet(pubAccessModifier, letDeclarator, identifierRes.unwrap(), varType, initializerOpt)));
 }
 
-Result<std::shared_ptr<StatementImport>, Diagnostic> Parser::ParseStatementImport()
+Result<std::shared_ptr<Statement>, Diagnostic> Parser::ParseStatementImport()
 {
-  Position position = Expect(TokenType::IMPORT).unwrap();
+  assert(TokenType::IMPORT == m_CurrToken.m_Type);
+  Token importToken = m_CurrToken;
+  Next().unwrap();
   auto aliasRes = ParseExpressionIdentifier();
   if (aliasRes.is_err())
   {
-    return Result<std::shared_ptr<StatementImport>, Diagnostic>(aliasRes.unwrap_err());
+    return Result<std::shared_ptr<Statement>, Diagnostic>(aliasRes.unwrap_err());
   }
-  auto alias = aliasRes.unwrap();
-  Expect(TokenType::FROM).unwrap();
+  assert(TokenType::FROM == m_CurrToken.m_Type);
+  Token fromToken = m_CurrToken;
+  Next().unwrap();
   if (TokenType::STRING != m_CurrToken.m_Type)
   {
-    return Result<std::shared_ptr<StatementImport>, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, m_CurrToken.m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "expect module path"));
+    return Result<std::shared_ptr<Statement>, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, m_CurrToken.m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "expect module path"));
   }
-  std::string path = m_CurrToken.m_Lexeme;
-  position.m_End = Next().unwrap().m_End;
+  auto path = std::make_shared<ExpressionString>(ExpressionString(m_CurrToken));
+  Next().unwrap();
   Expect(TokenType::SEMICOLON).unwrap();
-  return Result<std::shared_ptr<StatementImport>, Diagnostic>(std::make_shared<StatementImport>(StatementImport(position, alias, path)));
+  return Result<std::shared_ptr<Statement>, Diagnostic>(std::make_shared<StatementImport>(StatementImport(importToken, aliasRes.unwrap(), fromToken, path)));
 }
 
-Result<std::shared_ptr<StatementReturn>, Diagnostic> Parser::ParseStatementReturn()
+Result<std::shared_ptr<Statement>, Diagnostic> Parser::ParseStatementReturn()
 {
-  Position position = Expect(TokenType::RETURN).unwrap();
-  std::optional<std::shared_ptr<Expression>> value = std::nullopt;
+  assert(TokenType::RETURN == m_CurrToken.m_Type);
+  Token returnToken = m_CurrToken;
+  Next().unwrap();
+  std::optional<std::shared_ptr<Expression>> value(std::nullopt);
   if (TokenType::SEMICOLON != m_CurrToken.m_Type)
   {
     auto valueRes = ParseExpression(Precedence::LOWEST);
     if (valueRes.is_err())
     {
-      return Result<std::shared_ptr<StatementReturn>, Diagnostic>(valueRes.unwrap_err());
+      return Result<std::shared_ptr<Statement>, Diagnostic>(valueRes.unwrap_err());
     }
     value = valueRes.unwrap();
-    position.m_End = value->get()->m_Position.m_End;
   }
   Expect(TokenType::SEMICOLON).unwrap();
-  return Result<std::shared_ptr<StatementReturn>, Diagnostic>(std::make_shared<StatementReturn>(position, value));
+  return Result<std::shared_ptr<Statement>, Diagnostic>(std::make_shared<StatementReturn>(StatementReturn(returnToken, value)));
 }
 
 Precedence token2precedence(TokenType tokenType)
@@ -344,9 +343,9 @@ Result<std::shared_ptr<Expression>, Diagnostic> Parser::ParseExpressionPrimary()
   switch (m_CurrToken.m_Type)
   {
   case TokenType::STRING:
-    return Result<std::shared_ptr<Expression>, Diagnostic>(std::make_shared<ExpressionString>(ExpressionString(m_CurrToken.m_Position, m_CurrToken.m_Lexeme)));
+    return Result<std::shared_ptr<Expression>, Diagnostic>(std::make_shared<ExpressionString>(ExpressionString(m_CurrToken)));
   case TokenType::IDENTIFIER:
-    return Result<std::shared_ptr<Expression>, Diagnostic>(std::make_shared<ExpressionIdentifier>(ExpressionIdentifier(m_CurrToken.m_Position, m_CurrToken.m_Lexeme)));
+    return Result<std::shared_ptr<Expression>, Diagnostic>(std::make_shared<ExpressionIdentifier>(ExpressionIdentifier(m_CurrToken)));
   default:
     // TODO: display expression
     return Result<std::shared_ptr<Expression>, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, m_CurrToken.m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "invalid left side expression"));
@@ -355,13 +354,8 @@ Result<std::shared_ptr<Expression>, Diagnostic> Parser::ParseExpressionPrimary()
 
 Result<std::shared_ptr<ExpressionCall>, Diagnostic> Parser::ParseExpressionCall(std::shared_ptr<Expression> callee)
 {
-  auto expectRes = Expect(TokenType::LPAREN);
-  if (expectRes.is_err())
-  {
-    return Result<std::shared_ptr<ExpressionCall>, Diagnostic>(expectRes.unwrap_err());
-  }
-  Position position = callee.get()->m_Position;
-  Position argsPosition = expectRes.unwrap();
+  assert(TokenType::LPAREN == m_CurrToken.m_Type);
+  Position argsPosition = Next().unwrap();
   std::vector<std::shared_ptr<Expression>> args;
   while (!IsEof() && TokenType::RPAREN != m_CurrToken.m_Type)
   {
@@ -373,51 +367,39 @@ Result<std::shared_ptr<ExpressionCall>, Diagnostic> Parser::ParseExpressionCall(
     args.push_back(exprRes.unwrap());
     if (TokenType::RPAREN != m_CurrToken.m_Type)
     {
-      expectRes = Expect(TokenType::COMMA);
+      auto expectRes = Expect(TokenType::COMMA);
       if (expectRes.is_err())
       {
         return Result<std::shared_ptr<ExpressionCall>, Diagnostic>(expectRes.unwrap_err());
       }
     }
   }
-  expectRes = Expect(TokenType::RPAREN);
-  if (expectRes.is_err())
-  {
-    return Result<std::shared_ptr<ExpressionCall>, Diagnostic>(expectRes.unwrap_err());
-  }
-  position.m_End = expectRes.unwrap().m_End;
-  argsPosition.m_End = expectRes.unwrap().m_End;
-  return Result<std::shared_ptr<ExpressionCall>, Diagnostic>(std::make_shared<ExpressionCall>(position, callee, args, argsPosition));
+  assert(TokenType::RPAREN == m_CurrToken.m_Type);
+  argsPosition.m_End = Next().unwrap().m_End;
+  return Result<std::shared_ptr<ExpressionCall>, Diagnostic>(std::make_shared<ExpressionCall>(callee, ExpressionCallArguments(argsPosition, std::move(args))));
 }
 
 Result<std::shared_ptr<ExpressionAssign>, Diagnostic> Parser::ParseExpressionAssign(std::shared_ptr<Expression> assignee)
 {
-  Position position = assignee.get()->m_Position;
-  position.m_End = Expect(TokenType::EQUAL).unwrap().m_End;
-  if (ExpressionType::IDENTIFIER != assignee.get()->m_Type)
-  {
-    return Result<std::shared_ptr<ExpressionAssign>, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, position, m_ModuleID, DiagnosticSeverity::ERROR, "can only assign to identifier"));
-  }
+  assert(TokenType::EQUAL == m_CurrToken.m_Type);
+  assert(ExpressionType::IDENTIFIER == assignee.get()->GetType());
   auto valueRes = ParseExpression(Precedence::LOWEST);
   if (valueRes.is_err())
   {
     return Result<std::shared_ptr<ExpressionAssign>, Diagnostic>(valueRes.unwrap_err());
   }
-  position.m_End = valueRes.unwrap().get()->m_Position.m_End;
-  return Result<std::shared_ptr<ExpressionAssign>, Diagnostic>(std::make_shared<ExpressionAssign>(ExpressionAssign(position, std::static_pointer_cast<ExpressionIdentifier>(assignee), valueRes.unwrap())));
+  return Result<std::shared_ptr<ExpressionAssign>, Diagnostic>(std::make_shared<ExpressionAssign>(ExpressionAssign(std::static_pointer_cast<ExpressionIdentifier>(assignee), valueRes.unwrap())));
 }
 
 Result<std::shared_ptr<ExpressionFieldAccess>, Diagnostic> Parser::ParseExpressionFieldAccess(std::shared_ptr<Expression> value)
 {
-  Position position = value.get()->m_Position;
   Expect(TokenType::DOT).unwrap();
   auto fieldNameRes = ParseExpressionIdentifier();
   if (fieldNameRes.is_err())
   {
     return Result<std::shared_ptr<ExpressionFieldAccess>, Diagnostic>(fieldNameRes.unwrap_err());
   }
-  position.m_End = fieldNameRes.unwrap().get()->m_Position.m_End;
-  return Result<std::shared_ptr<ExpressionFieldAccess>, Diagnostic>(std::make_shared<ExpressionFieldAccess>(ExpressionFieldAccess(position, value, fieldNameRes.unwrap())));
+  return Result<std::shared_ptr<ExpressionFieldAccess>, Diagnostic>(std::make_shared<ExpressionFieldAccess>(ExpressionFieldAccess(value, fieldNameRes.unwrap())));
 }
 
 Result<std::shared_ptr<ExpressionIdentifier>, Diagnostic> Parser::ParseExpressionIdentifier()
@@ -426,7 +408,7 @@ Result<std::shared_ptr<ExpressionIdentifier>, Diagnostic> Parser::ParseExpressio
   {
     return Result<std::shared_ptr<ExpressionIdentifier>, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, m_CurrToken.m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "expect an idetifier"));
   }
-  auto identifierExpression = std::make_shared<ExpressionIdentifier>(ExpressionIdentifier(m_CurrToken.m_Position, m_CurrToken.m_Lexeme));
+  auto identifierExpression = std::make_shared<ExpressionIdentifier>(ExpressionIdentifier(m_CurrToken));
   Next().unwrap();
   return Result<std::shared_ptr<ExpressionIdentifier>, Diagnostic>(identifierExpression);
 }
@@ -483,8 +465,7 @@ Result<AstType, Diagnostic> Parser::ParseTypeAnnotation()
   default:
     return Result<AstType, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, m_CurrToken.m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "expect type annotation, try 'i32', 'string', ..."));
   }
-  Position position = Next().unwrap();
-  return Result<AstType, Diagnostic>(AstType(position, type));
+  return Result<AstType, Diagnostic>(AstType(Next().unwrap(), type));
 }
 
 Result<AstType, Diagnostic> Parser::ParseTypeAnnotationFunction()
@@ -499,11 +480,11 @@ Result<AstType, Diagnostic> Parser::ParseTypeAnnotationFunction()
     {
       return Result<AstType, Diagnostic>(typeRes.unwrap_err());
     }
-    argsTypes.push_back(typeRes.unwrap().m_Type);
+    argsTypes.push_back(typeRes.unwrap().GetType());
   }
   Expect(TokenType::RPAREN).unwrap();
   Expect(TokenType::ARROW).unwrap();
-  auto returnType = ParseTypeAnnotation().unwrap().m_Type;
+  auto returnType = ParseTypeAnnotation().unwrap().GetType();
   auto functionType = std::make_shared<type::Function>(type::Function(argsTypes.size(), std::move(argsTypes), returnType));
   return Result<AstType, Diagnostic>(AstType(position, functionType));
 }

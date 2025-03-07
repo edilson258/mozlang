@@ -64,6 +64,11 @@ public:
 
   Position() = default;
   Position(size_t line, size_t column, size_t start, size_t end) : m_Line(line), m_Column(column), m_Start(start), m_End(end) {};
+
+  Position MergeWith(const Position &other) const
+  {
+    return Position(m_Line, m_Column, m_Start, other.m_End);
+  }
 };
 
 class Token
