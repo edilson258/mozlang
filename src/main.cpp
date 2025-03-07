@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
   AST ast = astRes.unwrap();
   std::cout << ast.Inspect() << std::endl;
   auto outContext = std::make_shared<Context>(Context());
-  Checker checker(ast, moduleManager, outContext);
+  Checker checker(ast, entryModID, moduleManager, outContext);
   auto diagnostics = checker.Check();
   bool hasErrorDiagnostic = false;
   for (auto &diagnostic : diagnostics)

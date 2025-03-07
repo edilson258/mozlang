@@ -28,7 +28,7 @@ public:
 class Checker
 {
 public:
-  Checker(AST &ast, ModuleManager &modManager, std::shared_ptr<Context> outContext) : m_Ast(ast), m_ModuleID(ast.m_ModuleID), m_ModManager(modManager), m_OutContext(outContext), m_Scopes(), m_Diagnostics() {};
+  Checker(AST &ast, ModuleID moduleID, ModuleManager &modManager, std::shared_ptr<Context> outContext) : m_Ast(ast), m_ModuleID(moduleID), m_ModManager(modManager), m_OutContext(outContext), m_Scopes(), m_Diagnostics() {};
 
   std::vector<Diagnostic> Check();
 

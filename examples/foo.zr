@@ -3,3 +3,5 @@ pub fun say_hello(name: i32): void {
 }
 
 let PI = "3.141592653589793";
+
+pub let name = "John Doe";

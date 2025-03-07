@@ -25,8 +25,10 @@ Result<lib::Program, Error> IRGenerator::Emit()
 
 void IRGenerator::EmitStatement(std::shared_ptr<Statement> statement)
 {
-  switch (statement.get()->m_Type)
+  switch (statement.get()->GetType())
   {
+  case StatementType::FUNCTION_SIGNATURE:
+    break;
   case StatementType::IMPORT:
     break;
   case StatementType::LET:
@@ -44,19 +46,19 @@ void IRGenerator::EmitStatement(std::shared_ptr<Statement> statement)
 
 void IRGenerator::EmitStatementFunction(std::shared_ptr<StatementFunction> functionStatement)
 {
-  SaveIdentifierConstIfNotExist(functionStatement.get()->m_Identifier.get()->m_Value);
-  EnterFunction(static_cast<uint32_t>(functionStatement.get()->m_Params.m_Params.size()), functionStatement.get()->m_Identifier.get()->m_Value);
-  for (auto &param : functionStatement.get()->m_Params.m_Params)
+  SaveIdentifierConstIfNotExist(functionStatement.get()->GetName());
+  EnterFunction(static_cast<uint32_t>(functionStatement.get()->GetParams().size()), functionStatement.get()->GetName());
+  for (auto &param : functionStatement.get()->GetParams())
   {
-    SaveLocal(param.m_Identifier->m_Value);
+    SaveLocal(param.GetName());
   }
-  EmitStatementBlock(functionStatement.get()->m_Body);
+  EmitStatementBlock(functionStatement.get()->GetBody());
   LeaveFunction();
 }
 
 void IRGenerator::EmitStatementBlock(std::shared_ptr<StatementBlock> blockStatement)
 {
-  for (auto &stmt : blockStatement.get()->m_Stmts)
+  for (auto &stmt : blockStatement.get()->GetStatements())
   {
     EmitStatement(stmt);
   }
@@ -64,19 +66,19 @@ void IRGenerator::EmitStatementBlock(std::shared_ptr<StatementBlock> blockStatem
 
 void IRGenerator::EmitStatementReturn(std::shared_ptr<StatementReturn> returnStatement)
 {
-  if (returnStatement.get()->m_Value.has_value())
+  if (returnStatement.get()->GetValue().has_value())
   {
-    EmitExpression(returnStatement.get()->m_Value.value());
+    EmitExpression(returnStatement.get()->GetValue().value());
   }
   PushInstruction(std::make_shared<lib::InstructionReturn>(lib::InstructionReturn()));
 }
 
 void IRGenerator::EmitStatementLet(std::shared_ptr<StatementLet> letStatement)
 {
-  auto index = SaveLocal(letStatement.get()->m_Identifier.get()->m_Value);
-  if (letStatement.get()->m_Initializer.has_value())
+  auto index = SaveLocal(letStatement.get()->GetName());
+  if (letStatement.get()->GetInitializer().has_value())
   {
-    EmitExpression(letStatement.get()->m_Initializer.value());
+    EmitExpression(letStatement.get()->GetInitializer().value());
     PushInstruction(std::make_shared<lib::InstructionStoreLocal>(lib::InstructionStoreLocal(index)));
   }
   else
@@ -87,7 +89,7 @@ void IRGenerator::EmitStatementLet(std::shared_ptr<StatementLet> letStatement)
 
 void IRGenerator::EmitExpression(std::shared_ptr<Expression> expression)
 {
-  switch (expression.get()->m_Type)
+  switch (expression.get()->GetType())
   {
   case ExpressionType::FIELD_ACCESS:
     break;
@@ -104,18 +106,18 @@ void IRGenerator::EmitExpression(std::shared_ptr<Expression> expression)
 
 void IRGenerator::EmitExpressionCall(std::shared_ptr<ExpressionCall> callExpression)
 {
-  for (auto &argument : callExpression.get()->m_Arguments)
+  for (auto &argument : callExpression.get()->GetArguments())
   {
     EmitExpression(argument);
   }
-  EmitExpression(callExpression.get()->m_Callee);
+  EmitExpression(callExpression.get()->GetCallee());
   PushInstruction(std::make_shared<lib::InstructionCall>());
 }
 
 void IRGenerator::EmitExpressionAssign(std::shared_ptr<ExpressionAssign> assignExpression)
 {
-  EmitExpression(assignExpression.get()->m_Value);
-  auto symbol = ResolveName(assignExpression.get()->m_Assignee.get()->m_Value).value();
+  EmitExpression(assignExpression.get()->GetValue());
+  auto symbol = ResolveName(assignExpression.get()->GetAssignee().get()->GetValue()).value();
   if (symbol.m_IsGlobal)
   {
     PushInstruction(std::make_shared<lib::InstructionStoreGlobal>(lib::InstructionStoreGlobal(symbol.m_Index)));
@@ -139,7 +141,7 @@ uint32_t IRGenerator::SaveIdentifierConstIfNotExist(std::string utf8)
 
 void IRGenerator::EmitExpressionIdentifier(std::shared_ptr<ExpressionIdentifier> identifierExpression)
 {
-  std::optional<Symbol> symbOpt = ResolveName(identifierExpression.get()->m_Value);
+  std::optional<Symbol> symbOpt = ResolveName(identifierExpression.get()->GetValue());
   if (symbOpt.has_value())
   {
     if (symbOpt.value().m_IsGlobal && m_CurrentFunction.has_value())
@@ -153,13 +155,13 @@ void IRGenerator::EmitExpressionIdentifier(std::shared_ptr<ExpressionIdentifier>
   }
   else
   {
-    PushInstruction(std::make_shared<lib::InstructionLoadConst>(lib::InstructionLoadConst(SaveIdentifierConstIfNotExist(identifierExpression.get()->m_Value))));
+    PushInstruction(std::make_shared<lib::InstructionLoadConst>(lib::InstructionLoadConst(SaveIdentifierConstIfNotExist(identifierExpression.get()->GetValue()))));
   }
 }
 
 void IRGenerator::EmitExpressionString(std::shared_ptr<ExpressionString> stringExpression)
 {
-  PushInstruction(std::make_shared<lib::InstructionLoadConst>(lib::InstructionLoadConst(m_Program.m_Pool.Save(lib::Object(lib::ObjectType::STRING, stringExpression.get()->m_Value)))));
+  PushInstruction(std::make_shared<lib::InstructionLoadConst>(lib::InstructionLoadConst(m_Program.m_Pool.Save(lib::Object(lib::ObjectType::STRING, stringExpression.get()->GetValue())))));
 }
 
 void IRGenerator::EnterFunction(uint32_t arity, std::string name)

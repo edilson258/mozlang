@@ -155,7 +155,7 @@ std::string DiagnosticEngine::Highlight(std::string code, size_t start, size_t e
     std::string caretLine(lineCode.size(), ' ');
     for (size_t i = startColumn; i < endColumn && i < caretLine.size(); ++i)
     {
-      caretLine[i] = '~';
+      caretLine[i] = '^';
     }
 
     // Output caret line
