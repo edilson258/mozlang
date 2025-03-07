@@ -8,7 +8,7 @@
 #include "ast.h"
 #include "context.h"
 #include "diagnostic.h"
-#include "loader.h"
+#include "module.h"
 
 enum class ScopeType
 {
@@ -20,7 +20,7 @@ class Scope
 {
 public:
   ScopeType m_Type;
-  Context m_Context;
+  ModuleContext m_Context;
 
   Scope(ScopeType type) : m_Type(type), m_Context() {};
 };
@@ -28,15 +28,13 @@ public:
 class Checker
 {
 public:
-  Checker(AST &ast, ModuleID moduleID, ModuleManager &modManager, std::shared_ptr<Context> outContext) : m_Ast(ast), m_ModuleID(moduleID), m_ModManager(modManager), m_OutContext(outContext), m_Scopes(), m_Diagnostics() {};
+  Checker(std::shared_ptr<Module> module, ModuleManager &modManager) : m_Module(module), m_ModManager(modManager), m_Scopes(), m_Diagnostics() {};
 
   std::vector<Diagnostic> Check();
 
 private:
-  AST &m_Ast;
-  ModuleID m_ModuleID;
+  std::shared_ptr<Module> m_Module;
   ModuleManager &m_ModManager;
-  std::shared_ptr<Context> m_OutContext;
   std::vector<Scope> m_Scopes;
   std::vector<Diagnostic> m_Diagnostics;
 

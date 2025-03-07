@@ -5,7 +5,7 @@
 #include <string>
 
 #include "diagnostic.h"
-#include "loader.h"
+#include "module.h"
 #include "result.h"
 #include "token.h"
 

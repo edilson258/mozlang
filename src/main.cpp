@@ -4,11 +4,9 @@
 #include <string>
 
 #include "checker.h"
-#include "context.h"
 #include "diagnostic.h"
 #include "ir/ir.h"
-#include "lexer.h"
-#include "loader.h"
+#include "module.h"
 #include "parser.h"
 
 int main(int argc, char *argv[])
@@ -18,23 +16,23 @@ int main(int argc, char *argv[])
     std::cerr << "Usage: " << argv[0] << " <input_file>" << std::endl;
     return 1;
   }
-
   ModuleManager moduleManager;
   DiagnosticEngine diagnosticEngine(moduleManager);
-  ModuleID entryModID = moduleManager.Load(argv[1]).unwrap();
-
-  Lexer lexer(entryModID, moduleManager);
-  Parser parser(entryModID, lexer);
-  auto astRes = parser.Parse();
-  if (astRes.is_err())
+  auto loadRes = moduleManager.Load(argv[1]);
+  if (loadRes.is_err())
   {
-    diagnosticEngine.Report(astRes.unwrap_err());
+    std::cerr << loadRes.unwrap_err().Message << std::endl;
+  }
+  auto mainModule = loadRes.unwrap();
+  Parser parser(mainModule, moduleManager);
+  auto parseError = parser.Parse();
+  if (parseError.has_value())
+  {
+    diagnosticEngine.Report(parseError.value());
     return 1;
   }
-  AST ast = astRes.unwrap();
-  std::cout << ast.Inspect() << std::endl;
-  auto outContext = std::make_shared<Context>(Context());
-  Checker checker(ast, entryModID, moduleManager, outContext);
+  // std::cout << ast.Inspect() << std::endl;
+  Checker checker(mainModule, moduleManager);
   auto diagnostics = checker.Check();
   bool hasErrorDiagnostic = false;
   for (auto &diagnostic : diagnostics)
@@ -49,7 +47,7 @@ int main(int argc, char *argv[])
   {
     return 1;
   }
-  IRGenerator irGenerator(ast);
+  IRGenerator irGenerator(mainModule);
   auto irRes = irGenerator.Emit();
   auto ir = irRes.unwrap();
   IRDisassembler irDesassembler(ir);
