@@ -1,5 +1,6 @@
 #include <cassert>
 #include <cmath>
+#include <cstddef>
 #include <memory>
 #include <optional>
 #include <string>
@@ -17,7 +18,6 @@ Result<AST, Diagnostic> Parser::Parse()
 {
   Next().unwrap();
   Next().unwrap();
-
   AST ast;
   while (!IsEof())
   {
@@ -40,7 +40,6 @@ Result<std::shared_ptr<Statement>, Diagnostic> Parser::ParseStatement()
   {
     return Result<std::shared_ptr<Statement>, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, m_CurrToken.m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "expected 'let' or 'fun' after 'pub'"));
   }
-
   if (TokenType::FUN == m_CurrToken.m_Type || (TokenType::PUB == m_CurrToken.m_Type && TokenType::FUN == m_NextToken.m_Type))
   {
     auto result = ParseStatementFunction();
@@ -50,7 +49,6 @@ Result<std::shared_ptr<Statement>, Diagnostic> Parser::ParseStatement()
     }
     return Result<std::shared_ptr<Statement>, Diagnostic>(result.unwrap());
   }
-
   if (TokenType::RETURN == m_CurrToken.m_Type)
   {
     auto result = ParseStatementReturn();
@@ -60,7 +58,6 @@ Result<std::shared_ptr<Statement>, Diagnostic> Parser::ParseStatement()
     }
     return Result<std::shared_ptr<Statement>, Diagnostic>(result.unwrap());
   }
-
   if (TokenType::LET == m_CurrToken.m_Type || (TokenType::PUB == m_CurrToken.m_Type && TokenType::LET == m_NextToken.m_Type))
   {
     auto result = ParseStatementLet();
@@ -70,7 +67,6 @@ Result<std::shared_ptr<Statement>, Diagnostic> Parser::ParseStatement()
     }
     return Result<std::shared_ptr<Statement>, Diagnostic>(result.unwrap());
   }
-
   if (TokenType::IMPORT == m_CurrToken.m_Type)
   {
     auto result = ParseStatementImport();
@@ -80,15 +76,12 @@ Result<std::shared_ptr<Statement>, Diagnostic> Parser::ParseStatement()
     }
     return Result<std::shared_ptr<Statement>, Diagnostic>(result.unwrap());
   }
-
   auto expressionRes = ParseExpression(Precedence::LOWEST);
   if (expressionRes.is_err())
   {
     return Result<std::shared_ptr<Statement>, Diagnostic>(expressionRes.unwrap_err());
   }
-
   auto expression = expressionRes.unwrap();
-
   if (TokenType::SEMICOLON == m_CurrToken.m_Type)
   {
     Next().unwrap();
@@ -101,7 +94,6 @@ Result<std::shared_ptr<Statement>, Diagnostic> Parser::ParseStatement()
     }
     return Result<std::shared_ptr<Statement>, Diagnostic>(std::make_shared<StatementReturn>(StatementReturn(expression)));
   }
-
   return Result<std::shared_ptr<Statement>, Diagnostic>(expression);
 }
 
@@ -109,9 +101,17 @@ Result<FunctionParams, Diagnostic> Parser::ParseFunctionParams()
 {
   assert(TokenType::LPAREN == m_CurrToken.m_Type);
   Position position = Next().unwrap();
+  std::optional<VarArgsNotation> varArgsNotation;
   std::vector<FunctionParam> params;
   while (!IsEof() && TokenType::RPAREN != m_CurrToken.m_Type)
   {
+    if (TokenType::VAR_ARGS == m_CurrToken.m_Type)
+    {
+      varArgsNotation = VarArgsNotation(m_CurrToken);
+      Next().unwrap();
+      assert(TokenType::RPAREN == m_CurrToken.m_Type && "var args must be the last");
+      break;
+    }
     assert(TokenType::IDENTIFIER == m_CurrToken.m_Type);
     auto paramIdentifier = std::make_shared<ExpressionIdentifier>(m_CurrToken);
     Next().unwrap();
@@ -130,7 +130,7 @@ Result<FunctionParams, Diagnostic> Parser::ParseFunctionParams()
   }
   assert(TokenType::RPAREN == m_CurrToken.m_Type);
   position.m_End = Next().unwrap().m_End;
-  return Result<FunctionParams, Diagnostic>(FunctionParams(position, std::move(params)));
+  return Result<FunctionParams, Diagnostic>(FunctionParams(position, std::move(params), varArgsNotation));
 }
 
 Result<std::shared_ptr<Statement>, Diagnostic> Parser::ParseStatementFunction()
@@ -454,6 +454,9 @@ Result<AstType, Diagnostic> Parser::ParseTypeAnnotation()
   case TokenType::F64:
     type = type::Type::make_f64();
     break;
+  case TokenType::BYTE:
+    type = type::Type::make_byte();
+    break;
   case TokenType::VOID:
     type = type::Type::make_void();
     break;
@@ -484,8 +487,10 @@ Result<AstType, Diagnostic> Parser::ParseTypeAnnotationFunction()
   }
   Expect(TokenType::RPAREN).unwrap();
   Expect(TokenType::ARROW).unwrap();
-  auto returnType = ParseTypeAnnotation().unwrap().GetType();
-  auto functionType = std::make_shared<type::Function>(type::Function(argsTypes.size(), std::move(argsTypes), returnType));
+  auto returnType = ParseTypeAnnotation().unwrap();
+  position.m_End = returnType.GetPosition().m_End;
+  size_t argsCount = argsTypes.size();
+  auto functionType = std::make_shared<type::Function>(type::Function(argsCount, std::move(argsTypes), returnType.GetType()));
   return Result<AstType, Diagnostic>(AstType(position, functionType));
 }
 

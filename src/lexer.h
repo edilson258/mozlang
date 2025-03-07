@@ -32,5 +32,5 @@ private:
 
   Result<Token, Diagnostic> MakeTokenString();
   Result<Token, Diagnostic> MakeTokenSimple(TokenType);
-  Result<Token, Diagnostic> MakeIfNextCharOr(char, TokenType, TokenType);
+  Result<Token, Diagnostic> MakeIfNextOr(std::string, TokenType, TokenType);
 };

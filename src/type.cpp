@@ -1,8 +1,9 @@
-#include "type.h"
 #include <cstddef>
 #include <memory>
 #include <sstream>
 #include <string>
+
+#include "type.h"
 
 namespace type
 {
@@ -11,6 +12,8 @@ std::string Type::Inspect() const
 {
   switch (m_Base)
   {
+  case Base::BYTE:
+    return "byte";
   case Base::VOID:
     return "void";
   case Base::STRING:
@@ -39,8 +42,6 @@ std::string Type::Inspect() const
     return "f32";
   case Base::F64:
     return "f64";
-  case Base::F_STRING:
-    return "format string";
   case Base::FUNCTION:
     return "function";
   case Base::ANY:
@@ -57,10 +58,6 @@ bool Type::IsCompatibleWith(std::shared_ptr<Type> other) const
   {
     return true;
   }
-  if ((m_Base == Base::STRING && other.get()->m_Base == Base::F_STRING) || (other.get()->m_Base == Base::STRING && m_Base == Base::F_STRING))
-  {
-    return true;
-  }
   return m_Base == other.get()->m_Base;
 }
 
@@ -71,7 +68,7 @@ bool Function::IsCompatibleWith(std::shared_ptr<Type> other) const
     return false;
   }
   std::shared_ptr<Function> otherFn = std::static_pointer_cast<Function>(other);
-  if ((m_IsVariadicArguments && !otherFn.get()->m_IsVariadicArguments) || (!m_IsVariadicArguments && otherFn.get()->m_IsVariadicArguments))
+  if (!(!(m_IsVariadicArguments ^ otherFn.get()->m_IsVariadicArguments)))
   {
     return false;
   }
@@ -160,6 +157,10 @@ std::optional<std::shared_ptr<Type>> NarrowTypes(std::shared_ptr<Type> lhs, std:
   return std::nullopt;
 }
 
+std::shared_ptr<Type> Type::make_byte()
+{
+  return std::make_shared<Type>(Type(Base::BYTE));
+}
 std::shared_ptr<Type> Type::make_void()
 {
   return std::make_shared<Type>(Type(Base::VOID));
@@ -167,10 +168,6 @@ std::shared_ptr<Type> Type::make_void()
 std::shared_ptr<Type> Type::make_string()
 {
   return std::make_shared<Type>(Type(Base::STRING));
-}
-std::shared_ptr<Type> Type::make_fstring()
-{
-  return std::make_shared<Type>(Type(Base::F_STRING));
 }
 std::shared_ptr<Type> Type::make_i8()
 {

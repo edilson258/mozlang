@@ -1,5 +1,7 @@
-pub fun say_hello(name: i32): void {
-  println("Hello, {}!", name);
+import io from "std/io.zr";
+
+pub fun say_hello(name: string): void {
+  io.println("Hello", name);
 }
 
 let PI = "3.141592653589793";

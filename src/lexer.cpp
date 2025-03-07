@@ -18,12 +18,10 @@ Result<Token, Diagnostic> Lexer::Next()
 {
   AdvanceWhile([](char c)
                { return std::isspace(c); });
-
   if (IsEof())
   {
     return Result<Token, Diagnostic>(Token(Position(m_Line, m_Column, m_Cursor, m_Cursor), TokenType::EOf, "EOF"));
   }
-
   char current = PeekOne();
   switch (current)
   {
@@ -44,9 +42,9 @@ Result<Token, Diagnostic> Lexer::Next()
   case ',':
     return MakeTokenSimple(TokenType::COMMA);
   case '.':
-    return MakeTokenSimple(TokenType::DOT);
+    return MakeIfNextOr("..", TokenType::VAR_ARGS, TokenType::DOT);
   case '-':
-    return MakeIfNextCharOr('>', TokenType::ARROW, TokenType::MINUS);
+    return MakeIfNextOr(">", TokenType::ARROW, TokenType::MINUS);
   case '"':
     return MakeTokenString();
   }
@@ -65,7 +63,6 @@ Result<Token, Diagnostic> Lexer::Next()
     }
     return Result<Token, Diagnostic>(Token(Position(m_Line, atColumn, at, m_Cursor - 1), TokenType::IDENTIFIER, label));
   }
-
   return Result<Token, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, Position(m_Line, m_Column, m_Cursor, m_Cursor), m_ModuleID, DiagnosticSeverity::ERROR, std::format("invalid token: '{}'", current)));
 }
 
@@ -76,16 +73,19 @@ Result<Token, Diagnostic> Lexer::MakeTokenSimple(TokenType tt)
   return Result<Token, Diagnostic>(token);
 }
 
-Result<Token, Diagnostic> Lexer::MakeIfNextCharOr(char nextChar, TokenType tt1, TokenType tt2)
+Result<Token, Diagnostic> Lexer::MakeIfNextOr(std::string next, TokenType tt1, TokenType tt2)
 {
   Token token(Position(m_Line, m_Column, m_Cursor, m_Cursor), tt2, std::string(1, PeekOne()));
   Advance();
-  if (PeekOne() == nextChar)
+  if (m_ModuleContent.length() > (m_Cursor + next.length()) && m_ModuleContent.substr(m_Cursor, next.length()) == next)
   {
-    Advance();
+    for (size_t i = 0; i < next.length(); ++i)
+    {
+      Advance();
+    }
     token.m_Type = tt1;
     token.m_Position.m_End = m_Cursor;
-    token.m_Lexeme.push_back(nextChar);
+    token.m_Lexeme.append(next);
     return Result<Token, Diagnostic>(token);
   }
   return Result<Token, Diagnostic>(token);
@@ -109,10 +109,8 @@ Result<Token, Diagnostic> Lexer::MakeTokenString()
     }
     Advance();
   }
-
   size_t len = m_Cursor - at;
   Advance();
-
   return Result<Token, Diagnostic>(Token(Position(m_Line, atColumn, at - 1, m_Cursor - 1), TokenType::STRING, m_ModuleContent.substr(at, len)));
 }
 

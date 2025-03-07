@@ -147,7 +147,7 @@ void ASTInspector::InspectStatementFunction(std::shared_ptr<StatementFunction> f
 {
   Writeln("Function Statement:");
   Tab();
-  Writeln(std::format("Name: {}", functionStatement.get()->GetName()));
+  Writeln(std::format("Name: {}", functionStatement.get()->GetSignature()->GetName()));
   InspectStatementBlock(functionStatement.get()->GetBody());
   UnTab();
 }
