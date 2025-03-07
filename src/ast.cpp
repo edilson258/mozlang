@@ -30,6 +30,7 @@ private:
   void InspectStatementReturn(std::shared_ptr<StatementReturn>);
   void InspectStatementLet(std::shared_ptr<StatementLet>);
   void InspectStatementImport(std::shared_ptr<StatementImport>);
+  void InspectStatementFunctionSignature(std::shared_ptr<StatementFunctionSignature>);
   void InspectStatementFunction(std::shared_ptr<StatementFunction>);
   void InspectExpression(std::shared_ptr<Expression>);
   void InspectExpressionCall(std::shared_ptr<ExpressionCall>);
@@ -77,7 +78,7 @@ void ASTInspector::InspectStatement(std::shared_ptr<Statement> statement)
   switch (statement.get()->GetType())
   {
   case StatementType::FUNCTION_SIGNATURE:
-    break;
+    return InspectStatementFunctionSignature(std::static_pointer_cast<StatementFunctionSignature>(statement));
   case StatementType::IMPORT:
     return InspectStatementImport(std::static_pointer_cast<StatementImport>(statement));
   case StatementType::LET:
@@ -143,11 +144,28 @@ void ASTInspector::InspectStatementReturn(std::shared_ptr<StatementReturn> retur
   UnTab();
 }
 
+void ASTInspector::InspectStatementFunctionSignature(std::shared_ptr<StatementFunctionSignature> functionSignature)
+{
+  Writeln("Function Signature:");
+  Tab();
+  Writeln(std::format("Name: {}", functionSignature.get()->GetName()));
+  Writeln(std::format("Return type: {}", functionSignature.get()->GetReturnType().has_value() ? functionSignature.get()->GetReturnType().value().GetType().get()->Inspect() : "void"));
+  Writeln("Parameters: [");
+  Tab();
+  for (auto &param : functionSignature.get()->GetParams())
+  {
+    Writeln(std::format("Name: {} Type: {}", param.GetName(), param.GetAstType().has_value() ? param.GetAstType().value().GetType().get()->Inspect() : "any"));
+  }
+  UnTab();
+  Writeln("]");
+  UnTab();
+}
+
 void ASTInspector::InspectStatementFunction(std::shared_ptr<StatementFunction> functionStatement)
 {
   Writeln("Function Statement:");
   Tab();
-  Writeln(std::format("Name: {}", functionStatement.get()->GetSignature()->GetName()));
+  InspectStatementFunctionSignature(functionStatement.get()->GetSignature());
   InspectStatementBlock(functionStatement.get()->GetBody());
   UnTab();
 }
