@@ -46,9 +46,9 @@ void IRGenerator::EmitStatement(std::shared_ptr<Statement> statement)
 
 void IRGenerator::EmitStatementFunction(std::shared_ptr<StatementFunction> functionStatement)
 {
-  SaveIdentifierConstIfNotExist(functionStatement.get()->GetName());
-  EnterFunction(static_cast<uint32_t>(functionStatement.get()->GetParams().size()), functionStatement.get()->GetName());
-  for (auto &param : functionStatement.get()->GetParams())
+  SaveIdentifierConstIfNotExist(functionStatement.get()->GetSignature()->GetName());
+  EnterFunction(static_cast<uint32_t>(functionStatement.get()->GetSignature()->GetParams().size()), functionStatement.get()->GetSignature()->GetName());
+  for (auto &param : functionStatement.get()->GetSignature()->GetParams())
   {
     SaveLocal(param.GetName());
   }

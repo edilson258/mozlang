@@ -11,6 +11,7 @@ namespace type
 {
 enum class Base
 {
+  BYTE,
   VOID,
   /* 'string' is interchangeble with 'format string' */
   STRING,
@@ -34,7 +35,6 @@ enum class Base
   // internal
   ANY,
   /* 'format string' is interchangeble with 'string' */
-  F_STRING,
   OBJECT,
 };
 
@@ -49,9 +49,9 @@ public:
   virtual std::string Inspect() const;
   virtual bool IsCompatibleWith(std::shared_ptr<Type>) const;
 
+  static std::shared_ptr<Type> make_byte();
   static std::shared_ptr<Type> make_void();
   static std::shared_ptr<Type> make_string();
-  static std::shared_ptr<Type> make_fstring();
   static std::shared_ptr<Type> make_i8();
   static std::shared_ptr<Type> make_i16();
   static std::shared_ptr<Type> make_i32();

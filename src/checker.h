@@ -49,6 +49,7 @@ private:
 
   std::optional<std::shared_ptr<Binding>> CheckStatement(std::shared_ptr<Statement>);
   std::optional<std::shared_ptr<Binding>> CheckStatementFunction(std::shared_ptr<StatementFunction>);
+  std::optional<std::shared_ptr<Binding>> CheckStatementFunctionSignature(std::shared_ptr<StatementFunctionSignature>);
   std::optional<std::shared_ptr<Binding>> CheckStatementReturn(std::shared_ptr<StatementReturn>);
   std::optional<std::shared_ptr<Binding>> CheckStatementBlock(std::shared_ptr<StatementBlock>);
   std::optional<std::shared_ptr<Binding>> CheckStatementLet(std::shared_ptr<StatementLet>);

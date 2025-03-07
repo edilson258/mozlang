@@ -48,7 +48,8 @@ enum class TokenType
   EQUAL,
   SEMICOLON,
   DOT,
-  ARROW, // ->
+  ARROW,    // ->
+  VAR_ARGS, // ...
 
   // arithmetic
   PLUS,     // +

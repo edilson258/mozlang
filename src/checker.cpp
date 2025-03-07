@@ -17,11 +17,11 @@
 std::vector<Diagnostic> Checker::Check()
 {
   EnterScope(ScopeType::GLOBAL);
-  auto printlnArgs = {std::make_shared<type::Type>(type::Base::F_STRING)};
-  auto printlnType = std::make_shared<type::Function>(type::Function(0, std::move(printlnArgs), std::make_shared<type::Type>(type::Base::VOID), true));
-  // TODO: module ID
-  auto printlnBind = std::make_shared<BindingFunction>(Position(), Position(), Position(), printlnType, 0, true);
-  SaveBind("println", printlnBind);
+  // auto printlnArgs = {std::make_shared<type::Type>(type::Base::F_STRING)};
+  // auto printlnType = std::make_shared<type::Function>(type::Function(0, std::move(printlnArgs), std::make_shared<type::Type>(type::Base::VOID), true));
+  // // TODO: module ID
+  // auto printlnBind = std::make_shared<BindingFunction>(Position(), Position(), Position(), printlnType, 0, true);
+  // SaveBind("println", printlnBind);
   std::vector<std::shared_ptr<Binding>> statementsBinds = {};
   for (auto statement : m_Ast.m_Program)
   {
@@ -48,7 +48,7 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatement(std::shared_ptr<
   switch (statement.get()->GetType())
   {
   case StatementType::FUNCTION_SIGNATURE:
-    break;
+    return CheckStatementFunctionSignature(std::static_pointer_cast<StatementFunctionSignature>(statement));
   case StatementType::IMPORT:
     return CheckStatementImport(std::static_pointer_cast<StatementImport>(statement));
   case StatementType::LET:
@@ -65,17 +65,17 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatement(std::shared_ptr<
   return std::nullopt;
 }
 
-std::optional<std::shared_ptr<Binding>> Checker::CheckStatementFunction(std::shared_ptr<StatementFunction> functionStatement)
+std::optional<std::shared_ptr<Binding>> Checker::CheckStatementFunctionSignature(std::shared_ptr<StatementFunctionSignature> functionStatementSignature)
 {
-  auto bindWithSameName = m_Scopes.back().m_Context.Get(functionStatement.get()->GetName());
+  auto bindWithSameName = m_Scopes.back().m_Context.Get(functionStatementSignature.get()->GetName());
   if (bindWithSameName.has_value())
   {
     DiagnosticReference reference(Errno::OK, bindWithSameName.value().get()->m_ModuleID, bindWithSameName.value()->m_Position, "name used here");
-    m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, functionStatement.get()->GetNamePosition(), m_ModuleID, DiagnosticSeverity::ERROR, std::format("name '{}' already in use", functionStatement.get()->GetName()), reference));
+    m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, functionStatementSignature.get()->GetNamePosition(), m_ModuleID, DiagnosticSeverity::ERROR, std::format("name '{}' already in use", functionStatementSignature.get()->GetName()), reference));
     return std::nullopt;
   }
   std::vector<std::shared_ptr<type::Type>> functionArgsTypes;
-  for (auto &param : functionStatement.get()->GetParams())
+  for (auto &param : functionStatementSignature.get()->GetParams())
   {
     if (param.GetAstType().has_value())
     {
@@ -87,15 +87,26 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementFunction(std::sha
     }
   }
   auto returnType = std::make_shared<type::Type>(type::Type(type::Base::VOID));
-  if (functionStatement.get()->GetReturnType().has_value())
+  if (functionStatementSignature.get()->GetReturnType().has_value())
   {
-    returnType = functionStatement.get()->GetReturnType().value().GetType();
+    returnType = functionStatementSignature.get()->GetReturnType().value().GetType();
   }
-  auto functionType = std::make_shared<type::Function>(type::Function(functionStatement.get()->GetParams().size(), std::move(functionArgsTypes), returnType));
-  auto functionBind = std::make_shared<BindingFunction>(BindingFunction(functionStatement.get()->GetPosition(), functionStatement.get()->GetNamePosition(), functionStatement.get()->GetParamsPosition(), functionType, m_ModuleID, false, functionStatement.get()->IsPub()));
-  SaveBind(functionStatement.get()->GetName(), functionBind);
+  auto functionType = std::make_shared<type::Function>(type::Function(functionStatementSignature.get()->GetParams().size(), std::move(functionArgsTypes), returnType, functionStatementSignature.get()->IsVarArgs()));
+  auto functionBind = std::make_shared<BindingFunction>(BindingFunction(functionStatementSignature.get()->GetPosition(), functionStatementSignature.get()->GetNamePosition(), functionStatementSignature.get()->GetParamsPosition(), functionType, m_ModuleID, false, functionStatementSignature.get()->IsPub()));
+  SaveBind(functionStatementSignature.get()->GetName(), functionBind);
+  return std::nullopt;
+}
+
+std::optional<std::shared_ptr<Binding>> Checker::CheckStatementFunction(std::shared_ptr<StatementFunction> functionStatement)
+{
+  CheckStatementFunctionSignature(functionStatement.get()->GetSignature());
+  auto returnType = std::make_shared<type::Type>(type::Type(type::Base::VOID));
+  if (functionStatement.get()->GetSignature().get()->GetReturnType().has_value())
+  {
+    returnType = functionStatement.get()->GetSignature().get()->GetReturnType().value().GetType();
+  }
   EnterScope(ScopeType::FUNCTION);
-  for (auto &param : functionStatement.get()->GetParams())
+  for (auto &param : functionStatement.get()->GetSignature()->GetParams())
   {
     if (m_Scopes.back().m_Context.Get(param.GetName()).has_value())
     {
@@ -119,7 +130,7 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementFunction(std::sha
     }
     else
     {
-      auto returnTypeAnnotation = functionStatement.get()->GetReturnType().value();
+      auto returnTypeAnnotation = functionStatement.get()->GetSignature()->GetReturnType().value();
       if (!returnType.get()->IsCompatibleWith(blockReturnBind.value().get()->m_Type))
       {
         DiagnosticReference reference(Errno::OK, m_ModuleID, returnTypeAnnotation.GetPosition(), std::format("expect '{}' due to here", returnType.get()->Inspect()));
@@ -131,7 +142,7 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementFunction(std::sha
   {
     if (type::Base::VOID != returnType.get()->m_Base)
     {
-      Position returnTypeAnnotationPosition = functionStatement.get()->GetReturnType().value().GetPosition();
+      Position returnTypeAnnotationPosition = functionStatement.get()->GetSignature()->GetReturnType().value().GetPosition();
       m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, returnTypeAnnotationPosition, m_ModuleID, DiagnosticSeverity::ERROR, "missing return value for non-void function"));
     }
   }

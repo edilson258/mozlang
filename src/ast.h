@@ -215,17 +215,28 @@ private:
   std::optional<AstType> m_AstTypeOpt;
 };
 
+class VarArgsNotation
+{
+public:
+  VarArgsNotation(Token token) : m_Token(token) {};
+
+private:
+  Token m_Token;
+};
+
 class FunctionParams
 {
 public:
-  FunctionParams(Position position, std::vector<FunctionParam> params) : m_Position(position), m_Params(std::move(params)) {};
+  FunctionParams(Position position, std::vector<FunctionParam> params, std::optional<VarArgsNotation> varArgsNotation) : m_Position(position), m_Params(std::move(params)), m_VarArgsNotation(varArgsNotation) {};
 
   Position GetPosition() const { return m_Position; }
   std::vector<FunctionParam> GetParams() const { return m_Params; }
+  bool IsVarArgs() const { return m_VarArgsNotation.has_value(); }
 
 private:
   Position m_Position;
   std::vector<FunctionParam> m_Params;
+  std::optional<VarArgsNotation> m_VarArgsNotation;
 };
 
 class PubAccessModifier
@@ -260,7 +271,15 @@ public:
     Position position = m_AccessModifier.has_value() ? m_AccessModifier.value().GetPosition() : m_Declarator.GetPosition();
     return m_ReturnType.has_value() ? position.MergeWith(m_ReturnType.value().GetPosition()) : position.MergeWith(m_Params.GetPosition());
   }
+  Position GetNamePosition() const { return m_Identifier.get()->GetPosition(); }
+  Position GetParamsPosition() const { return m_Params.GetPosition(); }
+  bool IsPub() const { return m_AccessModifier.has_value(); }
+  bool IsVarArgs() const { return m_Params.IsVarArgs(); }
+  std::string GetName() const { return m_Identifier.get()->GetValue(); }
+  std::vector<FunctionParam> GetParams() const { return m_Params.GetParams(); }
+  std::optional<AstType> GetReturnType() const { return m_ReturnType; }
 
+private:
   std::optional<PubAccessModifier> m_AccessModifier;
   FunDeclarator m_Declarator;
   std::shared_ptr<ExpressionIdentifier> m_Identifier;
@@ -273,14 +292,9 @@ class StatementFunction : public Statement
 public:
   StatementFunction(std::shared_ptr<StatementFunctionSignature> signature, std::shared_ptr<StatementBlock> body) : Statement(StatementType::FUNCTION), m_Signature(signature), m_Body(body) {};
 
-  bool IsPub() const { return m_Signature.get()->m_AccessModifier.has_value(); }
   Position GetPosition() const override { return m_Signature.get()->GetPosition().MergeWith(m_Body.get()->GetPosition()); }
-  Position GetNamePosition() const { return m_Signature.get()->m_Identifier.get()->GetPosition(); }
-  Position GetParamsPosition() const { return m_Signature.get()->m_Params.GetPosition(); }
-  std::string GetName() const { return m_Signature.get()->m_Identifier.get()->GetValue(); }
-  std::vector<FunctionParam> GetParams() const { return m_Signature.get()->m_Params.GetParams(); }
-  std::optional<AstType> GetReturnType() const { return m_Signature.get()->m_ReturnType; }
   std::shared_ptr<StatementBlock> GetBody() const { return m_Body; }
+  std::shared_ptr<StatementFunctionSignature> GetSignature() const { return m_Signature; }
 
 private:
   std::shared_ptr<StatementFunctionSignature> m_Signature;

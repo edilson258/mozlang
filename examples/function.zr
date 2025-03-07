@@ -1,16 +1,13 @@
-fun foo(x: i32, y: string): i32 {
-  y
-  x;
+fun foo(x: i32): i32 {
+  x
 }
 
-fun baz(): void
+fun baz(x): void
 {
 }
 
-fun bar(predicate: fun(char) -> bool): fun() -> void {
-  x;
-  println(x);
-  bar
+fun bar(predicate: fun(i32) -> i32): fun() -> void {
+  baz
 }
 
-foo("hello", "hi");
+bar(foo)();
