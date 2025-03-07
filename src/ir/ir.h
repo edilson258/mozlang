@@ -12,6 +12,7 @@
 #include "ast.h"
 #include "error.h"
 #include "ir/lib.h"
+#include "module.h"
 #include "result.h"
 
 class IRGenFunction
@@ -37,12 +38,12 @@ public:
 class IRGenerator
 {
 public:
-  IRGenerator(const AST &t) : m_AST(t), m_Program(), m_Globals(), m_Constants(), m_CurrentFunction() {};
+  IRGenerator(std::shared_ptr<Module> module) : m_AST(module.get()->m_AST.value()), m_Program(), m_Globals(), m_Constants(), m_CurrentFunction() {};
 
   Result<lib::Program, Error> Emit();
 
 private:
-  const AST &m_AST;
+  std::shared_ptr<AST> m_AST;
   lib::Program m_Program;
   std::map<std::string, uint32_t> m_Globals;
   std::map<std::string, uint32_t> m_Constants;

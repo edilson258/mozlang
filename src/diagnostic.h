@@ -5,7 +5,7 @@
 #include <string>
 
 #include "error.h"
-#include "loader.h"
+#include "module.h"
 #include "token.h"
 
 enum class DiagnosticSeverity

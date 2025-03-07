@@ -14,24 +14,25 @@
 #include "token.h"
 #include "type.h"
 
-Result<AST, Diagnostic> Parser::Parse()
+std::optional<Diagnostic> Parser::Parse()
 {
   Next().unwrap();
   Next().unwrap();
-  AST ast;
+  auto ast = std::make_shared<AST>(AST());
   while (!IsEof())
   {
     auto stmtRes = ParseStatement();
     if (stmtRes.is_ok())
     {
-      ast.m_Program.push_back(stmtRes.unwrap());
+      ast.get()->m_Program.push_back(stmtRes.unwrap());
     }
     else
     {
-      return Result<AST, Diagnostic>(stmtRes.unwrap_err());
+      return stmtRes.unwrap_err();
     }
   }
-  return Result<AST, Diagnostic>(ast);
+  m_Module.get()->m_AST = ast;
+  return std::nullopt;
 }
 
 Result<std::shared_ptr<Statement>, Diagnostic> Parser::ParseStatement()

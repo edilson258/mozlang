@@ -1,22 +1,25 @@
 #pragma once
 
+#include <memory>
+#include <optional>
+
 #include "ast.h"
 #include "diagnostic.h"
 #include "lexer.h"
-#include "loader.h"
+#include "module.h"
 #include "result.h"
-#include <memory>
 
 class Parser
 {
 public:
-  Parser(ModuleID moduleID, Lexer &lexer) : m_ModuleID(moduleID), m_Lexer(lexer), m_CurrToken(), m_NextToken() {};
+  Parser(std::shared_ptr<Module> module, ModuleManager &modManager) : m_Module(module), m_ModuleID(module.get()->m_ID), m_Lexer(Lexer(module.get()->m_ID, modManager)), m_CurrToken(), m_NextToken() {};
 
-  Result<AST, Diagnostic> Parse();
+  std::optional<Diagnostic> Parse();
 
 private:
+  std::shared_ptr<Module> m_Module;
   ModuleID m_ModuleID;
-  Lexer &m_Lexer;
+  Lexer m_Lexer;
   Token m_CurrToken;
   Token m_NextToken;
 

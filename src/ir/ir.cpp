@@ -16,7 +16,7 @@
 
 Result<lib::Program, Error> IRGenerator::Emit()
 {
-  for (auto statement : m_AST.m_Program)
+  for (auto statement : m_AST.get()->m_Program)
   {
     EmitStatement(statement);
   }

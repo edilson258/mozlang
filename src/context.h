@@ -5,7 +5,7 @@
 #include <optional>
 #include <string>
 
-#include "loader.h"
+#include "module.h"
 #include "token.h"
 #include "type.h"
 
@@ -27,9 +27,9 @@ public:
   Position m_Position;
   std::shared_ptr<type::Type> m_Type;
   bool m_IsUsed;
-  bool m_IsPublic;
+  bool m_IsPub;
 
-  Binding(BindType bindType, std::shared_ptr<type::Type> type, ModuleID moduleID, Position pos, bool isUsed = false, bool isPublic = false) : m_BindType(bindType), m_ModuleID(moduleID), m_Position(pos), m_Type(type), m_IsUsed(isUsed), m_IsPublic(isPublic) {}
+  Binding(BindType bindType, std::shared_ptr<type::Type> type, ModuleID moduleID, Position pos, bool isUsed = false, bool isPublic = false) : m_BindType(bindType), m_ModuleID(moduleID), m_Position(pos), m_Type(type), m_IsUsed(isUsed), m_IsPub(isPublic) {}
 };
 
 class BindingFunction : public Binding
@@ -45,17 +45,17 @@ class BindingModule : public Binding
 {
 public:
   Position m_AliasPosition;
-  std::shared_ptr<class Context> m_Context;
+  std::shared_ptr<class ModuleContext> m_Context;
 
-  BindingModule(Position position, Position aliasPosition, ModuleID moduleID, std::shared_ptr<class Context> context, std::shared_ptr<type::Object> objectType) : Binding(BindType::MODULE, objectType, moduleID, position), m_AliasPosition(aliasPosition), m_Context(context) {}
+  BindingModule(Position position, Position aliasPosition, ModuleID moduleID, std::shared_ptr<class ModuleContext> context, std::shared_ptr<type::Object> objectType) : Binding(BindType::MODULE, objectType, moduleID, position), m_AliasPosition(aliasPosition), m_Context(context) {}
 };
 
-class Context
+class ModuleContext
 {
 public:
   std::map<std::string, std::shared_ptr<Binding>> Store;
 
-  Context() : Store() {};
+  ModuleContext() : Store() {};
 
   void Save(std::string name, std::shared_ptr<Binding> bind);
   std::optional<std::shared_ptr<Binding>> Get(std::string);
