@@ -148,6 +148,10 @@ private:
   Token m_Token;
 };
 
+class StatementClass : public Statement
+{
+};
+
 class StatementBlock : public Statement
 {
 public:

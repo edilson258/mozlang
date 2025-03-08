@@ -1,7 +1,9 @@
+#include <cassert>
 #include <cstddef>
 #include <format>
 #include <memory>
 #include <optional>
+#include <string>
 #include <vector>
 
 #include "ast.h"
@@ -28,7 +30,7 @@ std::vector<Diagnostic> Checker::Check()
   }
   for (auto &bind : statementsBinds)
   {
-    if (type::Base::VOID == bind.get()->m_Type.get()->m_Base)
+    if (type::Base::VOID == bind.get()->m_Type.get()->m_Base || bind.get()->m_IsUsed)
     {
       continue;
     }
@@ -224,6 +226,7 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementLet(std::shared_p
     letType = letStatement.get()->GetAstType().value().GetType();
   }
   // let initializer
+  std::optional<std::shared_ptr<Binding>> initBindRefOpt(std::nullopt);
   if (letStatement.get()->GetInitializer().has_value())
   {
     auto initializerBindOpt = CheckExpression(letStatement.get()->GetInitializer().value());
@@ -235,6 +238,10 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementLet(std::shared_p
     if (letType.get()->IsCompatibleWith(initializerBind.get()->m_Type))
     {
       letType = initializerBind.get()->m_Type;
+      if (initializerBind.get()->m_Reference.has_value())
+      {
+        initBindRefOpt.emplace(initializerBind.get()->m_Reference.value());
+      }
     }
     else
     {
@@ -244,7 +251,7 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementLet(std::shared_p
     }
   }
 defer:
-  SaveBind(letStatement.get()->GetName(), std::make_shared<Binding>(Binding(BindType::VARIABLE, letType, m_Module.get()->m_ID, letStatement.get()->GetNamePosition(), false, letStatement.get()->IsPub())));
+  SaveBind(letStatement.get()->GetName(), std::make_shared<Binding>(Binding(BindType::VARIABLE, letType, m_Module.get()->m_ID, letStatement.get()->GetNamePosition(), false, letStatement.get()->IsPub(), initBindRefOpt)));
   return std::nullopt;
 }
 
@@ -289,7 +296,7 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementImport(std::share
   {
     objectType.get()->m_Entries[bind.first] = bind.second.get()->m_Type;
   }
-  auto moduleBind = std::make_shared<BindingModule>(BindingModule(importStatement.get()->GetPosition(), importStatement.get()->GetNamePosition(), m_Module.get()->m_ID, module.get()->m_Exports.value(), objectType));
+  auto moduleBind = std::make_shared<BindingModule>(BindingModule(importStatement.get()->GetName(), importStatement.get()->GetPosition(), importStatement.get()->GetNamePosition(), m_Module.get()->m_ID, module.get()->m_Exports.value(), objectType));
   SaveBind(importStatement.get()->GetName(), moduleBind);
   return std::nullopt;
 }
@@ -370,7 +377,7 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionIdentifier(std::
   if (bind.has_value())
   {
     bind.value().get()->m_IsUsed = true;
-    auto identifierBind = std::make_shared<Binding>(Binding(BindType::EXPRESSION, bind.value().get()->m_Type, m_Module.get()->m_ID, identifierExpression.get()->GetPosition()));
+    auto identifierBind = std::make_shared<Binding>(Binding(BindType::EXPRESSION, bind.value().get()->m_Type, m_Module.get()->m_ID, identifierExpression.get()->GetPosition(), false, false, bind.value().get()->m_Reference.has_value() ? bind.value().get()->m_Reference.value() : bind.value()));
     return identifierBind;
   }
   m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, identifierExpression.get()->GetPosition(), m_Module.get()->m_ID, DiagnosticSeverity::ERROR, std::format("undefined name: '{}'", identifierExpression.get()->GetValue())));
@@ -399,10 +406,11 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionAssign(std::shar
     m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, valueBind.get()->m_Position, valueBind.get()->m_ModuleID, DiagnosticSeverity::ERROR, std::format("expect value of type '{}' but got '{}'", assigneeBind.get()->m_Type.get()->Inspect(), valueBind.get()->m_Type.get()->Inspect())));
     return std::nullopt;
   }
-  // narrow types
-  valueBind.get()->m_IsUsed = true;
+  // TODO: update type instead of reassigning to allow single modification point
   assigneeBind.get()->m_Type = valueBind.get()->m_Type;
-  return assigneeBind;
+  assigneeBind.get()->m_Reference.value().get()->m_Type = valueBind.get()->m_Type;
+  assigneeBind.get()->m_Reference.value().get()->m_Reference.emplace(valueBind.get()->m_Reference.value());
+  return std::nullopt;
 }
 
 std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionFieldAccess(std::shared_ptr<ExpressionFieldAccess> fieldAccessExpression)
@@ -421,10 +429,18 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionFieldAccess(std:
   auto bindObjectType = std::static_pointer_cast<type::Object>(valueBind.get()->m_Type);
   if (bindObjectType.get()->m_Entries.find(fieldAccessExpression.get()->GetFieldName().get()->GetValue()) == bindObjectType.get()->m_Entries.end())
   {
-    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, fieldAccessExpression.get()->GetFieldName().get()->GetPosition(), m_Module.get()->m_ID, DiagnosticSeverity::ERROR, std::format("object '{}' has no field '{}'", bindObjectType.get()->Inspect(), fieldAccessExpression.get()->GetFieldName().get()->GetValue())));
+    std::string fieldNotFoundErrorMessage;
+    switch (valueBind.get()->m_Reference.value().get()->m_BindType)
+    {
+    case BindType::MODULE:
+      fieldNotFoundErrorMessage = std::format("module '{}' has not field '{}'", std::static_pointer_cast<BindingModule>(valueBind.get()->m_Reference.value()).get()->m_Name, fieldAccessExpression.get()->GetFieldName().get()->GetValue());
+      break;
+    default:
+      fieldNotFoundErrorMessage = std::format("object '{}' has no field '{}'", bindObjectType.get()->Inspect(), fieldAccessExpression.get()->GetFieldName().get()->GetValue());
+    }
+    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, fieldAccessExpression.get()->GetFieldName().get()->GetPosition(), m_Module.get()->m_ID, DiagnosticSeverity::ERROR, fieldNotFoundErrorMessage));
     return std::nullopt;
   }
-
   auto bind = std::make_shared<Binding>(Binding(BindType::EXPRESSION, bindObjectType.get()->m_Entries.at(fieldAccessExpression.get()->GetFieldName().get()->GetValue()), m_Module.get()->m_ID, fieldAccessExpression.get()->GetFieldName().get()->GetPosition()));
   return bind;
 }
