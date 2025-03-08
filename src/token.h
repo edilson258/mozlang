@@ -16,6 +16,7 @@ enum class TokenType
   IMPORT,
   FROM,
   PUB,
+  CLASS,
 
   // Types
   VOID,

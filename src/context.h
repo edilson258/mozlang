@@ -28,8 +28,9 @@ public:
   std::shared_ptr<type::Type> m_Type;
   bool m_IsUsed;
   bool m_IsPub;
+  std::optional<std::shared_ptr<Binding>> m_Reference;
 
-  Binding(BindType bindType, std::shared_ptr<type::Type> type, ModuleID moduleID, Position pos, bool isUsed = false, bool isPublic = false) : m_BindType(bindType), m_ModuleID(moduleID), m_Position(pos), m_Type(type), m_IsUsed(isUsed), m_IsPub(isPublic) {}
+  Binding(BindType bindType, std::shared_ptr<type::Type> type, ModuleID moduleID, Position pos, bool isUsed = false, bool isPub = false, std::optional<std::shared_ptr<Binding>> reference = std::nullopt) : m_BindType(bindType), m_ModuleID(moduleID), m_Position(pos), m_Type(type), m_IsUsed(isUsed), m_IsPub(isPub), m_Reference(reference) {}
 };
 
 class BindingFunction : public Binding
@@ -44,10 +45,11 @@ public:
 class BindingModule : public Binding
 {
 public:
+  const std::string m_Name;
   Position m_AliasPosition;
   std::shared_ptr<class ModuleContext> m_Context;
 
-  BindingModule(Position position, Position aliasPosition, ModuleID moduleID, std::shared_ptr<class ModuleContext> context, std::shared_ptr<type::Object> objectType) : Binding(BindType::MODULE, objectType, moduleID, position), m_AliasPosition(aliasPosition), m_Context(context) {}
+  BindingModule(const std::string name, Position position, Position aliasPosition, ModuleID moduleID, std::shared_ptr<class ModuleContext> context, std::shared_ptr<type::Object> objectType) : Binding(BindType::MODULE, objectType, moduleID, position), m_Name(name), m_AliasPosition(aliasPosition), m_Context(context) {}
 };
 
 class ModuleContext

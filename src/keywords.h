@@ -33,6 +33,7 @@ const std::unordered_map<std::string, TokenType> KEYWORDS = {
     std::make_pair("import", TokenType::IMPORT),
     std::make_pair("from", TokenType::FROM),
     std::make_pair("pub", TokenType::PUB),
+    std::make_pair("class", TokenType::CLASS),
 };
 
 class Keyword

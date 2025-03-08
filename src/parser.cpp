@@ -37,9 +37,9 @@ std::optional<Diagnostic> Parser::Parse()
 
 Result<std::shared_ptr<Statement>, Diagnostic> Parser::ParseStatement()
 {
-  if (TokenType::PUB == m_CurrToken.m_Type && (TokenType::LET != m_NextToken.m_Type && TokenType::FUN != m_NextToken.m_Type))
+  if (TokenType::PUB == m_CurrToken.m_Type && (TokenType::LET != m_NextToken.m_Type && TokenType::FUN != m_NextToken.m_Type && TokenType::CLASS != m_NextToken.m_Type))
   {
-    return Result<std::shared_ptr<Statement>, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, m_CurrToken.m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "expected 'let' or 'fun' after 'pub'"));
+    return Result<std::shared_ptr<Statement>, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, m_CurrToken.m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "expected 'class', 'let' or 'fun' after 'pub'"));
   }
   if (TokenType::FUN == m_CurrToken.m_Type || (TokenType::PUB == m_CurrToken.m_Type && TokenType::FUN == m_NextToken.m_Type))
   {
@@ -383,6 +383,7 @@ Result<std::shared_ptr<ExpressionCall>, Diagnostic> Parser::ParseExpressionCall(
 Result<std::shared_ptr<ExpressionAssign>, Diagnostic> Parser::ParseExpressionAssign(std::shared_ptr<Expression> assignee)
 {
   assert(TokenType::EQUAL == m_CurrToken.m_Type);
+  Next().unwrap();
   assert(ExpressionType::IDENTIFIER == assignee.get()->GetType());
   auto valueRes = ParseExpression(Precedence::LOWEST);
   if (valueRes.is_err())
