@@ -8,6 +8,7 @@ enum class TokenType
   STRING,
 
   // Keywords
+  IMPORT,
   FUN,
   RETURN,
   LET,
@@ -30,9 +31,10 @@ enum class TokenType
   VOID,
   STR_TYP,
 
-  AT,
+  AT, // @
   COMMA,
   COLON,
+  ASSOC, // ::
   LPAREN,
   RPAREN,
   LBRACE,

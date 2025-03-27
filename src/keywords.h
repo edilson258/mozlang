@@ -8,6 +8,7 @@
 #include "token.h"
 
 const std::unordered_map<std::string, TokenType> KEYWORDS = {
+    std::make_pair("import", TokenType::IMPORT),
     std::make_pair("fun", TokenType::FUN),
     std::make_pair("return", TokenType::RETURN),
     std::make_pair("let", TokenType::LET),

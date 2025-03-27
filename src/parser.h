@@ -31,21 +31,22 @@ private:
   bool AcceptsPubAccMod(TokenType);
   std::optional<Token> GetAndErasePubAccMod();
 
-  std::optional<Diagnostic> ParsePubAccMod();
-  Result<std::shared_ptr<Statement>, Diagnostic> ParseStatement();
-  Result<std::shared_ptr<Statement>, Diagnostic> ParseStatementFunction();
-  Result<std::shared_ptr<Statement>, Diagnostic> ParseStatementReturn();
-  Result<std::shared_ptr<Statement>, Diagnostic> ParseStatementLet();
-  Result<std::shared_ptr<Statement>, Diagnostic> ParseStatementBlock();
-  Result<std::shared_ptr<Statement>, Diagnostic> ParseStatementExpression();
-  Result<std::shared_ptr<Expression>, Diagnostic> ParseExpression(Precedence);
-  Result<std::shared_ptr<Expression>, Diagnostic> ParseExpressionPrimary();
-  Result<std::shared_ptr<ExpressionIdentifier>, Diagnostic> ParseExpressionIdentifier();
-  Result<std::shared_ptr<ExpressionCall>, Diagnostic> ParseExpressionCall(std::shared_ptr<Expression>);
-  Result<std::shared_ptr<ExpressionAssign>, Diagnostic> ParseExpressionAssign(std::shared_ptr<Expression>);
-  Result<std::shared_ptr<ExpressionFieldAccess>, Diagnostic> ParseExpressionFieldAccess(std::shared_ptr<Expression>);
+  Result<std::shared_ptr<Stmt>, Diagnostic> ParseStmt();
+  Result<std::shared_ptr<Stmt>, Diagnostic> ParseStmtImport();
+  Result<std::shared_ptr<Stmt>, Diagnostic> ParseStmtFunction();
+  Result<std::shared_ptr<Stmt>, Diagnostic> ParseStmtReturn();
+  Result<std::shared_ptr<Stmt>, Diagnostic> ParseStmtLet();
+  Result<std::shared_ptr<Stmt>, Diagnostic> ParseStmtBlock();
+  Result<std::shared_ptr<Stmt>, Diagnostic> ParseStmtExpr();
+  Result<std::shared_ptr<Expr>, Diagnostic> ParseExpr(Prec);
+  Result<std::shared_ptr<Expr>, Diagnostic> ParseExprPrim();
+  Result<std::shared_ptr<IdentExpr>, Diagnostic> ParseExprIdent();
+  Result<std::shared_ptr<CallExpr>, Diagnostic> ParseExprCall(std::shared_ptr<Expr>);
+  Result<std::shared_ptr<AssignExpr>, Diagnostic> ParseExprAssign(std::shared_ptr<Expr>);
+  Result<std::shared_ptr<FieldAccExpr>, Diagnostic> ParseExprFieldAcc(std::shared_ptr<Expr>);
 
-  Result<FunctionParams, Diagnostic> ParseFunctionParams();
-  Result<AstType, Diagnostic> ParseTypeAnnotation();
-  Result<AstType, Diagnostic> ParseTypeAnnotationFunction();
+  std::optional<Diagnostic> ParsePubAccMod();
+  Result<FunParams, Diagnostic> ParseFunParams();
+  Result<AstType, Diagnostic> ParseTypeAnn();
+  Result<AstType, Diagnostic> ParseFunTypeAnn();
 };

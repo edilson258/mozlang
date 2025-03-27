@@ -35,14 +35,14 @@ Result<Token, Diagnostic> Lexer::Next()
     return MakeTokenSimple(TokenType::LBRACE);
   case '}':
     return MakeTokenSimple(TokenType::RBRACE);
-  case ':':
-    return MakeTokenSimple(TokenType::COLON);
   case ';':
     return MakeTokenSimple(TokenType::SEMICOLON);
   case '=':
     return MakeTokenSimple(TokenType::EQUAL);
   case ',':
     return MakeTokenSimple(TokenType::COMMA);
+  case ':':
+    return MakeIfNextOr(":", TokenType::ASSOC, TokenType::COLON);
   case '.':
     return MakeIfNextOr("..", TokenType::ELLIPSIS, TokenType::DOT);
   case '-':

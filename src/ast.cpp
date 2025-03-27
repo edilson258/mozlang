@@ -25,19 +25,19 @@ private:
   void Write(std::string);
   void Writeln(std::string);
 
-  void InspectStatement(std::shared_ptr<Statement>);
-  void InspectStatementBlock(std::shared_ptr<StatementBlock>);
-  void InspectStatementReturn(std::shared_ptr<StatementReturn>);
-  void InspectStatementLet(std::shared_ptr<StatementLet>);
-  void InspectStatementImport(std::shared_ptr<StatementImport>);
-  void InspectStatementFunctionSignature(std::shared_ptr<StatementFunctionSignature>);
-  void InspectStatementFunction(std::shared_ptr<StatementFunction>);
-  void InspectExpression(std::shared_ptr<Expression>);
-  void InspectExpressionCall(std::shared_ptr<ExpressionCall>);
-  void InspectExpressionAssign(std::shared_ptr<ExpressionAssign>);
-  void InspectExpressionFieldAccess(std::shared_ptr<ExpressionFieldAccess>);
-  void InspectExpressionString(std::shared_ptr<ExpressionString>);
-  void InspectEpressionIdentifier(std::shared_ptr<ExpressionIdentifier>);
+  void InspectStatement(std::shared_ptr<Stmt>);
+  void InspectStatementBlock(std::shared_ptr<BlockStmt>);
+  void InspectStatementReturn(std::shared_ptr<RetStmt>);
+  void InspectStatementLet(std::shared_ptr<LetStmt>);
+  void InspectStatementImport(std::shared_ptr<ImportStmt>);
+  void InspectStatementFunctionSignature(std::shared_ptr<FunSignStmt>);
+  void InspectStatementFunction(std::shared_ptr<FunStmt>);
+  void InspectExpression(std::shared_ptr<Expr>);
+  void InspectExpressionCall(std::shared_ptr<CallExpr>);
+  void InspectExpressionAssign(std::shared_ptr<AssignExpr>);
+  void InspectExpressionFieldAccess(std::shared_ptr<FieldAccExpr>);
+  void InspectExpressionString(std::shared_ptr<StringExpr>);
+  void InspectEpressionIdentifier(std::shared_ptr<IdentExpr>);
 };
 
 void ASTInspector::Tab()
@@ -65,7 +65,7 @@ std::string ASTInspector::Inspect()
 {
   Output << "Abstract Syntax Tree\n\n";
 
-  for (std::shared_ptr<Statement> stmt : Ast.m_Program)
+  for (std::shared_ptr<Stmt> stmt : Ast.m_Program)
   {
     InspectStatement(stmt);
   }
@@ -73,28 +73,28 @@ std::string ASTInspector::Inspect()
   return Output.str();
 }
 
-void ASTInspector::InspectStatement(std::shared_ptr<Statement> statement)
+void ASTInspector::InspectStatement(std::shared_ptr<Stmt> statement)
 {
   switch (statement.get()->GetType())
   {
-  case StatementType::FUNCTION_SIGNATURE:
-    return InspectStatementFunctionSignature(std::static_pointer_cast<StatementFunctionSignature>(statement));
-  case StatementType::IMPORT:
-    return InspectStatementImport(std::static_pointer_cast<StatementImport>(statement));
-  case StatementType::LET:
-    return InspectStatementLet(std::static_pointer_cast<StatementLet>(statement));
-  case StatementType::BLOCK:
-    return InspectStatementBlock(std::static_pointer_cast<StatementBlock>(statement));
-  case StatementType::RETURN:
-    return InspectStatementReturn(std::static_pointer_cast<StatementReturn>(statement));
-  case StatementType::FUNCTION:
-    return InspectStatementFunction(std::static_pointer_cast<StatementFunction>(statement));
-  case StatementType ::EXPRESSION:
-    return InspectExpression(std::static_pointer_cast<Expression>(statement));
+  case StmtT::FunSign:
+    return InspectStatementFunctionSignature(std::static_pointer_cast<FunSignStmt>(statement));
+  case StmtT::Import:
+    return InspectStatementImport(std::static_pointer_cast<ImportStmt>(statement));
+  case StmtT::Let:
+    return InspectStatementLet(std::static_pointer_cast<LetStmt>(statement));
+  case StmtT::Block:
+    return InspectStatementBlock(std::static_pointer_cast<BlockStmt>(statement));
+  case StmtT::Return:
+    return InspectStatementReturn(std::static_pointer_cast<RetStmt>(statement));
+  case StmtT::Fun:
+    return InspectStatementFunction(std::static_pointer_cast<FunStmt>(statement));
+  case StmtT ::Expr:
+    return InspectExpression(std::static_pointer_cast<Expr>(statement));
   }
 }
 
-void ASTInspector::InspectStatementLet(std::shared_ptr<StatementLet> letStatement)
+void ASTInspector::InspectStatementLet(std::shared_ptr<LetStmt> letStatement)
 {
   Writeln("Let Statement:");
   Tab();
@@ -114,16 +114,16 @@ void ASTInspector::InspectStatementLet(std::shared_ptr<StatementLet> letStatemen
   UnTab();
 }
 
-void ASTInspector::InspectStatementImport(std::shared_ptr<StatementImport> importStatement)
+void ASTInspector::InspectStatementImport(std::shared_ptr<ImportStmt> importStatement)
 {
   Writeln("Import Statement:");
   Tab();
   Writeln(std::format("Alias '{}'", importStatement.get()->GetName()));
-  Writeln(std::format("Path '{}'", importStatement.get()->GetPath()));
+  // Writeln(std::format("Path '{}'", importStatement.get()->GetPath()));
   UnTab();
 }
 
-void ASTInspector::InspectStatementBlock(std::shared_ptr<StatementBlock> blockStatement)
+void ASTInspector::InspectStatementBlock(std::shared_ptr<BlockStmt> blockStatement)
 {
   Writeln("Block Statement:");
   Tab();
@@ -134,7 +134,7 @@ void ASTInspector::InspectStatementBlock(std::shared_ptr<StatementBlock> blockSt
   UnTab();
 }
 
-void ASTInspector::InspectStatementReturn(std::shared_ptr<StatementReturn> returnStatement)
+void ASTInspector::InspectStatementReturn(std::shared_ptr<RetStmt> returnStatement)
 {
   Writeln("Return Statement:");
   Tab();
@@ -145,7 +145,7 @@ void ASTInspector::InspectStatementReturn(std::shared_ptr<StatementReturn> retur
   UnTab();
 }
 
-void ASTInspector::InspectStatementFunctionSignature(std::shared_ptr<StatementFunctionSignature> functionSignature)
+void ASTInspector::InspectStatementFunctionSignature(std::shared_ptr<FunSignStmt> functionSignature)
 {
   Writeln("Function Signature:");
   Tab();
@@ -163,7 +163,7 @@ void ASTInspector::InspectStatementFunctionSignature(std::shared_ptr<StatementFu
   UnTab();
 }
 
-void ASTInspector::InspectStatementFunction(std::shared_ptr<StatementFunction> functionStatement)
+void ASTInspector::InspectStatementFunction(std::shared_ptr<FunStmt> functionStatement)
 {
   Writeln("Function Statement:");
   Tab();
@@ -172,24 +172,24 @@ void ASTInspector::InspectStatementFunction(std::shared_ptr<StatementFunction> f
   UnTab();
 }
 
-void ASTInspector::InspectExpression(std::shared_ptr<Expression> expression)
+void ASTInspector::InspectExpression(std::shared_ptr<Expr> expression)
 {
   switch (expression.get()->GetType())
   {
-  case ExpressionType::FIELD_ACCESS:
-    return InspectExpressionFieldAccess(std::static_pointer_cast<ExpressionFieldAccess>(expression));
-  case ExpressionType::ASSIGN:
-    return InspectExpressionAssign(std::static_pointer_cast<ExpressionAssign>(expression));
-  case ExpressionType::CALL:
-    return InspectExpressionCall(std::static_pointer_cast<ExpressionCall>(expression));
-  case ExpressionType::STRING:
-    return InspectExpressionString(std::static_pointer_cast<ExpressionString>(expression));
-  case ExpressionType::IDENTIFIER:
-    return InspectEpressionIdentifier(std::static_pointer_cast<ExpressionIdentifier>(expression));
+  case ExprT::FieldAcc:
+    return InspectExpressionFieldAccess(std::static_pointer_cast<FieldAccExpr>(expression));
+  case ExprT::Assign:
+    return InspectExpressionAssign(std::static_pointer_cast<AssignExpr>(expression));
+  case ExprT::Call:
+    return InspectExpressionCall(std::static_pointer_cast<CallExpr>(expression));
+  case ExprT::String:
+    return InspectExpressionString(std::static_pointer_cast<StringExpr>(expression));
+  case ExprT::Ident:
+    return InspectEpressionIdentifier(std::static_pointer_cast<IdentExpr>(expression));
   }
 }
 
-void ASTInspector::InspectExpressionCall(std::shared_ptr<ExpressionCall> callExpression)
+void ASTInspector::InspectExpressionCall(std::shared_ptr<CallExpr> callExpression)
 {
   Position position = callExpression.get()->GetCalleePosition();
   Writeln(std::format("call expression: {{{}:{}:{}:{}}}", position.m_Line, position.m_Column, position.m_Start, position.m_End));
@@ -212,7 +212,7 @@ void ASTInspector::InspectExpressionCall(std::shared_ptr<ExpressionCall> callExp
   UnTab();
 }
 
-void ASTInspector::InspectExpressionAssign(std::shared_ptr<ExpressionAssign> assignExpression)
+void ASTInspector::InspectExpressionAssign(std::shared_ptr<AssignExpr> assignExpression)
 {
   Writeln("Assign Expression:");
   Tab();
@@ -224,7 +224,7 @@ void ASTInspector::InspectExpressionAssign(std::shared_ptr<ExpressionAssign> ass
   UnTab();
 }
 
-void ASTInspector::InspectExpressionFieldAccess(std::shared_ptr<ExpressionFieldAccess> fieldAccessExpression)
+void ASTInspector::InspectExpressionFieldAccess(std::shared_ptr<FieldAccExpr> fieldAccessExpression)
 {
   Position pos = fieldAccessExpression.get()->GetPosition();
   Writeln(std::format("Field Access Expression: {}:{}:{}:{}", pos.m_Line, pos.m_Column, pos.m_Start, pos.m_End));
@@ -237,13 +237,13 @@ void ASTInspector::InspectExpressionFieldAccess(std::shared_ptr<ExpressionFieldA
   UnTab();
 }
 
-void ASTInspector::InspectExpressionString(std::shared_ptr<ExpressionString> stringExpression)
+void ASTInspector::InspectExpressionString(std::shared_ptr<StringExpr> stringExpression)
 {
   Writeln(std::format("string literal: {}", stringExpression.get()->GetValue()));
 }
 
 // ;
-void ASTInspector::InspectEpressionIdentifier(std::shared_ptr<ExpressionIdentifier> identifierExpression)
+void ASTInspector::InspectEpressionIdentifier(std::shared_ptr<IdentExpr> identifierExpression)
 {
   Writeln(std::format("identifer expression: {}", identifierExpression.get()->GetValue()));
 }

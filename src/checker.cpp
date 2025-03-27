@@ -40,29 +40,29 @@ std::vector<Diagnostic> Checker::Check()
   return std::move(m_Diagnostics);
 }
 
-std::optional<std::shared_ptr<Binding>> Checker::CheckStatement(std::shared_ptr<Statement> statement)
+std::optional<std::shared_ptr<Binding>> Checker::CheckStatement(std::shared_ptr<Stmt> statement)
 {
   switch (statement.get()->GetType())
   {
-  case StatementType::FUNCTION_SIGNATURE:
-    return CheckStatementFunctionSignature(std::static_pointer_cast<StatementFunctionSignature>(statement));
-  case StatementType::IMPORT:
-    return CheckStatementImport(std::static_pointer_cast<StatementImport>(statement));
-  case StatementType::LET:
-    return CheckStatementLet(std::static_pointer_cast<StatementLet>(statement));
-  case StatementType::BLOCK:
-    return CheckStatementBlock(std::static_pointer_cast<StatementBlock>(statement));
-  case StatementType::RETURN:
-    return CheckStatementReturn(std::static_pointer_cast<StatementReturn>(statement));
-  case StatementType::FUNCTION:
-    return CheckStatementFunction(std::static_pointer_cast<StatementFunction>(statement));
-  case StatementType::EXPRESSION:
-    return CheckExpression(std::static_pointer_cast<Expression>(statement));
+  case StmtT::FunSign:
+    return CheckStatementFunctionSignature(std::static_pointer_cast<FunSignStmt>(statement));
+  case StmtT::Import:
+    return CheckStatementImport(std::static_pointer_cast<ImportStmt>(statement));
+  case StmtT::Let:
+    return CheckStatementLet(std::static_pointer_cast<LetStmt>(statement));
+  case StmtT::Block:
+    return CheckStatementBlock(std::static_pointer_cast<BlockStmt>(statement));
+  case StmtT::Return:
+    return CheckStatementReturn(std::static_pointer_cast<RetStmt>(statement));
+  case StmtT::Fun:
+    return CheckStatementFunction(std::static_pointer_cast<FunStmt>(statement));
+  case StmtT::Expr:
+    return CheckExpression(std::static_pointer_cast<Expr>(statement));
   }
   return std::nullopt;
 }
 
-std::optional<std::shared_ptr<Binding>> Checker::CheckStatementFunctionSignature(std::shared_ptr<StatementFunctionSignature> functionStatementSignature)
+std::optional<std::shared_ptr<Binding>> Checker::CheckStatementFunctionSignature(std::shared_ptr<FunSignStmt> functionStatementSignature)
 {
   auto bindWithSameName = m_Scopes.back().m_Context.Get(functionStatementSignature.get()->GetName());
   if (bindWithSameName.has_value())
@@ -94,7 +94,7 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementFunctionSignature
   return std::nullopt;
 }
 
-std::optional<std::shared_ptr<Binding>> Checker::CheckStatementFunction(std::shared_ptr<StatementFunction> functionStatement)
+std::optional<std::shared_ptr<Binding>> Checker::CheckStatementFunction(std::shared_ptr<FunStmt> functionStatement)
 {
   CheckStatementFunctionSignature(functionStatement.get()->GetSignature());
   auto returnType = std::make_shared<type::Type>(type::Type(type::Base::VOID));
@@ -147,7 +147,7 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementFunction(std::sha
   return std::nullopt;
 }
 
-std::optional<std::shared_ptr<Binding>> Checker::CheckStatementReturn(std::shared_ptr<StatementReturn> returnStatement)
+std::optional<std::shared_ptr<Binding>> Checker::CheckStatementReturn(std::shared_ptr<RetStmt> returnStatement)
 {
   if (!IsWithinScope(ScopeType::FUNCTION))
   {
@@ -171,7 +171,7 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementReturn(std::share
   return returnBind;
 }
 
-std::optional<std::shared_ptr<Binding>> Checker::CheckStatementBlock(std::shared_ptr<StatementBlock> blockStatement)
+std::optional<std::shared_ptr<Binding>> Checker::CheckStatementBlock(std::shared_ptr<BlockStmt> blockStatement)
 {
   std::vector<std::shared_ptr<Binding>> statementsBinds = {};
   auto statements = blockStatement.get()->GetStatements();
@@ -183,7 +183,7 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementBlock(std::shared
     {
       statementsBinds.push_back(statementBind.value());
     }
-    if (StatementType::RETURN == statement.get()->GetType() && (i + 1 < statements.size()))
+    if (StmtT::Return == statement.get()->GetType() && (i + 1 < statements.size()))
     {
       Position position = statements.at(i + 1).get()->GetPosition();
       position.m_End = blockStatement.get()->GetPosition().m_End - 1;
@@ -209,7 +209,7 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementBlock(std::shared
   return returnBind;
 }
 
-std::optional<std::shared_ptr<Binding>> Checker::CheckStatementLet(std::shared_ptr<StatementLet> letStatement)
+std::optional<std::shared_ptr<Binding>> Checker::CheckStatementLet(std::shared_ptr<LetStmt> letStatement)
 {
   // let name
   auto bindWithSameName = m_Scopes.back().m_Context.Get(letStatement.get()->GetName());
@@ -255,7 +255,7 @@ defer:
   return std::nullopt;
 }
 
-std::optional<std::shared_ptr<Binding>> Checker::CheckStatementImport(std::shared_ptr<StatementImport> importStatement)
+std::optional<std::shared_ptr<Binding>> Checker::CheckStatementImport(std::shared_ptr<ImportStmt> importStatement)
 {
   auto bindWithSameName = m_Scopes.back().m_Context.Get(importStatement.get()->GetName());
   if (bindWithSameName.has_value())
@@ -264,7 +264,7 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementImport(std::share
     m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, importStatement.get()->GetNamePosition(), m_Module.get()->m_ID, DiagnosticSeverity::ERROR, std::format("name '{}' already in use", importStatement.get()->GetName()), reference));
     return std::nullopt;
   }
-  auto loadRes = m_ModManager.Load(importStatement.get()->GetPath());
+  auto loadRes = m_ModManager.Load("");
   if (loadRes.is_err())
   {
     m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, importStatement.get()->GetPathPosition(), m_Module.get()->m_ID, DiagnosticSeverity::ERROR, std::format("failed to import module '{}', '{}'", importStatement.get()->GetName(), loadRes.unwrap_err().Message)));
@@ -301,25 +301,25 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStatementImport(std::share
   return std::nullopt;
 }
 
-std::optional<std::shared_ptr<Binding>> Checker::CheckExpression(std::shared_ptr<Expression> expression)
+std::optional<std::shared_ptr<Binding>> Checker::CheckExpression(std::shared_ptr<Expr> expression)
 {
   switch (expression.get()->GetType())
   {
-  case ExpressionType::FIELD_ACCESS:
-    return CheckExpressionFieldAccess(std::static_pointer_cast<ExpressionFieldAccess>(expression));
-  case ExpressionType::ASSIGN:
-    return CheckExpressionAssign(std::static_pointer_cast<ExpressionAssign>(expression));
-  case ExpressionType::CALL:
-    return CheckExpressionCall(std::static_pointer_cast<ExpressionCall>(expression));
-  case ExpressionType::STRING:
-    return CheckExpressionString(std::static_pointer_cast<ExpressionString>(expression));
-  case ExpressionType::IDENTIFIER:
-    return CheckExpressionIdentifier(std::static_pointer_cast<ExpressionIdentifier>(expression));
+  case ExprT::FieldAcc:
+    return CheckExpressionFieldAccess(std::static_pointer_cast<FieldAccExpr>(expression));
+  case ExprT::Assign:
+    return CheckExpressionAssign(std::static_pointer_cast<AssignExpr>(expression));
+  case ExprT::Call:
+    return CheckExpressionCall(std::static_pointer_cast<CallExpr>(expression));
+  case ExprT::String:
+    return CheckExpressionString(std::static_pointer_cast<StringExpr>(expression));
+  case ExprT::Ident:
+    return CheckExpressionIdentifier(std::static_pointer_cast<IdentExpr>(expression));
   }
   return std::nullopt;
 }
 
-std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionCall(std::shared_ptr<ExpressionCall> callExpression)
+std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionCall(std::shared_ptr<CallExpr> callExpression)
 {
   // callee
   auto calleeBindOpt = CheckExpression(callExpression.get()->GetCallee());
@@ -371,7 +371,7 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionCall(std::shared
   return std::make_shared<Binding>(Binding(BindType::EXPRESSION, calleeFnType.get()->m_ReturnType, m_Module.get()->m_ID, callExpression.get()->GetPosition()));
 }
 
-std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionIdentifier(std::shared_ptr<ExpressionIdentifier> identifierExpression)
+std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionIdentifier(std::shared_ptr<IdentExpr> identifierExpression)
 {
   auto bind = LookupBind(identifierExpression.get()->GetValue());
   if (bind.has_value())
@@ -384,7 +384,7 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionIdentifier(std::
   return std::nullopt;
 }
 
-std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionAssign(std::shared_ptr<ExpressionAssign> assignExpression)
+std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionAssign(std::shared_ptr<AssignExpr> assignExpression)
 {
   // assignee
   auto assigneeBindOpt = CheckExpressionIdentifier(assignExpression.get()->GetAssignee());
@@ -413,7 +413,7 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionAssign(std::shar
   return std::nullopt;
 }
 
-std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionFieldAccess(std::shared_ptr<ExpressionFieldAccess> fieldAccessExpression)
+std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionFieldAccess(std::shared_ptr<FieldAccExpr> fieldAccessExpression)
 {
   auto valueBindOpt = CheckExpression(fieldAccessExpression.get()->GetValue());
   if (!valueBindOpt.has_value())
@@ -445,7 +445,7 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionFieldAccess(std:
   return bind;
 }
 
-std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionString(std::shared_ptr<ExpressionString> stringExpression)
+std::optional<std::shared_ptr<Binding>> Checker::CheckExpressionString(std::shared_ptr<StringExpr> stringExpression)
 {
   auto stringLiteralBind = std::make_shared<Binding>(Binding(BindType::EXPRESSION, std::make_shared<type::Type>(type::Type(type::Base::STRING)), m_Module.get()->m_ID, stringExpression.get()->GetPosition()));
   return stringLiteralBind;

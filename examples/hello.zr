@@ -1,5 +1,5 @@
-let io = from @std::io;
+import io from @std::io;
 
-pub fun say_hello() {
-  io.println("Hello, World!");
+fun main() {
+    io.println("Hello, World!");
 }
