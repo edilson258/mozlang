@@ -12,8 +12,6 @@ std::string Type::Inspect() const
 {
   switch (m_Base)
   {
-  case Base::BYTE:
-    return "byte";
   case Base::VOID:
     return "void";
   case Base::STRING:
@@ -157,10 +155,6 @@ std::optional<std::shared_ptr<Type>> NarrowTypes(std::shared_ptr<Type> lhs, std:
   return std::nullopt;
 }
 
-std::shared_ptr<Type> Type::make_byte()
-{
-  return std::make_shared<Type>(Type(Base::BYTE));
-}
 std::shared_ptr<Type> Type::make_void()
 {
   return std::make_shared<Type>(Type(Base::VOID));

@@ -11,7 +11,8 @@
 
 enum class BindType
 {
-  EXPRESSION = 1,
+  ERROR = 1,
+  EXPRESSION,
   FUNCTION,
   VARIABLE,
   PARAMETER,

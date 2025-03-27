@@ -1,8 +1,9 @@
 let hellox;
 
-fun hello() {
+pub fun hello(x: i32) {
   let age = "23";
-  hellox = "";
 }
+
+hello("");
 
 let name = "Edilson";

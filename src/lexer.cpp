@@ -20,11 +20,13 @@ Result<Token, Diagnostic> Lexer::Next()
                { return std::isspace(c); });
   if (IsEof())
   {
-    return Result<Token, Diagnostic>(Token(Position(m_Line, m_Column, m_Cursor, m_Cursor), TokenType::EOf, "EOF"));
+    return Result<Token, Diagnostic>(Token(Position(m_Line, m_Column, m_Cursor, m_Cursor), TokenType::END, "EOF"));
   }
   char current = PeekOne();
   switch (current)
   {
+  case '@':
+    return MakeTokenSimple(TokenType::AT);
   case '(':
     return MakeTokenSimple(TokenType::LPAREN);
   case ')':
@@ -42,7 +44,7 @@ Result<Token, Diagnostic> Lexer::Next()
   case ',':
     return MakeTokenSimple(TokenType::COMMA);
   case '.':
-    return MakeIfNextOr("..", TokenType::VAR_ARGS, TokenType::DOT);
+    return MakeIfNextOr("..", TokenType::ELLIPSIS, TokenType::DOT);
   case '-':
     return MakeIfNextOr(">", TokenType::ARROW, TokenType::MINUS);
   case '"':
@@ -61,7 +63,7 @@ Result<Token, Diagnostic> Lexer::Next()
     {
       return Result<Token, Diagnostic>(Token(Position(m_Line, atColumn, at, m_Cursor - 1), keyword.value(), label));
     }
-    return Result<Token, Diagnostic>(Token(Position(m_Line, atColumn, at, m_Cursor - 1), TokenType::IDENTIFIER, label));
+    return Result<Token, Diagnostic>(Token(Position(m_Line, atColumn, at, m_Cursor - 1), TokenType::IDENT, label));
   }
   return Result<Token, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, Position(m_Line, m_Column, m_Cursor, m_Cursor), m_ModuleID, DiagnosticSeverity::ERROR, std::format("invalid token: '{}'", current)));
 }

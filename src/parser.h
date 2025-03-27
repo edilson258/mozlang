@@ -8,6 +8,7 @@
 #include "lexer.h"
 #include "module.h"
 #include "result.h"
+#include "token.h"
 
 class Parser
 {
@@ -22,17 +23,21 @@ private:
   Lexer m_Lexer;
   Token m_CurrToken;
   Token m_NextToken;
+  std::optional<Token> m_PubAccModToken;
 
   bool IsEof();
   Result<Position, Diagnostic> Next();
   Result<Position, Diagnostic> Expect(TokenType);
+  bool AcceptsPubAccMod(TokenType);
+  std::optional<Token> GetAndErasePubAccMod();
 
+  std::optional<Diagnostic> ParsePubAccMod();
   Result<std::shared_ptr<Statement>, Diagnostic> ParseStatement();
   Result<std::shared_ptr<Statement>, Diagnostic> ParseStatementFunction();
   Result<std::shared_ptr<Statement>, Diagnostic> ParseStatementReturn();
   Result<std::shared_ptr<Statement>, Diagnostic> ParseStatementLet();
-  Result<std::shared_ptr<Statement>, Diagnostic> ParseStatementImport();
   Result<std::shared_ptr<Statement>, Diagnostic> ParseStatementBlock();
+  Result<std::shared_ptr<Statement>, Diagnostic> ParseStatementExpression();
   Result<std::shared_ptr<Expression>, Diagnostic> ParseExpression(Precedence);
   Result<std::shared_ptr<Expression>, Diagnostic> ParseExpressionPrimary();
   Result<std::shared_ptr<ExpressionIdentifier>, Diagnostic> ParseExpressionIdentifier();

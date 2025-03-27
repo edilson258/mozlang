@@ -1,7 +1,5 @@
-import io from "std/io.zr";
+let io = from @std::io;
 
-let message_prefix = "Hello,";
-
-pub fun say_hello(name: string) {
-  io.println(message_prefix, name);
+pub fun say_hello() {
+  io.println("Hello, World!");
 }

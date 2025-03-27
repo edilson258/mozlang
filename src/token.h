@@ -4,42 +4,33 @@
 
 enum class TokenType
 {
-  EOf = 1,
-
+  IDENT,
   STRING,
-  IDENTIFIER,
 
   // Keywords
   FUN,
   RETURN,
   LET,
-  IMPORT,
   FROM,
   PUB,
   CLASS,
 
-  // Types
-  VOID,
-  STRING_T,
-  BYTE,
-  // numbers
-  // signed integers
   I8,
   I16,
   I32,
   I64,
-  // unsigned integers
   U8,
   U16,
   U32,
   U64,
-  // floating numbers
   F8,
   F16,
   F32,
   F64,
+  VOID,
+  STR_TYP,
 
-  // Punctuation
+  AT,
   COMMA,
   COLON,
   LPAREN,
@@ -50,13 +41,14 @@ enum class TokenType
   SEMICOLON,
   DOT,
   ARROW,    // ->
-  VAR_ARGS, // ...
+  ELLIPSIS, // ...
 
-  // arithmetic
   PLUS,     // +
   MINUS,    // -
   ASTERISK, // *
   SLASH,    // /
+
+  END,
 };
 
 class Position

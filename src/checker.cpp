@@ -467,6 +467,7 @@ void Checker::LeaveScope()
     switch (bind.second.get()->m_BindType)
     {
     case BindType::MODULE:
+    case BindType::ERROR:
       break;
     case BindType::EXPRESSION:
     case BindType::RETURN_VALUE:

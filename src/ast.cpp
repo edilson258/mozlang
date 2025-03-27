@@ -98,6 +98,7 @@ void ASTInspector::InspectStatementLet(std::shared_ptr<StatementLet> letStatemen
 {
   Writeln("Let Statement:");
   Tab();
+  Writeln(std::format("Is Pub: {}", letStatement->IsPub()));
   Writeln(std::format("Name: {}", letStatement.get()->GetName()));
   Writeln("Value:");
   Tab();
@@ -148,6 +149,7 @@ void ASTInspector::InspectStatementFunctionSignature(std::shared_ptr<StatementFu
 {
   Writeln("Function Signature:");
   Tab();
+  Writeln(std::format("Is Pub: {}", functionSignature->IsPub()));
   Writeln(std::format("Name: {}", functionSignature.get()->GetName()));
   Writeln(std::format("Return type: {}", functionSignature.get()->GetReturnType().has_value() ? functionSignature.get()->GetReturnType().value().GetType().get()->Inspect() : "void"));
   Writeln("Parameters: [");

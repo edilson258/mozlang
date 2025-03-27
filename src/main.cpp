@@ -5,7 +5,6 @@
 
 #include "checker.h"
 #include "diagnostic.h"
-#include "ir/ir.h"
 #include "module.h"
 #include "parser.h"
 
@@ -31,7 +30,7 @@ int main(int argc, char *argv[])
     diagnosticEngine.Report(parseError.value());
     return 1;
   }
-  // std::cout << ast.Inspect() << std::endl;
+  std::cout << mainModule->m_AST.value()->Inspect() << std::endl;
   Checker checker(mainModule, moduleManager);
   auto diagnostics = checker.Check();
   bool hasErrorDiagnostic = false;
@@ -47,10 +46,5 @@ int main(int argc, char *argv[])
   {
     return 1;
   }
-  IRGenerator irGenerator(mainModule);
-  auto irRes = irGenerator.Emit();
-  auto ir = irRes.unwrap();
-  IRDisassembler irDesassembler(ir);
-  auto irAsm = irDesassembler.Disassemble();
-  std::cout << irAsm.unwrap() << std::endl;
+  return 0;
 }
