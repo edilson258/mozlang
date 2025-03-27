@@ -115,7 +115,7 @@ Result<std::shared_ptr<Stmt>, Diagnostic> Parser::ParseStmtImport()
 
 Result<std::shared_ptr<Stmt>, Diagnostic> Parser::ParseStmtExpr()
 {
-  auto expressionRes = ParseExpr(Prec::LOW);
+  auto expressionRes = ParseExpr(Prec::Low);
   if (expressionRes.is_err())
   {
     return expressionRes.unwrap_err();
@@ -252,7 +252,7 @@ Result<std::shared_ptr<Stmt>, Diagnostic> Parser::ParseStmtLet()
   if (TokenType::EQUAL == m_CurrToken.m_Type)
   {
     Next().unwrap();
-    auto initializerRes = ParseExpr(Prec::LOW);
+    auto initializerRes = ParseExpr(Prec::Low);
     if (initializerRes.is_err())
     {
       return Result<std::shared_ptr<Stmt>, Diagnostic>(initializerRes.unwrap_err());
@@ -272,7 +272,7 @@ Result<std::shared_ptr<Stmt>, Diagnostic> Parser::ParseStmtReturn()
   std::optional<std::shared_ptr<Expr>> value(std::nullopt);
   if (TokenType::SEMICOLON != m_CurrToken.m_Type)
   {
-    auto valueRes = ParseExpr(Prec::LOW);
+    auto valueRes = ParseExpr(Prec::Low);
     if (valueRes.is_err())
     {
       return Result<std::shared_ptr<Stmt>, Diagnostic>(valueRes.unwrap_err());
@@ -288,13 +288,13 @@ Prec token2precedence(TokenType tokenType)
   switch (tokenType)
   {
   case TokenType::LPAREN:
-    return Prec::CALL;
+    return Prec::Call;
   case TokenType::EQUAL:
-    return Prec::ASSIGN;
+    return Prec::Assign;
   case TokenType::DOT:
-    return Prec::FIELD_ACC;
+    return Prec::FieldAcc;
   default:
-    return Prec::LOW;
+    return Prec::Low;
   }
 }
 
@@ -373,7 +373,7 @@ Result<std::shared_ptr<CallExpr>, Diagnostic> Parser::ParseExprCall(std::shared_
   std::vector<std::shared_ptr<Expr>> args;
   while (!IsEof() && TokenType::RPAREN != m_CurrToken.m_Type)
   {
-    auto exprRes = ParseExpr(Prec::LOW);
+    auto exprRes = ParseExpr(Prec::Low);
     if (exprRes.is_err())
     {
       return Result<std::shared_ptr<CallExpr>, Diagnostic>(exprRes.unwrap_err());
@@ -398,7 +398,7 @@ Result<std::shared_ptr<AssignExpr>, Diagnostic> Parser::ParseExprAssign(std::sha
   assert(TokenType::EQUAL == m_CurrToken.m_Type);
   Next().unwrap();
   assert(ExprT::Ident == assignee.get()->GetType());
-  auto valueRes = ParseExpr(Prec::LOW);
+  auto valueRes = ParseExpr(Prec::Low);
   if (valueRes.is_err())
   {
     return Result<std::shared_ptr<AssignExpr>, Diagnostic>(valueRes.unwrap_err());

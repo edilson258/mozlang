@@ -2,6 +2,4 @@ import io from @std::io;
 import foo from examples::foo;
 
 fun main() {
-    io.println("Hello, World!");
-    foo.name;
 }

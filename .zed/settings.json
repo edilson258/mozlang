@@ -1,5 +1,6 @@
 {
   "file_types": {
     "C++": ["l"]
-  }
+  },
+  "tab_size": 2
 }

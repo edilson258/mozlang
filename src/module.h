@@ -11,6 +11,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "ast.h"
 
@@ -32,8 +33,9 @@ public:
   std::string m_Content;
   std::optional<std::shared_ptr<AST>> m_AST;
   std::optional<std::shared_ptr<class ModuleContext>> m_Exports;
+  std::vector<ModuleID> m_ImportedModules;
 
-  Module(ModuleID id, std::string path, std::string content) : m_ID(id), m_Status(ModuleStatus::IDLE), m_Path(path), m_Content(content), m_AST(), m_Exports() {};
+  Module(ModuleID id, std::string path, std::string content) : m_ID(id), m_Status(ModuleStatus::IDLE), m_Path(path), m_Content(content), m_AST(), m_Exports(), m_ImportedModules() {};
 };
 
 class ModuleManager

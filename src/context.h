@@ -11,13 +11,12 @@
 
 enum class BindType
 {
-  ERROR = 1,
-  EXPRESSION,
-  FUNCTION,
-  VARIABLE,
-  PARAMETER,
-  RETURN_VALUE,
-  MODULE,
+  Expr,
+  Fun,
+  Variable,
+  Param,
+  RetVal,
+  Module,
 };
 
 class Binding
@@ -40,7 +39,7 @@ public:
   Position NamePosition;
   Position ParamsPosition;
 
-  BindingFunction(Position position, Position namePosition, Position paramsPosition, std::shared_ptr<type::Function> functionType, ModuleID moduleID, bool used = false, bool isPublic = false) : Binding(BindType::FUNCTION, functionType, moduleID, position, used, isPublic), NamePosition(namePosition), ParamsPosition(paramsPosition) {};
+  BindingFunction(Position position, Position namePosition, Position paramsPosition, std::shared_ptr<type::Function> functionType, ModuleID moduleID, bool used = false, bool isPublic = false) : Binding(BindType::Fun, functionType, moduleID, position, used, isPublic), NamePosition(namePosition), ParamsPosition(paramsPosition) {};
 };
 
 class BindingModule : public Binding
@@ -50,7 +49,7 @@ public:
   Position m_AliasPosition;
   std::shared_ptr<class ModuleContext> m_Context;
 
-  BindingModule(const std::string name, Position position, Position aliasPosition, ModuleID moduleID, std::shared_ptr<class ModuleContext> context, std::shared_ptr<type::Object> objectType) : Binding(BindType::MODULE, objectType, moduleID, position), m_Name(name), m_AliasPosition(aliasPosition), m_Context(context) {}
+  BindingModule(const std::string name, Position position, Position aliasPosition, ModuleID moduleID, std::shared_ptr<class ModuleContext> context, std::shared_ptr<type::Object> objectType) : Binding(BindType::Module, objectType, moduleID, position), m_Name(name), m_AliasPosition(aliasPosition), m_Context(context) {}
 };
 
 class ModuleContext

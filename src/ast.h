@@ -11,10 +11,10 @@
 
 enum class Prec
 {
-  LOW = 1,
-  ASSIGN = 2,
-  CALL = 10,
-  FIELD_ACC = 11,
+  Low = 1,
+  Assign = 2,
+  Call = 10,
+  FieldAcc = 11,
 };
 
 enum class StmtT
