@@ -85,7 +85,7 @@ void ASTInspector::InspectStatement(std::shared_ptr<Stmt> statement)
     return InspectStatementLet(std::static_pointer_cast<LetStmt>(statement));
   case StmtT::Block:
     return InspectStatementBlock(std::static_pointer_cast<BlockStmt>(statement));
-  case StmtT::Return:
+  case StmtT::Ret:
     return InspectStatementReturn(std::static_pointer_cast<RetStmt>(statement));
   case StmtT::Fun:
     return InspectStatementFunction(std::static_pointer_cast<FunStmt>(statement));

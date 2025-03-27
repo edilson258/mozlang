@@ -42,20 +42,22 @@ private:
   void LeaveScope();
   std::optional<std::shared_ptr<Binding>> LookupBind(std::string name);
   void SaveBind(std::string name, std::shared_ptr<Binding> bind);
-
   bool IsWithinScope(ScopeType);
 
-  std::optional<std::shared_ptr<Binding>> CheckStatement(std::shared_ptr<Stmt>);
-  std::optional<std::shared_ptr<Binding>> CheckStatementFunction(std::shared_ptr<FunStmt>);
-  std::optional<std::shared_ptr<Binding>> CheckStatementFunctionSignature(std::shared_ptr<FunSignStmt>);
-  std::optional<std::shared_ptr<Binding>> CheckStatementReturn(std::shared_ptr<RetStmt>);
-  std::optional<std::shared_ptr<Binding>> CheckStatementBlock(std::shared_ptr<BlockStmt>);
-  std::optional<std::shared_ptr<Binding>> CheckStatementLet(std::shared_ptr<LetStmt>);
-  std::optional<std::shared_ptr<Binding>> CheckStatementImport(std::shared_ptr<ImportStmt>);
-  std::optional<std::shared_ptr<Binding>> CheckExpression(std::shared_ptr<Expr>);
-  std::optional<std::shared_ptr<Binding>> CheckExpressionCall(std::shared_ptr<CallExpr>);
-  std::optional<std::shared_ptr<Binding>> CheckExpressionString(std::shared_ptr<StringExpr>);
-  std::optional<std::shared_ptr<Binding>> CheckExpressionIdentifier(std::shared_ptr<IdentExpr>);
-  std::optional<std::shared_ptr<Binding>> CheckExpressionAssign(std::shared_ptr<AssignExpr>);
-  std::optional<std::shared_ptr<Binding>> CheckExpressionFieldAccess(std::shared_ptr<FieldAccExpr>);
+  // utils
+  std::string NormalizeImportPath(bool, std::vector<std::shared_ptr<IdentExpr>>);
+
+  std::optional<std::shared_ptr<Binding>> CheckStmt(std::shared_ptr<Stmt>);
+  std::optional<std::shared_ptr<Binding>> CheckStmtFun(std::shared_ptr<FunStmt>);
+  std::optional<std::shared_ptr<Binding>> CheckStmtFunSign(std::shared_ptr<FunSignStmt>);
+  std::optional<std::shared_ptr<Binding>> CheckStmtRet(std::shared_ptr<RetStmt>);
+  std::optional<std::shared_ptr<Binding>> CheckStmtBlock(std::shared_ptr<BlockStmt>);
+  std::optional<std::shared_ptr<Binding>> CheckStmtLet(std::shared_ptr<LetStmt>);
+  std::optional<std::shared_ptr<Binding>> CheckStmtImport(std::shared_ptr<ImportStmt>);
+  std::optional<std::shared_ptr<Binding>> CheckExpr(std::shared_ptr<Expr>);
+  std::optional<std::shared_ptr<Binding>> CheckExprCall(std::shared_ptr<CallExpr>);
+  std::optional<std::shared_ptr<Binding>> CheckExprString(std::shared_ptr<StringExpr>);
+  std::optional<std::shared_ptr<Binding>> CheckExprIdent(std::shared_ptr<IdentExpr>);
+  std::optional<std::shared_ptr<Binding>> CheckExprAssign(std::shared_ptr<AssignExpr>);
+  std::optional<std::shared_ptr<Binding>> CheckExprFieldAcc(std::shared_ptr<FieldAccExpr>);
 };

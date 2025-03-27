@@ -22,7 +22,7 @@ enum class StmtT
   Block = 1,
   Fun,
   FunSign,
-  Return,
+  Ret,
   Expr,
   Let,
   Import,
@@ -164,8 +164,8 @@ private:
 class RetStmt : public Stmt
 {
 public:
-  RetStmt(std::shared_ptr<Expr> value) : Stmt(StmtT::Return), m_ReturnToken(std::nullopt), m_Value(value) {};
-  RetStmt(Token returnToken, std::optional<std::shared_ptr<Expr>> value) : Stmt(StmtT::Return), m_ReturnToken(returnToken), m_Value(value) {};
+  RetStmt(std::shared_ptr<Expr> value) : Stmt(StmtT::Ret), m_ReturnToken(std::nullopt), m_Value(value) {};
+  RetStmt(Token returnToken, std::optional<std::shared_ptr<Expr>> value) : Stmt(StmtT::Ret), m_ReturnToken(returnToken), m_Value(value) {};
 
   std::optional<std::shared_ptr<Expr>> GetValue() const { return m_Value; }
   bool IsImplicity() const { return !m_ReturnToken.has_value(); }
@@ -347,6 +347,7 @@ public:
   Position GetPathPosition() const { return m_Alias.get()->GetPosition(); }
   std::string GetName() const { return m_Alias.get()->GetValue(); }
   std::vector<std::shared_ptr<IdentExpr>> GetPath() const { return m_Path; }
+  bool hasAtNotation() const { return m_AtToken.has_value(); }
 
 private:
   Token m_ImportToken;
