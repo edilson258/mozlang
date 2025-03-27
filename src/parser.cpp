@@ -56,25 +56,23 @@ Result<std::shared_ptr<Stmt>, Diagnostic> Parser::ParseStmt()
   {
     return diagnostic.value();
   }
-  Result<std::shared_ptr<Stmt>, Diagnostic> result(nullptr);
   switch (m_CurrToken.m_Type)
   {
   case TokenType::IMPORT:
-    result = ParseStmtImport();
+    return ParseStmtImport();
     break;
   case TokenType::FUN:
-    result = ParseStmtFunction();
+    return ParseStmtFunction();
     break;
   case TokenType::LET:
-    result = ParseStmtLet();
+    return ParseStmtLet();
     break;
   case TokenType::RETURN:
-    result = ParseStmtReturn();
+    return ParseStmtReturn();
     break;
   default:
-    result = ParseStmtExpr();
+    return ParseStmtExpr();
   }
-  return result;
 }
 
 Result<std::shared_ptr<Stmt>, Diagnostic> Parser::ParseStmtImport()
