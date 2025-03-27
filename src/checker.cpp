@@ -93,6 +93,11 @@ std::optional<std::shared_ptr<Binding>> Checker::CheckStmtFunSign(std::shared_pt
 
 std::optional<std::shared_ptr<Binding>> Checker::CheckStmtFun(std::shared_ptr<FunStmt> funStmt)
 {
+  if (IsWithinScope(ScopeType::FUNCTION))
+  {
+    m_Diagnostics.push_back(Diagnostic(Errno::SYNTAX_ERROR, funStmt.get()->GetSignature()->GetNamePosition(), m_Module.get()->m_ID, DiagnosticSeverity::ERROR, "cannot declare a function inside another function"));
+    return std::nullopt;
+  }
   CheckStmtFunSign(funStmt.get()->GetSignature());
   auto returnType = std::make_shared<type::Type>(type::Type(type::Base::VOID));
   if (funStmt.get()->GetSignature().get()->GetReturnType().has_value())
