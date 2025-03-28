@@ -12,7 +12,7 @@
 class Lexer
 {
 public:
-  Lexer(ModuleID moduleID, ModuleManager &moduleManager) : m_ModuleID(moduleID), m_ModManager(moduleManager), m_ModuleContent(m_ModManager.m_Modules[moduleID].get()->m_Content), m_Line(1), m_Column(1), m_Cursor(0) {};
+  Lexer(ModuleID moduleID, ModuleManager &moduleManager) : m_ModuleID(moduleID), m_ModManager(moduleManager), m_ModuleContent(m_ModManager.m_Modules[moduleID]->m_Content), m_Line(1), m_Column(1), m_Cursor(0) {};
 
   Result<Token, Diagnostic> Next();
 
@@ -29,6 +29,7 @@ private:
   char PeekOne();
   void Advance();
   size_t AdvanceWhile(std::function<bool(char)>);
+  bool StartsWith(std::string);
 
   Result<Token, Diagnostic> MakeTokenString();
   Result<Token, Diagnostic> MakeTokenSimple(TokenType);

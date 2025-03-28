@@ -1,10 +1,7 @@
 #include <cassert>
-#include <cmath>
 #include <cstddef>
-#include <memory>
 #include <optional>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include "ast.h"
@@ -18,43 +15,53 @@ std::optional<Diagnostic> Parser::Parse()
 {
   Next().unwrap();
   Next().unwrap();
-  auto ast = std::make_shared<AST>(AST());
+  auto ast = new AST();
   while (!IsEof())
   {
     auto stmtRes = ParseStmt();
     if (stmtRes.is_ok())
     {
-      ast.get()->m_Program.push_back(stmtRes.unwrap());
+      ast->m_Program.push_back(stmtRes.unwrap());
     }
     else
     {
       return stmtRes.unwrap_err();
     }
   }
-  m_Module.get()->m_AST = ast;
+  m_Module->m_AST = ast;
   return std::nullopt;
 }
 
-std::optional<Diagnostic> Parser::ParsePubAccMod()
+Result<bool, Diagnostic> Parser::ParsePubAccMod()
 {
   if (TokenType::PUB == m_CurrToken.m_Type)
   {
-    m_PubAccModToken = m_CurrToken;
-    if (!AcceptsPubAccMod(m_NextToken.m_Type))
+    m_HasPubModifier = true;
+    if (!AcceptsPubModifier(m_NextToken.m_Type))
     {
       return Diagnostic(Errno::SYNTAX_ERROR, m_CurrToken.m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "unexpected 'pub' modifier");
     }
     Next().unwrap();
   }
-  return std::nullopt;
+  return false;
 }
 
-Result<std::shared_ptr<Stmt>, Diagnostic> Parser::ParseStmt()
+bool Parser::EraseIfPubModifier()
 {
-  auto diagnostic = ParsePubAccMod();
-  if (diagnostic.has_value())
+  if (m_HasPubModifier)
   {
-    return diagnostic.value();
+    m_HasPubModifier = false;
+    return true;
+  }
+  return false;
+}
+
+Result<Stmt *, Diagnostic> Parser::ParseStmt()
+{
+  auto result = ParsePubAccMod();
+  if (result.is_err())
+  {
+    return result.unwrap_err();
   }
   switch (m_CurrToken.m_Type)
   {
@@ -75,7 +82,7 @@ Result<std::shared_ptr<Stmt>, Diagnostic> Parser::ParseStmt()
   }
 }
 
-Result<std::shared_ptr<Stmt>, Diagnostic> Parser::ParseStmtImport()
+Result<Stmt *, Diagnostic> Parser::ParseStmtImport()
 {
   Token importToken = m_CurrToken;
   Next().unwrap();
@@ -93,7 +100,7 @@ Result<std::shared_ptr<Stmt>, Diagnostic> Parser::ParseStmtImport()
     atToken = m_CurrToken;
     Next().unwrap();
   }
-  std::vector<std::shared_ptr<IdentExpr>> path;
+  std::vector<IdentExpr *> path;
   do
   {
     auto identRes = ParseExprIdent();
@@ -110,10 +117,10 @@ Result<std::shared_ptr<Stmt>, Diagnostic> Parser::ParseStmtImport()
     }
   } while (!IsEof() && TokenType::SEMICOLON != m_CurrToken.m_Type);
   Expect(TokenType::SEMICOLON).unwrap();
-  return Result<std::shared_ptr<Stmt>, Diagnostic>(std::make_shared<ImportStmt>(ImportStmt(importToken, aliasRes.unwrap(), fromToken, atToken, std::move(path))));
+  return new ImportStmt(importToken, aliasRes.unwrap(), fromToken, atToken, std::move(path));
 }
 
-Result<std::shared_ptr<Stmt>, Diagnostic> Parser::ParseStmtExpr()
+Result<Stmt *, Diagnostic> Parser::ParseStmtExpr()
 {
   auto expressionRes = ParseExpr(Prec::Low);
   if (expressionRes.is_err())
@@ -129,11 +136,11 @@ Result<std::shared_ptr<Stmt>, Diagnostic> Parser::ParseStmtExpr()
   {
     if (TokenType::RBRACE != m_CurrToken.m_Type)
     {
-      return Diagnostic(Errno::SYNTAX_ERROR, expression.get()->GetPosition(), m_ModuleID, DiagnosticSeverity::ERROR, "implicity return expression must be the last in a block, insert ';' at end");
+      return Diagnostic(Errno::SYNTAX_ERROR, expression->GetPosition(), m_ModuleID, DiagnosticSeverity::ERROR, "implicity return expression must be the last in a block, insert ';' at end");
     }
-    return Result<std::shared_ptr<Stmt>, Diagnostic>(std::make_shared<RetStmt>(RetStmt(expression)));
+    return new RetStmt(expression);
   }
-  return Result<std::shared_ptr<Stmt>, Diagnostic>(expression);
+  return expression;
 }
 
 Result<FunParams, Diagnostic> Parser::ParseFunParams()
@@ -152,19 +159,15 @@ Result<FunParams, Diagnostic> Parser::ParseFunParams()
       break;
     }
     assert(TokenType::IDENT == m_CurrToken.m_Type);
-    auto paramIdentifier = std::make_shared<IdentExpr>(m_CurrToken);
-    Next().unwrap();
-    std::optional<AstType> paramType;
-    if (TokenType::COLON == m_CurrToken.m_Type)
-    {
-      Expect(TokenType::COLON).unwrap();
-      paramType = ParseTypeAnn().unwrap();
-    }
+    auto paramIdentifier = ParseExprIdent().unwrap();
+    Expect(TokenType::COLON).unwrap();
+    AstType *paramType = ParseTypeAnn().unwrap();
     params.push_back(FunParam(paramIdentifier, paramType));
     if (TokenType::RPAREN != m_CurrToken.m_Type)
     {
       assert(TokenType::COMMA == m_CurrToken.m_Type);
       Next().unwrap();
+      assert(m_CurrToken.m_Type == TokenType::IDENT);
     }
   }
   assert(TokenType::RPAREN == m_CurrToken.m_Type);
@@ -172,115 +175,99 @@ Result<FunParams, Diagnostic> Parser::ParseFunParams()
   return FunParams(position, std::move(params), varArgsNotation);
 }
 
-Result<std::shared_ptr<Stmt>, Diagnostic> Parser::ParseStmtFunction()
+Result<Stmt *, Diagnostic> Parser::ParseStmtFunction()
 {
-  std::optional<PubAccMod> pubModifier;
-  if (m_PubAccModToken.has_value())
-  {
-    pubModifier = PubAccMod(GetAndErasePubAccMod().value());
-  }
-  assert(TokenType::FUN == m_CurrToken.m_Type);
-  FunDecl funDeclarator(m_CurrToken);
-  Next().unwrap();
-  assert(TokenType::IDENT == m_CurrToken.m_Type);
-  auto identifier = std::make_shared<IdentExpr>(IdentExpr(m_CurrToken));
-  Next().unwrap();
+  bool isPub = EraseIfPubModifier();
+  auto pos = Expect(TokenType::FUN).unwrap();
+  auto ident = ParseExprIdent().unwrap();
   auto paramsRes = ParseFunParams();
-  std::optional<AstType> returnType;
+  AstType *returnType = nullptr;
   if (TokenType::COLON == m_CurrToken.m_Type)
   {
     Next().unwrap();
     returnType = ParseTypeAnn().unwrap();
   }
   auto params = paramsRes.unwrap();
-  auto signature = std::make_shared<FunSignStmt>(FunSignStmt(pubModifier, funDeclarator, identifier, params, returnType));
+  auto signature = FunSign(isPub, pos, ident, params, returnType);
   if (TokenType::SEMICOLON == m_CurrToken.m_Type)
   {
     Next().unwrap();
-    return Result<std::shared_ptr<Stmt>, Diagnostic>(signature);
+    return new FunStmt(signature, nullptr);
   }
   auto bodyRes = ParseStmtBlock();
   if (bodyRes.is_err())
   {
-    return Result<std::shared_ptr<Stmt>, Diagnostic>(bodyRes.unwrap_err());
+    return bodyRes.unwrap_err();
   }
-  return Result<std::shared_ptr<Stmt>, Diagnostic>(std::make_shared<FunStmt>(FunStmt(signature, std::static_pointer_cast<BlockStmt>(bodyRes.unwrap()))));
+  return new FunStmt(signature, (BlockStmt *)(bodyRes.unwrap()));
 }
 
-Result<std::shared_ptr<Stmt>, Diagnostic> Parser::ParseStmtBlock()
+Result<Stmt *, Diagnostic> Parser::ParseStmtBlock()
 {
   Position position = Expect(TokenType::LBRACE).unwrap();
-  std::vector<std::shared_ptr<Stmt>> statements = {};
+  std::vector<Stmt *> statements = {};
   while (!IsEof() && TokenType::RBRACE != m_CurrToken.m_Type)
   {
     auto statementRes = ParseStmt();
     if (statementRes.is_err())
     {
-      return Result<std::shared_ptr<Stmt>, Diagnostic>(statementRes.unwrap_err());
+      return statementRes.unwrap_err();
     }
     statements.push_back(statementRes.unwrap());
   }
   position.m_End = Expect(TokenType::RBRACE).unwrap().m_End;
-  return Result<std::shared_ptr<Stmt>, Diagnostic>(std::make_shared<BlockStmt>(position, std::move(statements)));
+  return new BlockStmt(position, std::move(statements));
 }
 
-Result<std::shared_ptr<Stmt>, Diagnostic> Parser::ParseStmtLet()
+Result<Stmt *, Diagnostic> Parser::ParseStmtLet()
 {
-  std::optional<PubAccMod> pubAccessModifier;
-  if (m_PubAccModToken.has_value())
-  {
-    pubAccessModifier = PubAccMod(GetAndErasePubAccMod().value());
-  }
-  assert(TokenType::LET == m_CurrToken.m_Type);
-  LetDecl letDeclarator(m_CurrToken);
-  Next().unwrap();
+  bool isPub = EraseIfPubModifier();
+  Position pos = Expect(TokenType::LET).unwrap();
   // var name
-  auto identifierRes = ParseExprIdent();
-  if (identifierRes.is_err())
+  auto identRes = ParseExprIdent();
+  if (identRes.is_err())
   {
-    return Result<std::shared_ptr<Stmt>, Diagnostic>(identifierRes.unwrap_err());
+    identRes.unwrap_err();
   }
   // var type
-  std::optional<AstType> varType;
+  AstType *varType = nullptr;
   if (TokenType::COLON == m_CurrToken.m_Type)
   {
     Next().unwrap();
     varType = ParseTypeAnn().unwrap();
   }
   // init value
-  std::optional<std::shared_ptr<Expr>> initializerOpt;
+  Expr *init = nullptr;
   if (TokenType::EQUAL == m_CurrToken.m_Type)
   {
     Next().unwrap();
     auto initializerRes = ParseExpr(Prec::Low);
     if (initializerRes.is_err())
     {
-      return Result<std::shared_ptr<Stmt>, Diagnostic>(initializerRes.unwrap_err());
+      return Result<Stmt *, Diagnostic>(initializerRes.unwrap_err());
     }
-    initializerOpt = initializerRes.unwrap();
+    init = initializerRes.unwrap();
   }
-  assert(TokenType::SEMICOLON == m_CurrToken.m_Type);
-  Next().unwrap();
-  return Result<std::shared_ptr<Stmt>, Diagnostic>(std::make_shared<LetStmt>(LetStmt(pubAccessModifier, letDeclarator, identifierRes.unwrap(), varType, initializerOpt)));
+  Expect(TokenType::SEMICOLON).unwrap();
+  return new LetStmt(isPub, pos, identRes.unwrap(), varType, init);
 }
 
-Result<std::shared_ptr<Stmt>, Diagnostic> Parser::ParseStmtReturn()
+Result<Stmt *, Diagnostic> Parser::ParseStmtReturn()
 {
   assert(TokenType::RETURN == m_CurrToken.m_Type);
-  Token returnToken = m_CurrToken;
-  Next().unwrap();
-  std::optional<std::shared_ptr<Expr>> value(std::nullopt);
+  Position pos = Next().unwrap();
+  Expr *value = nullptr;
   if (TokenType::SEMICOLON != m_CurrToken.m_Type)
   {
     auto valueRes = ParseExpr(Prec::Low);
     if (valueRes.is_err())
     {
-      return Result<std::shared_ptr<Stmt>, Diagnostic>(valueRes.unwrap_err());
+      return Result<Stmt *, Diagnostic>(valueRes.unwrap_err());
     }
     value = valueRes.unwrap();
   }
   Expect(TokenType::SEMICOLON).unwrap();
-  return Result<std::shared_ptr<Stmt>, Diagnostic>(std::make_shared<RetStmt>(RetStmt(returnToken, value)));
+  return new RetStmt(pos, value);
 }
 
 Prec token2precedence(TokenType tokenType)
@@ -298,17 +285,17 @@ Prec token2precedence(TokenType tokenType)
   }
 }
 
-Result<std::shared_ptr<Expr>, Diagnostic> Parser::ParseExpr(Prec prec)
+Result<Expr *, Diagnostic> Parser::ParseExpr(Prec prec)
 {
   auto lhsRes = ParseExprPrim();
   if (lhsRes.is_err())
   {
-    return Result<std::shared_ptr<Expr>, Diagnostic>(lhsRes.unwrap_err());
+    return lhsRes.unwrap_err();
   }
   auto nextRes = Next();
   if (nextRes.is_err())
   {
-    return Result<std::shared_ptr<Expr>, Diagnostic>(nextRes.unwrap_err());
+    return nextRes.unwrap_err();
   }
   while (!IsEof() && prec < token2precedence(m_CurrToken.m_Type))
   {
@@ -319,7 +306,7 @@ Result<std::shared_ptr<Expr>, Diagnostic> Parser::ParseExpr(Prec prec)
       auto callRes = ParseExprCall(lhsRes.unwrap());
       if (callRes.is_err())
       {
-        return Result<std::shared_ptr<Expr>, Diagnostic>(lhsRes.unwrap_err());
+        return lhsRes.unwrap_err();
       }
       lhsRes.set_val(callRes.unwrap());
     }
@@ -329,7 +316,7 @@ Result<std::shared_ptr<Expr>, Diagnostic> Parser::ParseExpr(Prec prec)
       auto assignRes = ParseExprAssign(lhsRes.unwrap());
       if (assignRes.is_err())
       {
-        return Result<std::shared_ptr<Expr>, Diagnostic>(lhsRes.unwrap_err());
+        lhsRes.unwrap_err();
       }
       lhsRes.set_val(assignRes.unwrap());
     }
@@ -339,7 +326,7 @@ Result<std::shared_ptr<Expr>, Diagnostic> Parser::ParseExpr(Prec prec)
       auto assignRes = ParseExprFieldAcc(lhsRes.unwrap());
       if (assignRes.is_err())
       {
-        return Result<std::shared_ptr<Expr>, Diagnostic>(lhsRes.unwrap_err());
+        return lhsRes.unwrap_err();
       }
       lhsRes.set_val(assignRes.unwrap());
     }
@@ -349,34 +336,34 @@ Result<std::shared_ptr<Expr>, Diagnostic> Parser::ParseExpr(Prec prec)
     }
   }
 defer:
-  return Result<std::shared_ptr<Expr>, Diagnostic>(lhsRes.unwrap());
+  return lhsRes.unwrap();
 }
 
-Result<std::shared_ptr<Expr>, Diagnostic> Parser::ParseExprPrim()
+Result<Expr *, Diagnostic> Parser::ParseExprPrim()
 {
   switch (m_CurrToken.m_Type)
   {
   case TokenType::STRING:
-    return Result<std::shared_ptr<Expr>, Diagnostic>(std::make_shared<StringExpr>(StringExpr(m_CurrToken)));
+    return new StringExpr(m_CurrToken);
   case TokenType::IDENT:
-    return Result<std::shared_ptr<Expr>, Diagnostic>(std::make_shared<IdentExpr>(IdentExpr(m_CurrToken)));
+    return new IdentExpr(m_CurrToken);
   default:
     // TODO: display expression
-    return Result<std::shared_ptr<Expr>, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, m_CurrToken.m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "invalid left side expression"));
+    return Diagnostic(Errno::SYNTAX_ERROR, m_CurrToken.m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "invalid left side expression");
   }
 }
 
-Result<std::shared_ptr<CallExpr>, Diagnostic> Parser::ParseExprCall(std::shared_ptr<Expr> callee)
+Result<CallExpr *, Diagnostic> Parser::ParseExprCall(Expr *callee)
 {
   assert(TokenType::LPAREN == m_CurrToken.m_Type);
   Position argsPosition = Next().unwrap();
-  std::vector<std::shared_ptr<Expr>> args;
+  std::vector<Expr *> args;
   while (!IsEof() && TokenType::RPAREN != m_CurrToken.m_Type)
   {
     auto exprRes = ParseExpr(Prec::Low);
     if (exprRes.is_err())
     {
-      return Result<std::shared_ptr<CallExpr>, Diagnostic>(exprRes.unwrap_err());
+      return exprRes.unwrap_err();
     }
     args.push_back(exprRes.unwrap());
     if (TokenType::RPAREN != m_CurrToken.m_Type)
@@ -384,126 +371,120 @@ Result<std::shared_ptr<CallExpr>, Diagnostic> Parser::ParseExprCall(std::shared_
       auto expectRes = Expect(TokenType::COMMA);
       if (expectRes.is_err())
       {
-        return Result<std::shared_ptr<CallExpr>, Diagnostic>(expectRes.unwrap_err());
+        return expectRes.unwrap_err();
       }
     }
   }
   assert(TokenType::RPAREN == m_CurrToken.m_Type);
   argsPosition.m_End = Next().unwrap().m_End;
-  return Result<std::shared_ptr<CallExpr>, Diagnostic>(std::make_shared<CallExpr>(callee, CallExprArgs(argsPosition, std::move(args))));
+  return new CallExpr(callee, CallExprArgs(argsPosition, std::move(args)));
 }
 
-Result<std::shared_ptr<AssignExpr>, Diagnostic> Parser::ParseExprAssign(std::shared_ptr<Expr> assignee)
+Result<AssignExpr *, Diagnostic> Parser::ParseExprAssign(Expr *dest)
 {
   assert(TokenType::EQUAL == m_CurrToken.m_Type);
   Next().unwrap();
-  assert(ExprT::Ident == assignee.get()->GetType());
+  assert(ExprT::Ident == dest->GetType());
   auto valueRes = ParseExpr(Prec::Low);
   if (valueRes.is_err())
   {
-    return Result<std::shared_ptr<AssignExpr>, Diagnostic>(valueRes.unwrap_err());
+    return valueRes.unwrap_err();
   }
-  return Result<std::shared_ptr<AssignExpr>, Diagnostic>(std::make_shared<AssignExpr>(AssignExpr(std::static_pointer_cast<IdentExpr>(assignee), valueRes.unwrap())));
+  return new AssignExpr((IdentExpr *)dest, valueRes.unwrap());
 }
 
-Result<std::shared_ptr<FieldAccExpr>, Diagnostic> Parser::ParseExprFieldAcc(std::shared_ptr<Expr> value)
+Result<FieldAccExpr *, Diagnostic> Parser::ParseExprFieldAcc(Expr *value)
 {
   Expect(TokenType::DOT).unwrap();
   auto fieldNameRes = ParseExprIdent();
   if (fieldNameRes.is_err())
   {
-    return Result<std::shared_ptr<FieldAccExpr>, Diagnostic>(fieldNameRes.unwrap_err());
+    return fieldNameRes.unwrap_err();
   }
-  return Result<std::shared_ptr<FieldAccExpr>, Diagnostic>(std::make_shared<FieldAccExpr>(FieldAccExpr(value, fieldNameRes.unwrap())));
+  return new FieldAccExpr(value, fieldNameRes.unwrap());
 }
 
-Result<std::shared_ptr<IdentExpr>, Diagnostic> Parser::ParseExprIdent()
+Result<IdentExpr *, Diagnostic> Parser::ParseExprIdent()
 {
   if (TokenType::IDENT != m_CurrToken.m_Type)
   {
-    return Result<std::shared_ptr<IdentExpr>, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, m_CurrToken.m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "expect an idetifier"));
+    return Result<IdentExpr *, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, m_CurrToken.m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "expect an idetifier"));
   }
-  auto identifierExpression = std::make_shared<IdentExpr>(IdentExpr(m_CurrToken));
+  auto identifierExpression = new IdentExpr(m_CurrToken);
   Next().unwrap();
-  return Result<std::shared_ptr<IdentExpr>, Diagnostic>(identifierExpression);
+  return Result<IdentExpr *, Diagnostic>(identifierExpression);
 }
 
-Result<AstType, Diagnostic> Parser::ParseTypeAnn()
+Result<AstType *, Diagnostic> Parser::ParseTypeAnn()
 {
-  std::shared_ptr<type::Type> type;
+  type::Type *type;
   switch (m_CurrToken.m_Type)
   {
   case TokenType::I8:
-    type = type::Type::make_i8();
+    type = new type::Type(type::Base::I8);
     break;
   case TokenType::I16:
-    type = type::Type::make_i16();
+    type = new type::Type(type::Base::I16);
     break;
   case TokenType::I32:
-    type = type::Type::make_i32();
+    type = new type::Type(type::Base::I32);
     break;
   case TokenType::I64:
-    type = type::Type::make_i64();
+    type = new type::Type(type::Base::I64);
     break;
   case TokenType::U8:
-    type = type::Type::make_u8();
+    type = new type::Type(type::Base::U8);
     break;
   case TokenType::U16:
-    type = type::Type::make_u16();
+    type = new type::Type(type::Base::U16);
     break;
   case TokenType::U32:
-    type = type::Type::make_u32();
+    type = new type::Type(type::Base::U32);
     break;
   case TokenType::U64:
-    type = type::Type::make_u64();
-    break;
-  case TokenType::F8:
-    type = type::Type::make_f8();
-    break;
-  case TokenType::F16:
-    type = type::Type::make_f16();
+    type = new type::Type(type::Base::U32);
     break;
   case TokenType::F32:
-    type = type::Type::make_f32();
+    type = new type::Type(type::Base::F32);
     break;
   case TokenType::F64:
-    type = type::Type::make_f64();
+    type = new type::Type(type::Base::F64);
     break;
   case TokenType::VOID:
-    type = type::Type::make_void();
+    type = new type::Type(type::Base::VOID);
     break;
   case TokenType::STR_TYP:
-    type = type::Type::make_string();
+    type = new type::Type(type::Base::STRING);
     break;
   case TokenType::FUN:
     return ParseFunTypeAnn();
   default:
-    return Result<AstType, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, m_CurrToken.m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "expect type annotation, try 'i32', 'string', ..."));
+    return Diagnostic(Errno::SYNTAX_ERROR, m_CurrToken.m_Position, m_ModuleID, DiagnosticSeverity::ERROR, "expect type annotation, try 'i32', 'string', ...");
   }
-  return Result<AstType, Diagnostic>(AstType(Next().unwrap(), type));
+  return new AstType(Next().unwrap(), type);
 }
 
-Result<AstType, Diagnostic> Parser::ParseFunTypeAnn()
+Result<AstType *, Diagnostic> Parser::ParseFunTypeAnn()
 {
   Position position = Expect(TokenType::FUN).unwrap();
   Expect(TokenType::LPAREN).unwrap();
-  std::vector<std::shared_ptr<type::Type>> argsTypes;
+  std::vector<type::Type *> argsTypes;
   while (!IsEof() && TokenType::RPAREN != m_CurrToken.m_Type)
   {
     auto typeRes = ParseTypeAnn();
     if (typeRes.is_err())
     {
-      return Result<AstType, Diagnostic>(typeRes.unwrap_err());
+      return typeRes.unwrap_err();
     }
-    argsTypes.push_back(typeRes.unwrap().GetType());
+    argsTypes.push_back(typeRes.unwrap()->GetType());
   }
   Expect(TokenType::RPAREN).unwrap();
   Expect(TokenType::ARROW).unwrap();
   auto returnType = ParseTypeAnn().unwrap();
-  position.m_End = returnType.GetPosition().m_End;
+  position.m_End = returnType->GetPosition().m_End;
   size_t argsCount = argsTypes.size();
-  auto functionType = std::make_shared<type::Function>(type::Function(argsCount, std::move(argsTypes), returnType.GetType()));
-  return Result<AstType, Diagnostic>(AstType(position, functionType));
+  auto functionType = new type::Function(argsCount, std::move(argsTypes), returnType->GetType());
+  return new AstType(position, functionType);
 }
 
 Result<Position, Diagnostic> Parser::Next()
@@ -529,18 +510,7 @@ Result<Position, Diagnostic> Parser::Expect(TokenType tokenType)
   return Next();
 }
 
-std::optional<Token> Parser::GetAndErasePubAccMod()
-{
-  if (m_PubAccModToken.has_value())
-  {
-    auto token = m_PubAccModToken.value();
-    m_PubAccModToken.reset();
-    return token;
-  }
-  return std::nullopt;
-}
-
-bool Parser::AcceptsPubAccMod(TokenType tokenType)
+bool Parser::AcceptsPubModifier(TokenType tokenType)
 {
   switch (tokenType)
   {

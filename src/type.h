@@ -2,8 +2,6 @@
 
 #include <cstddef>
 #include <map>
-#include <memory>
-#include <optional>
 #include <string>
 #include <vector>
 
@@ -40,49 +38,31 @@ public:
   virtual ~Type() = default;
 
   virtual std::string Inspect() const;
-  virtual bool IsCompatibleWith(std::shared_ptr<Type>) const;
-
-  static std::shared_ptr<Type> make_void();
-  static std::shared_ptr<Type> make_string();
-  static std::shared_ptr<Type> make_i8();
-  static std::shared_ptr<Type> make_i16();
-  static std::shared_ptr<Type> make_i32();
-  static std::shared_ptr<Type> make_i64();
-  static std::shared_ptr<Type> make_u8();
-  static std::shared_ptr<Type> make_u16();
-  static std::shared_ptr<Type> make_u32();
-  static std::shared_ptr<Type> make_u64();
-  static std::shared_ptr<Type> make_f8();
-  static std::shared_ptr<Type> make_f16();
-  static std::shared_ptr<Type> make_f32();
-  static std::shared_ptr<Type> make_f64();
+  virtual bool IsCompatibleWith(Type *) const;
 };
 
 class Function : public Type
 {
 public:
   size_t m_ReqArgsCount;
-  std::vector<std::shared_ptr<Type>> m_Arguments;
-  std::shared_ptr<Type> m_ReturnType;
-  bool m_IsVariadicArguments;
+  std::vector<Type *> m_Args;
+  Type *m_RetType;
+  bool m_IsVarArgs;
 
   std::string Inspect() const override;
-  bool IsCompatibleWith(std::shared_ptr<Type>) const override;
+  bool IsCompatibleWith(Type *) const override;
 
-  Function(size_t reqArgsCount, std::vector<std::shared_ptr<Type>> arguments, std::shared_ptr<Type> returnType, bool isVariadic = false) : Type(Base::FUNCTION), m_ReqArgsCount(reqArgsCount), m_Arguments(std::move(arguments)), m_ReturnType(returnType), m_IsVariadicArguments(isVariadic) {}
+  Function(size_t reqArgsCount, std::vector<Type *> args, Type *retType, bool isVariadic = false) : Type(Base::FUNCTION), m_ReqArgsCount(reqArgsCount), m_Args(std::move(args)), m_RetType(retType), m_IsVarArgs(isVariadic) {}
 };
 
 class Object : public Type
 {
 public:
-  std::map<std::string, std::shared_ptr<Type>> m_Entries;
+  std::map<std::string, Type *> m_Entries;
 
   std::string Inspect() const override;
-  bool IsCompatibleWith(std::shared_ptr<Type>) const override;
+  bool IsCompatibleWith(Type *) const override;
 
   Object() : Type(Base::OBJECT), m_Entries() {};
 };
-
-std::optional<std::shared_ptr<Type>> NarrowTypes(std::shared_ptr<Type>, std::shared_ptr<Type>);
-
 } // namespace type

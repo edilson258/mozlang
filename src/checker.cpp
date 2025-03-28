@@ -1,7 +1,6 @@
 #include <cassert>
 #include <cstddef>
 #include <format>
-#include <memory>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -20,436 +19,406 @@
 std::vector<Diagnostic> Checker::Check()
 {
   EnterScope(ScopeType::GLOBAL);
-  for (auto statement : m_Module.get()->m_AST.value().get()->m_Program)
+  for (auto statement : m_Module->m_AST->m_Program)
   {
-    auto bindOpt = CheckStmt(statement);
-    if (bindOpt.has_value())
+    auto bind = CheckStmt(statement);
+    if (bind)
     {
-      auto bind = bindOpt.value();
-      if (type::Base::VOID == bind.get()->m_Type.get()->m_Base || bind.get()->m_IsUsed)
+      if (type::Base::VOID == bind->m_Type->m_Base || bind->m_IsUsed)
       {
         continue;
       }
-      m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, bind.get()->m_Position, bind.get()->m_ModuleID, DiagnosticSeverity::WARN, "expression results to unused value"));
+      m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, bind->m_Pos, bind->m_ModID, DiagnosticSeverity::WARN, "expression results to unused value"));
     }
   }
   LeaveScope();
   return std::move(m_Diagnostics);
 }
 
-std::optional<std::shared_ptr<Binding>> Checker::CheckStmt(std::shared_ptr<Stmt> stmt)
+Bind *Checker::CheckStmt(Stmt *stmt)
 {
-  switch (stmt.get()->GetType())
+  switch (stmt->GetType())
   {
-  case StmtT::FunSign:
-    return CheckStmtFunSign(std::static_pointer_cast<FunSignStmt>(stmt));
-  case StmtT::Import:
-    return CheckStmtImport(std::static_pointer_cast<ImportStmt>(stmt));
-  case StmtT::Let:
-    return CheckStmtLet(std::static_pointer_cast<LetStmt>(stmt));
-  case StmtT::Block:
-    return CheckStmtBlock(std::static_pointer_cast<BlockStmt>(stmt));
-  case StmtT::Ret:
-    return CheckStmtRet(std::static_pointer_cast<RetStmt>(stmt));
   case StmtT::Fun:
-    return CheckStmtFun(std::static_pointer_cast<FunStmt>(stmt));
+    return CheckStmtFun((FunStmt *)stmt);
+  case StmtT::Import:
+    return CheckStmtImport((ImportStmt *)stmt);
+  case StmtT::Let:
+    return CheckStmtLet((LetStmt *)stmt);
+  case StmtT::Block:
+    return CheckStmtBlock((BlockStmt *)stmt);
+  case StmtT::Ret:
+    return CheckStmtRet((RetStmt *)stmt);
   case StmtT::Expr:
-    return CheckExpr(std::static_pointer_cast<Expr>(stmt));
+    return CheckExpr((Expr *)stmt);
   }
-  return std::nullopt;
+  return nullptr;
 }
 
-std::optional<std::shared_ptr<Binding>> Checker::CheckStmtFunSign(std::shared_ptr<FunSignStmt> funStmtSign)
+Bind *Checker::CheckStmtFun(FunStmt *funStmt)
 {
-  auto bindWithSameName = m_Scopes.back().m_Context.Get(funStmtSign.get()->GetName());
-  if (bindWithSameName.has_value())
-  {
-    DiagnosticReference reference(Errno::OK, bindWithSameName.value().get()->m_ModuleID, bindWithSameName.value()->m_Position, "name used here");
-    m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, funStmtSign.get()->GetNamePosition(), m_Module.get()->m_ID, DiagnosticSeverity::ERROR, std::format("name '{}' already in use", funStmtSign.get()->GetName()), reference));
-    return std::nullopt;
-  }
-  std::vector<std::shared_ptr<type::Type>> functionArgsTypes;
-  for (auto &param : funStmtSign.get()->GetParams())
-  {
-    if (param.GetAstType().has_value())
-    {
-      functionArgsTypes.push_back(param.GetAstType().value().GetType());
-    }
-    else
-    {
-      functionArgsTypes.push_back(std::make_shared<type::Type>(type::Base::ANY));
-    }
-  }
-  auto returnType = std::make_shared<type::Type>(type::Type(type::Base::VOID));
-  if (funStmtSign.get()->GetReturnType().has_value())
-  {
-    returnType = funStmtSign.get()->GetReturnType().value().GetType();
-  }
-  auto functionType = std::make_shared<type::Function>(type::Function(funStmtSign.get()->GetParams().size(), std::move(functionArgsTypes), returnType, funStmtSign.get()->IsVarArgs()));
-  auto functionBind = std::make_shared<BindingFunction>(BindingFunction(funStmtSign.get()->GetPosition(), funStmtSign.get()->GetNamePosition(), funStmtSign.get()->GetParamsPosition(), functionType, m_Module.get()->m_ID, false, funStmtSign.get()->IsPub()));
-  SaveBind(funStmtSign.get()->GetName(), functionBind);
-  return std::nullopt;
-}
-
-std::optional<std::shared_ptr<Binding>> Checker::CheckStmtFun(std::shared_ptr<FunStmt> funStmt)
-{
+  FunSign sign = funStmt->GetSign();
   if (IsWithinScope(ScopeType::FUNCTION))
   {
-    m_Diagnostics.push_back(Diagnostic(Errno::SYNTAX_ERROR, funStmt.get()->GetSignature()->GetNamePosition(), m_Module.get()->m_ID, DiagnosticSeverity::ERROR, "cannot declare a function inside another function"));
-    return std::nullopt;
+    m_Diagnostics.push_back(Diagnostic(Errno::SYNTAX_ERROR, sign.GetNamePosition(), m_Module->m_ID, DiagnosticSeverity::ERROR, "cannot declare a function inside another function"));
+    return nullptr;
   }
-  CheckStmtFunSign(funStmt.get()->GetSignature());
-  auto returnType = std::make_shared<type::Type>(type::Type(type::Base::VOID));
-  if (funStmt.get()->GetSignature().get()->GetReturnType().has_value())
+  // TODO: impl look up locally
+  // TODO: bind to pos
+  //
+  auto bindWithSameName = m_Scopes.back().m_Context.Get(sign.GetName());
+  if (bindWithSameName)
   {
-    returnType = funStmt.get()->GetSignature().get()->GetReturnType().value().GetType();
+    DiagnosticReference reference(Errno::OK, bindWithSameName->m_ModID, bindWithSameName->m_Pos, "name used here");
+    m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, sign.GetNamePosition(), m_Module->m_ID, DiagnosticSeverity::ERROR, "name is already in use", reference));
+    return nullptr;
   }
+  std::vector<type::Type *> funArgsTypes;
+  for (auto &param : sign.GetParams())
+  {
+    funArgsTypes.push_back(param.GetAstType()->GetType());
+  }
+  auto returnType = sign.GetRetType() ? sign.GetRetType()->GetType() : new type::Type(type::Base::VOID);
+  auto functionType = new type::Function(sign.GetParams().size(), std::move(funArgsTypes), returnType, sign.IsVarArgs());
+  auto functionBind = new BindFun(sign.GetPosition(), sign.GetNamePosition(), sign.GetParamsPosition(), functionType, m_Module->m_ID, false, sign.IsPub());
+  SaveBind(sign.GetName(), functionBind);
   EnterScope(ScopeType::FUNCTION);
-  for (auto &param : funStmt.get()->GetSignature()->GetParams())
+  for (auto &param : sign.GetParams())
   {
-    if (m_Scopes.back().m_Context.Get(param.GetName()).has_value())
+    if (m_Scopes.back().m_Context.Get(param.GetName()))
     {
-      DiagnosticReference reference(Errno::OK, m_Scopes.back().m_Context.Get(param.GetName()).value().get()->m_ModuleID, m_Scopes.back().m_Context.Get(param.GetName()).value().get()->m_Position, "first used here");
-      m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, param.GetNamePosition(), m_Module.get()->m_ID, DiagnosticSeverity::ERROR, std::format("duplicated param name '{}'", param.GetName()), reference));
+      DiagnosticReference reference(Errno::OK, m_Scopes.back().m_Context.Get(param.GetName())->m_ModID, m_Scopes.back().m_Context.Get(param.GetName())->m_Pos, "first used here");
+      m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, param.GetNamePosition(), m_Module->m_ID, DiagnosticSeverity::ERROR, "duplicated param name", reference));
       continue;
     }
-    auto paramType = std::make_shared<type::Type>(type::Type(type::Base::ANY));
-    if (param.GetAstType().has_value())
-    {
-      paramType = param.GetAstType().value().GetType();
-    }
-    SaveBind(param.GetName(), std::make_shared<Binding>(Binding(BindType::Param, paramType, m_Module.get()->m_ID, param.GetPosition())));
+    auto paramType = param.GetAstType()->GetType();
+    SaveBind(param.GetName(), new Bind(BindT::Param, paramType, m_Module->m_ID, param.GetPosition()));
   }
-  auto blockReturnBind = CheckStmtBlock(funStmt.get()->GetBody());
-  if (blockReturnBind.has_value())
+  if (!funStmt->GetBody())
   {
-    if (type::Base::VOID == returnType.get()->m_Base)
+    // is a simple declaration, eg. `pub fun println(...): void;`
+    LeaveScope();
+    return nullptr;
+  }
+  auto blockReturnBind = CheckStmtBlock(funStmt->GetBody());
+  if (blockReturnBind)
+  {
+    if (type::Base::VOID == returnType->m_Base)
     {
-      m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, blockReturnBind->get()->m_Position, m_Module.get()->m_ID, DiagnosticSeverity::ERROR, "void function does not accept return value"));
+      m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, blockReturnBind->m_Pos, m_Module->m_ID, DiagnosticSeverity::ERROR, "void function does not accept return value"));
     }
     else
     {
-      auto returnTypeAnnotation = funStmt.get()->GetSignature()->GetReturnType().value();
-      if (!returnType.get()->IsCompatibleWith(blockReturnBind.value().get()->m_Type))
+      auto returnTypeAnot = sign.GetRetType();
+      if (!returnType->IsCompatibleWith(blockReturnBind->m_Type))
       {
-        DiagnosticReference reference(Errno::OK, m_Module.get()->m_ID, returnTypeAnnotation.GetPosition(), std::format("expect '{}' due to here", returnType.get()->Inspect()));
-        m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, blockReturnBind->get()->m_Position, m_Module.get()->m_ID, DiagnosticSeverity::ERROR, std::format("return type mismatch, expect '{}' but got '{}'", returnType.get()->Inspect(), blockReturnBind.value().get()->m_Type.get()->Inspect()), reference));
+        DiagnosticReference reference(Errno::OK, m_Module->m_ID, returnTypeAnot->GetPosition(), "due to here");
+        m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, blockReturnBind->m_Pos, m_Module->m_ID, DiagnosticSeverity::ERROR, "return type mismatch, expect '{}' but got '{}'", reference));
       }
     }
   }
   else
   {
-    if (type::Base::VOID != returnType.get()->m_Base)
+    if (type::Base::VOID != returnType->m_Base)
     {
-      Position returnTypeAnnotationPosition = funStmt.get()->GetSignature()->GetReturnType().value().GetPosition();
-      m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, returnTypeAnnotationPosition, m_Module.get()->m_ID, DiagnosticSeverity::ERROR, "missing return value for non-void function"));
+      Position returnTypeAnnotationPosition = sign.GetRetType()->GetPosition();
+      m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, returnTypeAnnotationPosition, m_Module->m_ID, DiagnosticSeverity::ERROR, "missing return value for non-void function"));
     }
   }
   LeaveScope();
-  return std::nullopt;
+  return nullptr;
 }
 
-std::optional<std::shared_ptr<Binding>> Checker::CheckStmtRet(std::shared_ptr<RetStmt> retStmt)
+Bind *Checker::CheckStmtRet(RetStmt *retStmt)
 {
-  if (!IsWithinScope(ScopeType::FUNCTION))
+  if (!IsWithinScope(ScopeType::FUNCTION) && !retStmt->IsImplicity())
   {
-    m_Diagnostics.push_back(Diagnostic(Errno::SYNTAX_ERROR, retStmt.get()->GetPosition(), m_Module.get()->m_ID, DiagnosticSeverity::ERROR, "cannot return outside of a function"));
-    return std::nullopt;
+    m_Diagnostics.push_back(Diagnostic(Errno::SYNTAX_ERROR, retStmt->GetPosition(), m_Module->m_ID, DiagnosticSeverity::ERROR, "cannot return outside of a function"));
+    return nullptr;
   }
-  auto returnBind = std::make_shared<Binding>(Binding(BindType::RetVal, std::make_shared<type::Type>(type::Type(type::Base::VOID)), m_Module.get()->m_ID, retStmt.get()->GetPosition(), true));
-  if (retStmt.get()->GetValue().has_value())
+  auto returnBind = new Bind(BindT::RetVal, new type::Type(type::Base::VOID), m_Module->m_ID, retStmt->GetPosition(), true);
+  if (retStmt->GetValue())
   {
-    auto returnValueBind = CheckExpr(retStmt.get()->GetValue().value());
-    if (returnValueBind.has_value())
+    auto returnValueBind = CheckExpr(retStmt->GetValue());
+    if (returnValueBind)
     {
-      returnValueBind->get()->m_IsUsed = true;
-      returnBind->m_Type = returnValueBind->get()->m_Type;
+      returnValueBind->m_IsUsed = true;
+      returnBind->m_Type = returnValueBind->m_Type;
     }
     else
     {
-      return std::nullopt;
+      return nullptr;
     }
   }
   return returnBind;
 }
 
-std::optional<std::shared_ptr<Binding>> Checker::CheckStmtBlock(std::shared_ptr<BlockStmt> blockStmt)
+Bind *Checker::CheckStmtBlock(BlockStmt *blockStmt)
 {
-  std::vector<std::shared_ptr<Binding>> statementsBinds = {};
-  auto statements = blockStmt.get()->GetStatements();
+  std::vector<Bind *> statementsBinds = {};
+  auto statements = blockStmt->GetStatements();
   for (size_t i = 0; i < statements.size(); ++i)
   {
     auto statement = statements.at(i);
     auto statementBind = CheckStmt(statement);
-    if (statementBind.has_value())
+    if (statementBind)
     {
-      statementsBinds.push_back(statementBind.value());
+      statementsBinds.push_back(statementBind);
     }
-    if (StmtT::Ret == statement.get()->GetType() && (i + 1 < statements.size()))
+    if (StmtT::Ret == statement->GetType() && (i + 1 < statements.size()))
     {
-      Position position = statements.at(i + 1).get()->GetPosition();
-      position.m_End = blockStmt.get()->GetPosition().m_End - 1;
-      m_Diagnostics.push_back(Diagnostic(Errno::DEAD_CODE, position, m_Module.get()->m_ID, DiagnosticSeverity::WARN, "unreachable code detected"));
+      Position position = statements.at(i + 1)->GetPosition();
+      position.m_End = blockStmt->GetPosition().m_End - 1;
+      m_Diagnostics.push_back(Diagnostic(Errno::DEAD_CODE, position, m_Module->m_ID, DiagnosticSeverity::WARN, "unreachable code detected"));
       break;
     }
   }
 
-  std::optional<std::shared_ptr<Binding>> returnBind;
+  Bind *returnBind = nullptr;
   for (auto &bind : statementsBinds)
   {
-    if (BindType::RetVal == bind.get()->m_BindType)
+    if (BindT::RetVal == bind->m_BindT)
     {
       returnBind = bind;
       continue;
     }
-    if (type::Base::VOID == bind.get()->m_Type.get()->m_Base)
+    if (type::Base::VOID == bind->m_Type->m_Base)
     {
       continue;
     }
-    m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, bind.get()->m_Position, m_Module.get()->m_ID, DiagnosticSeverity::WARN, "expression results to unused value"));
+    m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, bind->m_Pos, m_Module->m_ID, DiagnosticSeverity::WARN, "expression results to unused value"));
   }
   return returnBind;
 }
 
-std::optional<std::shared_ptr<Binding>> Checker::CheckStmtLet(std::shared_ptr<LetStmt> letStmt)
+Bind *Checker::CheckStmtLet(LetStmt *letStmt)
 {
   // let name
-  auto bindWithSameName = m_Scopes.back().m_Context.Get(letStmt.get()->GetName());
-  if (bindWithSameName.has_value())
+  auto bindWithSameName = m_Scopes.back().m_Context.Get(letStmt->GetName());
+  if (bindWithSameName)
   {
-    DiagnosticReference reference(Errno::OK, bindWithSameName.value().get()->m_ModuleID, bindWithSameName.value()->m_Position, "name used here");
-    m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, letStmt.get()->GetNamePosition(), m_Module.get()->m_ID, DiagnosticSeverity::ERROR, std::format("name '{}' already in use", letStmt.get()->GetName()), reference));
-    return std::nullopt;
+    DiagnosticReference reference(Errno::OK, bindWithSameName->m_ModID, bindWithSameName->m_Pos, "name used here");
+    m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, letStmt->GetNamePosition(), m_Module->m_ID, DiagnosticSeverity::ERROR, "name already used", reference));
+    return nullptr;
   }
   // let type
-  auto letType = std::make_shared<type::Type>(type::Type(type::Base::ANY));
-  if (letStmt.get()->GetAstType().has_value())
+  auto letType = new type::Type(type::Base::ANY);
+  if (letStmt->GetAstType())
   {
-    letType = letStmt.get()->GetAstType().value().GetType();
+    letType = letStmt->GetAstType()->GetType();
   }
   // let initializer
-  std::optional<std::shared_ptr<Binding>> initBindRefOpt(std::nullopt);
-  if (letStmt.get()->GetInitializer().has_value())
+  Bind *initBindRef = nullptr;
+  if (letStmt->GetInit())
   {
-    auto initializerBindOpt = CheckExpr(letStmt.get()->GetInitializer().value());
-    if (!initializerBindOpt.has_value())
+    auto init = CheckExpr(letStmt->GetInit());
+    if (!init)
     {
       goto defer;
     }
-    auto initializerBind = initializerBindOpt.value();
-    if (letType.get()->IsCompatibleWith(initializerBind.get()->m_Type))
+    if (letType->IsCompatibleWith(init->m_Type))
     {
-      letType = initializerBind.get()->m_Type;
-      if (initializerBind.get()->m_Reference.has_value())
+      letType = init->m_Type;
+      if (init->m_Ref)
       {
-        initBindRefOpt.emplace(initializerBind.get()->m_Reference.value());
+        initBindRef = init->m_Ref;
       }
     }
     else
     {
-      Position letTypeAnnotationPosition = letStmt.get()->GetAstType().value().GetPosition();
-      DiagnosticReference reference(Errno::OK, m_Module.get()->m_ID, letTypeAnnotationPosition, std::format("expect '{}' due to here", letType.get()->Inspect()));
-      m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, initializerBind.get()->m_Position, initializerBind.get()->m_ModuleID, DiagnosticSeverity::ERROR, std::format("expect value of type '{}' but got '{}'", letType.get()->Inspect(), initializerBind.get()->m_Type.get()->Inspect()), reference));
+      Position letTypeAnnotationPosition = letStmt->GetAstType()->GetPosition();
+      DiagnosticReference reference(Errno::OK, m_Module->m_ID, letTypeAnnotationPosition, "due to here");
+      m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, init->m_Pos, init->m_ModID, DiagnosticSeverity::ERROR, "expect value of type '{}' but got '{}'", reference));
     }
   }
 defer:
-  SaveBind(letStmt.get()->GetName(), std::make_shared<Binding>(Binding(BindType::Variable, letType, m_Module.get()->m_ID, letStmt.get()->GetNamePosition(), false, letStmt.get()->IsPub(), initBindRefOpt)));
-  return std::nullopt;
+  SaveBind(letStmt->GetName(), new Bind(BindT::Var, letType, m_Module->m_ID, letStmt->GetNamePosition(), false, letStmt->IsPub(), initBindRef));
+  return nullptr;
 }
 
-std::optional<std::shared_ptr<Binding>> Checker::CheckStmtImport(std::shared_ptr<ImportStmt> importStmt)
+Bind *Checker::CheckStmtImport(ImportStmt *importStmt)
 {
-  auto bindWithSameName = m_Scopes.back().m_Context.Get(importStmt.get()->GetName());
-  if (bindWithSameName.has_value())
+  auto bindWithSameName = m_Scopes.back().m_Context.Get(importStmt->GetName());
+  if (bindWithSameName)
   {
-    DiagnosticReference reference(Errno::OK, bindWithSameName.value().get()->m_ModuleID, bindWithSameName.value()->m_Position, "name used here");
-    m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, importStmt.get()->GetNamePosition(), m_Module.get()->m_ID, DiagnosticSeverity::ERROR, std::format("name '{}' already in use", importStmt.get()->GetName()), reference));
-    return std::nullopt;
+    DiagnosticReference reference(Errno::OK, bindWithSameName->m_ModID, bindWithSameName->m_Pos, "name used here");
+    m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, importStmt->GetNamePosition(), m_Module->m_ID, DiagnosticSeverity::ERROR, "name already used", reference));
+    return nullptr;
   }
   auto loadRes = m_ModManager.Load(NormalizeImportPath(importStmt->hasAtNotation(), importStmt->GetPath()));
   if (loadRes.is_err())
   {
-    m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, importStmt.get()->GetPathPosition(), m_Module.get()->m_ID, DiagnosticSeverity::ERROR, std::format("failed to import module '{}', '{}'", importStmt.get()->GetName(), loadRes.unwrap_err().Message)));
-    return std::nullopt;
+    m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, importStmt->GetPathPosition(), m_Module->m_ID, DiagnosticSeverity::ERROR, "failed to import module"));
+    return nullptr;
   }
   auto module = loadRes.unwrap();
-  if (ModuleStatus::INVALID == module.get()->m_Status)
+  if (ModuleStatus::INVALID == module->m_Status)
   {
-    return std::nullopt;
+    return nullptr;
   }
-  if (ModuleStatus::IDLE == module.get()->m_Status)
+  if (ModuleStatus::IDLE == module->m_Status)
   {
     Parser parser(module, m_ModManager);
     auto parseError = parser.Parse();
     if (parseError.has_value())
     {
-      module.get()->m_Status = ModuleStatus::INVALID;
+      module->m_Status = ModuleStatus::INVALID;
       m_Diagnostics.push_back(parseError.value());
-      return std::nullopt;
+      return nullptr;
     }
-    auto exports = std::make_shared<ModuleContext>(ModuleContext());
     Checker checker(module, m_ModManager);
     auto diagnostics = checker.Check();
     m_Diagnostics.insert(m_Diagnostics.end(), diagnostics.begin(), diagnostics.end());
-    module.get()->m_Status = ModuleStatus::LOADED;
+    module->m_Status = ModuleStatus::LOADED;
   }
-  auto objectType = std::make_shared<type::Object>(type::Object());
-  for (auto &bind : module.get()->m_Exports.value().get()->Store)
+  auto objectType = new type::Object();
+  for (auto &bind : module->m_Exports->Store)
   {
-    objectType.get()->m_Entries[bind.first] = bind.second.get()->m_Type;
+    objectType->m_Entries[bind.first] = bind.second->m_Type;
   }
-  auto moduleBind = std::make_shared<BindingModule>(BindingModule(importStmt.get()->GetName(), importStmt.get()->GetPosition(), importStmt.get()->GetNamePosition(), m_Module.get()->m_ID, module.get()->m_Exports.value(), objectType));
-  SaveBind(importStmt.get()->GetName(), moduleBind);
-  return std::nullopt;
+  auto moduleBind = new BindMod(importStmt->GetName(), importStmt->GetPosition(), importStmt->GetNamePosition(), m_Module->m_ID, module->m_Exports, objectType);
+  SaveBind(importStmt->GetName(), moduleBind);
+  return nullptr;
 }
 
-std::optional<std::shared_ptr<Binding>> Checker::CheckExpr(std::shared_ptr<Expr> expr)
+Bind *Checker::CheckExpr(Expr *expr)
 {
-  switch (expr.get()->GetType())
+  switch (expr->GetType())
   {
-  case ExprT::FieldAcc:
-    return CheckExprFieldAcc(std::static_pointer_cast<FieldAccExpr>(expr));
   case ExprT::Assign:
-    return CheckExprAssign(std::static_pointer_cast<AssignExpr>(expr));
+    return CheckExprAssign((AssignExpr *)expr);
   case ExprT::Call:
-    return CheckExprCall(std::static_pointer_cast<CallExpr>(expr));
+    return CheckExprCall((CallExpr *)expr);
   case ExprT::String:
-    return CheckExprString(std::static_pointer_cast<StringExpr>(expr));
+    return CheckExprString((StringExpr *)expr);
   case ExprT::Ident:
-    return CheckExprIdent(std::static_pointer_cast<IdentExpr>(expr));
+    return CheckExprIdent((IdentExpr *)expr);
+  case ExprT::FieldAcc:
+    return CheckExprFieldAcc((FieldAccExpr *)expr);
   }
-  return std::nullopt;
+  return nullptr;
 }
 
-std::optional<std::shared_ptr<Binding>> Checker::CheckExprCall(std::shared_ptr<CallExpr> callExpr)
+Bind *Checker::CheckExprCall(CallExpr *callExpr)
 {
   // callee
-  auto calleeBindOpt = CheckExpr(callExpr.get()->GetCallee());
-  if (!calleeBindOpt.has_value())
+  auto calleeBind = CheckExpr(callExpr->GetCallee());
+  if (!calleeBind)
   {
-    return std::nullopt;
+    return nullptr;
   }
-  auto calleeBind = calleeBindOpt.value();
-  if (type::Base::FUNCTION != calleeBind.get()->m_Type.get()->m_Base)
+  if (type::Base::FUNCTION != calleeBind->m_Type->m_Base)
   {
-    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, callExpr.get()->GetCalleePosition(), m_Module.get()->m_ID, DiagnosticSeverity::ERROR, "call to non-callable object"));
-    return std::nullopt;
+    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, callExpr->GetCalleePosition(), m_Module->m_ID, DiagnosticSeverity::ERROR, "call to non-callable object"));
+    return nullptr;
   }
-  auto calleeFnType = std::static_pointer_cast<type::Function>(calleeBind->m_Type);
+  auto calleeFnType = (type::Function *)calleeBind->m_Type;
   // arguments
-  auto callExpressionArgs = callExpr.get()->GetArguments();
-  auto callExpressionArgsPosition = callExpr.get()->GetArgumentsPosition();
-  if (calleeFnType.get()->m_IsVariadicArguments)
+  auto callExpressionArgs = callExpr->GetArguments();
+  auto callExpressionArgsPosition = callExpr->GetArgumentsPosition();
+  if (calleeFnType->m_IsVarArgs)
   {
-    if (calleeFnType.get()->m_ReqArgsCount > callExpressionArgs.size())
+    if (calleeFnType->m_ReqArgsCount > callExpressionArgs.size())
     {
-      m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, callExpressionArgsPosition, m_Module.get()->m_ID, DiagnosticSeverity::ERROR, std::format("missing required arguments, expect {} but got {}", calleeFnType.get()->m_ReqArgsCount, callExpressionArgs.size())));
-      return std::nullopt;
+      m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, callExpressionArgsPosition, m_Module->m_ID, DiagnosticSeverity::ERROR, ""));
+      return nullptr;
     }
   }
-  else if (calleeFnType.get()->m_ReqArgsCount != callExpressionArgs.size())
+  else if (calleeFnType->m_ReqArgsCount != callExpressionArgs.size())
   {
-    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, callExpressionArgsPosition, m_Module.get()->m_ID, DiagnosticSeverity::ERROR, std::format("arguments count mismatch, expect {} but got {}", calleeFnType.get()->m_ReqArgsCount, callExpressionArgs.size())));
-    return std::nullopt;
+    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, callExpressionArgsPosition, m_Module->m_ID, DiagnosticSeverity::ERROR, ""));
+    return nullptr;
   }
   for (size_t i = 0; i < callExpressionArgs.size(); ++i)
   {
     auto argumentBind = CheckExpr(callExpressionArgs.at(i));
-    if (!argumentBind.has_value())
+    if (!argumentBind)
     {
       continue;
     }
-    argumentBind.value().get()->m_IsUsed = true;
-    if (i >= calleeFnType.get()->m_Arguments.size())
+    argumentBind->m_IsUsed = true;
+    if (i >= calleeFnType->m_Args.size())
     {
       continue;
     }
-    if (calleeFnType.get()->m_Arguments.at(i).get()->IsCompatibleWith(argumentBind.value().get()->m_Type))
+    if (calleeFnType->m_Args.at(i)->IsCompatibleWith(argumentBind->m_Type))
     {
       continue;
     }
-    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, argumentBind.value().get()->m_Position, m_Module.get()->m_ID, DiagnosticSeverity::ERROR, std::format("expect argument of type '{}' but got '{}'", calleeFnType.get()->m_Arguments.at(i).get()->Inspect(), argumentBind.value().get()->m_Type.get()->Inspect())));
+    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, argumentBind->m_Pos, m_Module->m_ID, DiagnosticSeverity::ERROR, "argument type mismatch"));
   }
-  return std::make_shared<Binding>(Binding(BindType::Expr, calleeFnType.get()->m_ReturnType, m_Module.get()->m_ID, callExpr.get()->GetPosition()));
+  return new Bind(BindT::Expr, calleeFnType->m_RetType, m_Module->m_ID, callExpr->GetPosition());
 }
 
-std::optional<std::shared_ptr<Binding>> Checker::CheckExprIdent(std::shared_ptr<IdentExpr> identExpr)
+Bind *Checker::CheckExprIdent(IdentExpr *identExpr)
 {
-  auto bind = LookupBind(identExpr.get()->GetValue());
-  if (bind.has_value())
+  auto bind = LookupBind(identExpr->GetValue());
+  if (bind)
   {
-    bind.value().get()->m_IsUsed = true;
-    auto identifierBind = std::make_shared<Binding>(Binding(BindType::Expr, bind.value().get()->m_Type, m_Module.get()->m_ID, identExpr.get()->GetPosition(), false, false, bind.value().get()->m_Reference.has_value() ? bind.value().get()->m_Reference.value() : bind.value()));
-    return identifierBind;
+    bind->m_IsUsed = true;
+    return new Bind(BindT::Expr, bind->m_Type, m_Module->m_ID, identExpr->GetPosition(), false, false, bind->m_Ref ? bind->m_Ref : bind);
   }
-  m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, identExpr.get()->GetPosition(), m_Module.get()->m_ID, DiagnosticSeverity::ERROR, std::format("undefined name: '{}'", identExpr.get()->GetValue())));
-  return std::nullopt;
+  m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, identExpr->GetPosition(), m_Module->m_ID, DiagnosticSeverity::ERROR, "undefined name"));
+  return nullptr;
 }
 
-std::optional<std::shared_ptr<Binding>> Checker::CheckExprAssign(std::shared_ptr<AssignExpr> assignExpr)
+Bind *Checker::CheckExprAssign(AssignExpr *assignExpr)
 {
   // assignee
-  auto assigneeBindOpt = CheckExprIdent(assignExpr.get()->GetAssignee());
-  if (!assigneeBindOpt.has_value())
+  auto destBind = CheckExprIdent(assignExpr->GetAssignee());
+  if (!destBind)
   {
-    return std::nullopt;
+    return nullptr;
   }
-  auto assigneeBind = assigneeBindOpt.value();
   // value
-  auto valueBindOpt = CheckExpr(assignExpr.get()->GetValue());
-  if (!valueBindOpt.has_value())
+  auto valueBind = CheckExpr(assignExpr->GetValue());
+  if (!valueBind)
   {
-    return std::nullopt;
+    return nullptr;
   }
-  auto valueBind = valueBindOpt.value();
   // match types
-  if (!assigneeBind.get()->m_Type.get()->IsCompatibleWith(valueBind.get()->m_Type))
+  if (!destBind->m_Type->IsCompatibleWith(valueBind->m_Type))
   {
-    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, valueBind.get()->m_Position, valueBind.get()->m_ModuleID, DiagnosticSeverity::ERROR, std::format("expect value of type '{}' but got '{}'", assigneeBind.get()->m_Type.get()->Inspect(), valueBind.get()->m_Type.get()->Inspect())));
-    return std::nullopt;
+    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, valueBind->m_Pos, valueBind->m_ModID, DiagnosticSeverity::ERROR, "expect value of type {} but got {}"));
+    return nullptr;
   }
   // TODO: update type instead of reassigning to allow single modification point
-  assigneeBind.get()->m_Type = valueBind.get()->m_Type;
-  assigneeBind.get()->m_Reference.value().get()->m_Type = valueBind.get()->m_Type;
-  assigneeBind.get()->m_Reference.value().get()->m_Reference.emplace(valueBind.get()->m_Reference.value());
-  return std::nullopt;
+  return nullptr;
 }
 
-std::optional<std::shared_ptr<Binding>> Checker::CheckExprFieldAcc(std::shared_ptr<FieldAccExpr> fieldAccExpr)
+Bind *Checker::CheckExprFieldAcc(FieldAccExpr *fieldAccExpr)
 {
-  auto valueBindOpt = CheckExpr(fieldAccExpr.get()->GetValue());
-  if (!valueBindOpt.has_value())
+  auto valueBind = CheckExpr(fieldAccExpr->GetValue());
+  if (!valueBind)
   {
-    return std::nullopt;
+    return nullptr;
   }
-  auto valueBind = valueBindOpt.value();
-  if (type::Base::OBJECT != valueBind.get()->m_Type.get()->m_Base)
+  if (type::Base::OBJECT != valueBind->m_Type->m_Base)
   {
-    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, fieldAccExpr.get()->GetPosition(), m_Module.get()->m_ID, DiagnosticSeverity::ERROR, "left side of field access must be an object"));
-    return std::nullopt;
+    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, fieldAccExpr->GetPosition(), m_Module->m_ID, DiagnosticSeverity::ERROR, "object is not indexable"));
+    return nullptr;
   }
-  auto bindObjectType = std::static_pointer_cast<type::Object>(valueBind.get()->m_Type);
-  if (bindObjectType.get()->m_Entries.find(fieldAccExpr.get()->GetFieldName().get()->GetValue()) == bindObjectType.get()->m_Entries.end())
+  auto bindObjectType = (type::Object *)valueBind->m_Type;
+  if (bindObjectType->m_Entries.find(fieldAccExpr->GetFieldName()->GetValue()) == bindObjectType->m_Entries.end())
   {
     std::string fieldNotFoundErrorMessage;
-    switch (valueBind.get()->m_Reference.value().get()->m_BindType)
+    switch (valueBind->m_Ref->m_BindT)
     {
-    case BindType::Module:
-      fieldNotFoundErrorMessage = std::format("module '{}' has not field '{}'", std::static_pointer_cast<BindingModule>(valueBind.get()->m_Reference.value()).get()->m_Name, fieldAccExpr.get()->GetFieldName().get()->GetValue());
+    case BindT::Mod:
+      fieldNotFoundErrorMessage = std::format("module '{}' has not field '{}'", ((BindMod *)valueBind->m_Ref)->m_Name, fieldAccExpr->GetFieldName()->GetValue());
       break;
     default:
-      fieldNotFoundErrorMessage = std::format("object '{}' has no field '{}'", bindObjectType.get()->Inspect(), fieldAccExpr.get()->GetFieldName().get()->GetValue());
+      fieldNotFoundErrorMessage = std::format("object '{}' has no field '{}'", bindObjectType->Inspect(), fieldAccExpr->GetFieldName()->GetValue());
     }
-    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, fieldAccExpr.get()->GetFieldName().get()->GetPosition(), m_Module.get()->m_ID, DiagnosticSeverity::ERROR, fieldNotFoundErrorMessage));
-    return std::nullopt;
+    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, fieldAccExpr->GetFieldName()->GetPosition(), m_Module->m_ID, DiagnosticSeverity::ERROR, fieldNotFoundErrorMessage));
+    return nullptr;
   }
-  return std::make_shared<Binding>(Binding(BindType::Expr, bindObjectType.get()->m_Entries.at(fieldAccExpr.get()->GetFieldName().get()->GetValue()), m_Module.get()->m_ID, fieldAccExpr.get()->GetPosition()));
+  return new Bind(BindT::Expr, bindObjectType->m_Entries.at(fieldAccExpr->GetFieldName()->GetValue()), m_Module->m_ID, fieldAccExpr->GetPosition());
 }
 
-std::optional<std::shared_ptr<Binding>> Checker::CheckExprString(std::shared_ptr<StringExpr> stringExpr)
+Bind *Checker::CheckExprString(StringExpr *stringExpr)
 {
-  auto stringLiteralBind = std::make_shared<Binding>(Binding(BindType::Expr, std::make_shared<type::Type>(type::Type(type::Base::STRING)), m_Module.get()->m_ID, stringExpr.get()->GetPosition()));
-  return stringLiteralBind;
+  return new Bind(BindT::Expr, new type::Type(type::Base::STRING), m_Module->m_ID, stringExpr->GetPosition());
 }
 
 void Checker::EnterScope(ScopeType scopeType)
@@ -461,45 +430,45 @@ void Checker::LeaveScope()
 {
   for (auto &bind : m_Scopes.back().m_Context.Store)
   {
-    if (bind.second.get()->m_IsUsed || bind.first.starts_with('_') || bind.second.get()->m_IsPub || (ScopeType::GLOBAL == m_Scopes.back().m_Type && bind.first == "main"))
+    if (bind.second->m_IsUsed || bind.first.starts_with('_') || bind.second->m_IsPub || (ScopeType::GLOBAL == m_Scopes.back().m_Type && bind.first == "main"))
     {
       continue;
     }
-    switch (bind.second.get()->m_BindType)
+    switch (bind.second->m_BindT)
     {
-    case BindType::Expr:
-    case BindType::RetVal:
+    case BindT::Expr:
+    case BindT::RetVal:
       /* Values with these Bind types never get stored in the context */
       break;
-    case BindType::Module:
-      m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, std::static_pointer_cast<BindingModule>(bind.second)->m_AliasPosition, bind.second.get()->m_ModuleID, DiagnosticSeverity::WARN, "unused import"));
+    case BindT::Mod:
+      m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, ((BindMod *)bind.second)->m_NamePos, bind.second->m_ModID, DiagnosticSeverity::WARN, "unused import"));
       break;
-    case BindType::Variable:
-      m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, bind.second.get()->m_Position, bind.second.get()->m_ModuleID, DiagnosticSeverity::WARN, "unused variable"));
+    case BindT::Var:
+      m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, bind.second->m_Pos, bind.second->m_ModID, DiagnosticSeverity::WARN, "unused variable"));
       break;
-    case BindType::Param:
-      m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, bind.second.get()->m_Position, bind.second.get()->m_ModuleID, DiagnosticSeverity::WARN, "unused parameter"));
+    case BindT::Param:
+      m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, bind.second->m_Pos, bind.second->m_ModID, DiagnosticSeverity::WARN, "unused parameter"));
       break;
-    case BindType::Fun:
-      m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, std::static_pointer_cast<BindingFunction>(bind.second).get()->NamePosition, bind.second.get()->m_ModuleID, DiagnosticSeverity::WARN, std::format("function '{}' never gets called", bind.first)));
+    case BindT::Fun:
+      m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, ((BindFun *)bind.second)->NamePosition, bind.second->m_ModID, DiagnosticSeverity::WARN, std::format("function '{}' never gets called", bind.first)));
       break;
     }
   }
   if (ScopeType::GLOBAL == m_Scopes.back().m_Type)
   {
-    m_Module.get()->m_Exports = std::make_shared<ModuleContext>(ModuleContext());
+    m_Module->m_Exports = new ModuleContext();
     for (auto &pair : m_Scopes.back().m_Context.Store)
     {
-      if (pair.second.get()->m_IsPub)
+      if (pair.second->m_IsPub)
       {
-        m_Module.get()->m_Exports.value().get()->Store[pair.first] = pair.second;
+        m_Module->m_Exports->Store[pair.first] = pair.second;
       }
     }
   }
   m_Scopes.pop_back();
 }
 
-std::optional<std::shared_ptr<Binding>> Checker::LookupBind(std::string name)
+Bind *Checker::LookupBind(std::string name)
 {
   for (auto it = m_Scopes.rbegin(); it != m_Scopes.rend(); ++it)
   {
@@ -507,10 +476,10 @@ std::optional<std::shared_ptr<Binding>> Checker::LookupBind(std::string name)
     if (binding)
       return binding;
   }
-  return std::nullopt;
+  return nullptr;
 }
 
-void Checker::SaveBind(std::string name, std::shared_ptr<Binding> bind)
+void Checker::SaveBind(std::string name, Bind *bind)
 {
   m_Scopes.back().m_Context.Save(name, bind);
 }
@@ -528,7 +497,7 @@ bool Checker::IsWithinScope(ScopeType scopeType)
 }
 
 // utils
-std::string Checker::NormalizeImportPath(bool hasAtNotation, std::vector<std::shared_ptr<IdentExpr>> path)
+std::string Checker::NormalizeImportPath(bool hasAtNotation, std::vector<IdentExpr *> path)
 {
   std::ostringstream oss;
   if (hasAtNotation)
@@ -537,7 +506,7 @@ std::string Checker::NormalizeImportPath(bool hasAtNotation, std::vector<std::sh
   }
   for (size_t i = 0; i < path.size(); ++i)
   {
-    oss << path.at(i).get()->GetValue();
+    oss << path.at(i)->GetValue();
     if ((i + 1) < path.size())
     {
       oss << "/";

@@ -1,5 +1,8 @@
 import io from @std::io;
-import foo from examples::foo;
+
+fun sum(x: i32, y: i32): i32 {
+  x
+}
 
 fun main() {
   io.println("Hello, world!");

@@ -5,7 +5,9 @@
 enum class TokenType
 {
   IDENT,
+
   STRING,
+  NUMBER,
 
   // Keywords
   IMPORT,

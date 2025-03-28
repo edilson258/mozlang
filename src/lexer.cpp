@@ -2,7 +2,6 @@
 #include <cctype>
 #include <cstddef>
 #include <cstdlib>
-#include <format>
 #include <string>
 
 #include "diagnostic.h"
@@ -20,7 +19,7 @@ Result<Token, Diagnostic> Lexer::Next()
                { return std::isspace(c); });
   if (IsEof())
   {
-    return Result<Token, Diagnostic>(Token(Position(m_Line, m_Column, m_Cursor, m_Cursor), TokenType::END, "EOF"));
+    return Token(Position(m_Line, m_Column, m_Cursor, m_Cursor), TokenType::END, "EOF");
   }
   char current = PeekOne();
   switch (current)
@@ -61,25 +60,38 @@ Result<Token, Diagnostic> Lexer::Next()
     std::optional<TokenType> keyword = Keyword::match(label);
     if (keyword.has_value())
     {
-      return Result<Token, Diagnostic>(Token(Position(m_Line, atColumn, at, m_Cursor - 1), keyword.value(), label));
+      return Token(Position(m_Line, atColumn, at, m_Cursor - 1), keyword.value(), label);
     }
-    return Result<Token, Diagnostic>(Token(Position(m_Line, atColumn, at, m_Cursor - 1), TokenType::IDENT, label));
+    return Token(Position(m_Line, atColumn, at, m_Cursor - 1), TokenType::IDENT, label);
   }
-  return Result<Token, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, Position(m_Line, m_Column, m_Cursor, m_Cursor), m_ModuleID, DiagnosticSeverity::ERROR, std::format("invalid token: '{}'", current)));
+
+  if (std::isdigit(current) && '0' != current)
+  {
+  }
+  else if (StartsWith("0b"))
+  {
+  }
+  else if (StartsWith("0x"))
+  {
+  }
+
+  std::string message = "Unexpected token: ";
+  message.push_back(current);
+  return Diagnostic(Errno::SYNTAX_ERROR, Position(m_Line, m_Column, m_Cursor, m_Cursor), m_ModuleID, DiagnosticSeverity::ERROR, message);
 }
 
 Result<Token, Diagnostic> Lexer::MakeTokenSimple(TokenType tt)
 {
   Token token(Position(m_Line, m_Column, m_Cursor, m_Cursor), tt, std::string(1, PeekOne()));
   Advance();
-  return Result<Token, Diagnostic>(token);
+  return token;
 }
 
 Result<Token, Diagnostic> Lexer::MakeIfNextOr(std::string next, TokenType tt1, TokenType tt2)
 {
   Token token(Position(m_Line, m_Column, m_Cursor, m_Cursor), tt2, std::string(1, PeekOne()));
   Advance();
-  if (m_ModuleContent.length() > (m_Cursor + next.length()) && m_ModuleContent.substr(m_Cursor, next.length()) == next)
+  if (StartsWith(next))
   {
     for (size_t i = 0; i < next.length(); ++i)
     {
@@ -88,9 +100,8 @@ Result<Token, Diagnostic> Lexer::MakeIfNextOr(std::string next, TokenType tt1, T
     token.m_Type = tt1;
     token.m_Position.m_End = m_Cursor;
     token.m_Lexeme.append(next);
-    return Result<Token, Diagnostic>(token);
   }
-  return Result<Token, Diagnostic>(token);
+  return token;
 }
 
 Result<Token, Diagnostic> Lexer::MakeTokenString()
@@ -103,7 +114,7 @@ Result<Token, Diagnostic> Lexer::MakeTokenString()
     char current = PeekOne();
     if (IsEof() || '\n' == current)
     {
-      return Result<Token, Diagnostic>(Diagnostic(Errno::SYNTAX_ERROR, Position(m_Line, m_Column, at, m_Cursor - 1), m_ModuleID, DiagnosticSeverity::ERROR, "unquoted string"));
+      return Diagnostic(Errno::SYNTAX_ERROR, Position(m_Line, m_Column, at, m_Cursor - 1), m_ModuleID, DiagnosticSeverity::ERROR, "unquoted string");
     }
     if ('"' == current)
     {
@@ -113,7 +124,7 @@ Result<Token, Diagnostic> Lexer::MakeTokenString()
   }
   size_t len = m_Cursor - at;
   Advance();
-  return Result<Token, Diagnostic>(Token(Position(m_Line, atColumn, at - 1, m_Cursor - 1), TokenType::STRING, m_ModuleContent.substr(at, len)));
+  return Token(Position(m_Line, atColumn, at - 1, m_Cursor - 1), TokenType::STRING, m_ModuleContent.substr(at, len));
 }
 
 bool Lexer::IsEof()
@@ -156,4 +167,9 @@ size_t Lexer::AdvanceWhile(std::function<bool(char)> predicate)
     Advance();
   }
   return m_Cursor - at;
+}
+
+bool Lexer::StartsWith(std::string xs)
+{
+  return xs == m_ModuleContent.substr(m_Cursor, xs.length());
 }

@@ -1,5 +1,4 @@
 #include <cstddef>
-#include <memory>
 #include <sstream>
 #include <string>
 
@@ -50,37 +49,37 @@ std::string Type::Inspect() const
   return "UNKNWON TYPE";
 }
 
-bool Type::IsCompatibleWith(std::shared_ptr<Type> other) const
+bool Type::IsCompatibleWith(Type *other) const
 {
   if (Base::ANY == m_Base)
   {
     return true;
   }
-  return m_Base == other.get()->m_Base;
+  return m_Base == other->m_Base;
 }
 
-bool Function::IsCompatibleWith(std::shared_ptr<Type> other) const
+bool Function::IsCompatibleWith(Type *other) const
 {
-  if (Base::FUNCTION != other.get()->m_Base)
+  if (Base::FUNCTION != other->m_Base)
   {
     return false;
   }
-  std::shared_ptr<Function> otherFn = std::static_pointer_cast<Function>(other);
-  if (!(!(m_IsVariadicArguments ^ otherFn.get()->m_IsVariadicArguments)))
+  auto *otherFn = (Function *)other;
+  if (!(!(m_IsVarArgs ^ otherFn->m_IsVarArgs)))
   {
     return false;
   }
-  if ((m_ReqArgsCount != otherFn.get()->m_ReqArgsCount) || (m_Arguments.size() != otherFn.get()->m_Arguments.size()))
+  if ((m_ReqArgsCount != otherFn->m_ReqArgsCount) || (m_Args.size() != otherFn->m_Args.size()))
   {
     return false;
   }
-  if (!m_ReturnType.get()->IsCompatibleWith(otherFn.get()->m_ReturnType))
+  if (!m_RetType->IsCompatibleWith(otherFn))
   {
     return false;
   }
-  for (size_t i = 0; i < m_Arguments.size(); ++i)
+  for (size_t i = 0; i < m_Args.size(); ++i)
   {
-    if (!m_Arguments.at(i).get()->IsCompatibleWith(otherFn.get()->m_Arguments.at(i)))
+    if (!m_Args.at(i)->IsCompatibleWith(otherFn->m_Args.at(i)))
     {
       return false;
     }
@@ -88,24 +87,24 @@ bool Function::IsCompatibleWith(std::shared_ptr<Type> other) const
   return true;
 }
 
-bool Object::IsCompatibleWith(std::shared_ptr<Type> other) const
+bool Object::IsCompatibleWith(Type *other) const
 {
-  if (Base::OBJECT != other.get()->m_Base)
+  if (Base::OBJECT != other->m_Base)
   {
     return false;
   }
-  auto otherObject = std::static_pointer_cast<Object>(other);
-  if (m_Entries.size() > otherObject.get()->m_Entries.size())
+  auto *otherObject = (Object *)other;
+  if (m_Entries.size() > otherObject->m_Entries.size())
   {
     return false;
   }
   for (auto &pair : m_Entries)
   {
-    if (otherObject.get()->m_Entries.find(pair.first) == otherObject.get()->m_Entries.end())
+    if (otherObject->m_Entries.find(pair.first) == otherObject->m_Entries.end())
     {
       return false;
     }
-    if (!pair.second.get()->IsCompatibleWith(otherObject.get()->m_Entries[pair.first]))
+    if (!pair.second->IsCompatibleWith(otherObject->m_Entries[pair.first]))
     {
       return false;
     }
@@ -117,15 +116,15 @@ std::string Function::Inspect() const
 {
   std::ostringstream oss;
   oss << "fun(";
-  for (size_t i = 0; i < m_Arguments.size(); ++i)
+  for (size_t i = 0; i < m_Args.size(); ++i)
   {
-    oss << m_Arguments.at(i).get()->Inspect();
-    if (i + 1 < m_Arguments.size())
+    oss << m_Args.at(i)->Inspect();
+    if (i + 1 < m_Args.size())
     {
       oss << ", ";
     }
   }
-  oss << ") -> " << m_ReturnType.get()->Inspect();
+  oss << ") -> " << m_RetType->Inspect();
   return oss.str();
 }
 
@@ -136,7 +135,7 @@ std::string Object::Inspect() const
   size_t cursor = 1;
   for (auto &pair : m_Entries)
   {
-    oss << pair.first << ": " << pair.second.get()->Inspect();
+    oss << pair.first << ": " << pair.second->Inspect();
     if (cursor < m_Entries.size())
     {
       oss << ", ";
@@ -146,70 +145,4 @@ std::string Object::Inspect() const
   oss << "}";
   return oss.str();
 };
-
-std::optional<std::shared_ptr<Type>> NarrowTypes(std::shared_ptr<Type> lhs, std::shared_ptr<Type> rhs)
-{
-  (void)lhs;
-  (void)rhs;
-
-  return std::nullopt;
-}
-
-std::shared_ptr<Type> Type::make_void()
-{
-  return std::make_shared<Type>(Type(Base::VOID));
-}
-std::shared_ptr<Type> Type::make_string()
-{
-  return std::make_shared<Type>(Type(Base::STRING));
-}
-std::shared_ptr<Type> Type::make_i8()
-{
-  return std::make_shared<Type>(Type(Base::I8));
-}
-std::shared_ptr<Type> Type::make_i16()
-{
-  return std::make_shared<Type>(Type(Base::I16));
-}
-std::shared_ptr<Type> Type::make_i32()
-{
-  return std::make_shared<Type>(Type(Base::I32));
-}
-std::shared_ptr<Type> Type::make_i64()
-{
-  return std::make_shared<Type>(Type(Base::I64));
-}
-std::shared_ptr<Type> Type::make_u8()
-{
-  return std::make_shared<Type>(Type(Base::U8));
-}
-std::shared_ptr<Type> Type::make_u16()
-{
-  return std::make_shared<Type>(Type(Base::U16));
-}
-std::shared_ptr<Type> Type::make_u32()
-{
-  return std::make_shared<Type>(Type(Base::U32));
-}
-std::shared_ptr<Type> Type::make_u64()
-{
-  return std::make_shared<Type>(Type(Base::U64));
-}
-std::shared_ptr<Type> Type::make_f8()
-{
-  return std::make_shared<Type>(Type(Base::F8));
-}
-std::shared_ptr<Type> Type::make_f16()
-{
-  return std::make_shared<Type>(Type(Base::F16));
-}
-std::shared_ptr<Type> Type::make_f32()
-{
-  return std::make_shared<Type>(Type(Base::F32));
-}
-std::shared_ptr<Type> Type::make_f64()
-{
-  return std::make_shared<Type>(Type(Base::F64));
-}
-
 } // namespace type
