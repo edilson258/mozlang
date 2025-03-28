@@ -4,17 +4,18 @@
 #include <string>
 
 #include "ast.h"
+#include "pointer.h"
 #include "token.h"
 
 class ASTInspector
 {
 public:
-  ASTInspector(AST &ast) : Ast(ast), TabRate(4), TabSize(0), Output() {}
+  ASTInspector(Ast &ast) : m_Ast(ast), TabRate(4), TabSize(0), Output() {}
 
   std::string Inspect();
 
 private:
-  AST &Ast;
+  Ast &m_Ast;
 
   size_t TabRate;
   size_t TabSize;
@@ -25,18 +26,18 @@ private:
   void Write(std::string);
   void Writeln(std::string);
 
-  void InspectStmt(Stmt *);
-  void InspectBlockStmt(BlockStmt *);
-  void InspectStatementReturn(RetStmt *);
-  void InspectStatementLet(LetStmt *);
-  void InspectStatementImport(ImportStmt *);
-  void InspectStatementFunction(FunStmt *);
-  void InspectExpression(Expr *);
-  void InspectExpressionCall(CallExpr *);
-  void InspectExpressionAssign(AssignExpr *);
-  void InspectExpressionFieldAccess(FieldAccExpr *);
-  void InspectExpressionString(StringExpr *);
-  void InspectEpressionIdentifier(IdentExpr *);
+  void InspectStmt(Ptr<Stmt>);
+  void InspectBlockStmt(Ptr<BlockStmt>);
+  void InspectStatementReturn(Ptr<RetStmt>);
+  void InspectStatementLet(Ptr<LetStmt>);
+  void InspectStatementImport(Ptr<ImportStmt>);
+  void InspectStatementFunction(Ptr<FunStmt>);
+  void InspectExpression(Ptr<Expr>);
+  void InspectExpressionCall(Ptr<CallExpr>);
+  void InspectExpressionAssign(Ptr<AssignExpr>);
+  void InspectExpressionFieldAccess(Ptr<FieldAccExpr>);
+  void InspectExpressionString(Ptr<StringExpr>);
+  void InspectEpressionIdentifier(Ptr<IdentExpr>);
 };
 
 void ASTInspector::Tab()
@@ -64,7 +65,7 @@ std::string ASTInspector::Inspect()
 {
   Output << "Abstract Syntax Tree\n\n";
 
-  for (auto *stmt : Ast.m_Program)
+  for (auto stmt : m_Ast.m_Program)
   {
     InspectStmt(stmt);
   }
@@ -72,26 +73,26 @@ std::string ASTInspector::Inspect()
   return Output.str();
 }
 
-void ASTInspector::InspectStmt(Stmt *stmt)
+void ASTInspector::InspectStmt(Ptr<Stmt> stmt)
 {
   switch (stmt->GetType())
   {
   case StmtT::Import:
-    return InspectStatementImport((ImportStmt *)stmt);
+    return InspectStatementImport(CastPtr<ImportStmt>(stmt));
   case StmtT::Let:
-    return InspectStatementLet((LetStmt *)stmt);
+    return InspectStatementLet(CastPtr<LetStmt>(stmt));
   case StmtT::Block:
-    return InspectBlockStmt((BlockStmt *)stmt);
+    return InspectBlockStmt(CastPtr<BlockStmt>(stmt));
   case StmtT::Ret:
-    return InspectStatementReturn((RetStmt *)stmt);
+    return InspectStatementReturn(CastPtr<RetStmt>(stmt));
   case StmtT::Fun:
-    return InspectStatementFunction((FunStmt *)stmt);
-  case StmtT ::Expr:
-    return InspectExpression((Expr *)stmt);
+    return InspectStatementFunction(CastPtr<FunStmt>(stmt));
+  case StmtT::Expr:
+    return InspectExpression(CastPtr<Expr>(stmt));
   }
 }
 
-void ASTInspector::InspectStatementLet(LetStmt *letStatement)
+void ASTInspector::InspectStatementLet(Ptr<LetStmt> letStatement)
 {
   Writeln("Let Statement:");
   Tab();
@@ -111,7 +112,7 @@ void ASTInspector::InspectStatementLet(LetStmt *letStatement)
   UnTab();
 }
 
-void ASTInspector::InspectStatementImport(ImportStmt *importStatement)
+void ASTInspector::InspectStatementImport(Ptr<ImportStmt> importStatement)
 {
   Writeln("Import Statement:");
   Tab();
@@ -120,7 +121,7 @@ void ASTInspector::InspectStatementImport(ImportStmt *importStatement)
   UnTab();
 }
 
-void ASTInspector::InspectBlockStmt(BlockStmt *blockStmt)
+void ASTInspector::InspectBlockStmt(Ptr<BlockStmt> blockStmt)
 {
   Writeln("Block Statement:");
   Tab();
@@ -131,7 +132,7 @@ void ASTInspector::InspectBlockStmt(BlockStmt *blockStmt)
   UnTab();
 }
 
-void ASTInspector::InspectStatementReturn(RetStmt *retStmt)
+void ASTInspector::InspectStatementReturn(Ptr<RetStmt> retStmt)
 {
   Writeln("Return Statement:");
   Tab();
@@ -142,7 +143,7 @@ void ASTInspector::InspectStatementReturn(RetStmt *retStmt)
   UnTab();
 }
 
-void ASTInspector::InspectStatementFunction(FunStmt *funStmt)
+void ASTInspector::InspectStatementFunction(Ptr<FunStmt> funStmt)
 {
   Writeln("Function Statement:");
   Tab();
@@ -168,26 +169,26 @@ void ASTInspector::InspectStatementFunction(FunStmt *funStmt)
   UnTab();
 }
 
-void ASTInspector::InspectExpression(Expr *expression)
+void ASTInspector::InspectExpression(Ptr<Expr> expression)
 {
   switch (expression->GetType())
   {
-  case ExprT::FieldAcc:
-    return InspectExpressionFieldAccess((FieldAccExpr *)expression);
   case ExprT::Assign:
-    return InspectExpressionAssign((AssignExpr *)expression);
+    return InspectExpressionAssign(CastPtr<AssignExpr>(expression));
   case ExprT::Call:
-    return InspectExpressionCall((CallExpr *)expression);
+    return InspectExpressionCall(CastPtr<CallExpr>(expression));
   case ExprT::String:
-    return InspectExpressionString((StringExpr *)expression);
+    return InspectExpressionString(CastPtr<StringExpr>(expression));
   case ExprT::Ident:
-    return InspectEpressionIdentifier((IdentExpr *)expression);
+    return InspectEpressionIdentifier(CastPtr<IdentExpr>(expression));
+  case ExprT::FieldAcc:
+    return InspectExpressionFieldAccess(CastPtr<FieldAccExpr>(expression));
   }
 }
 
-void ASTInspector::InspectExpressionCall(CallExpr *callExpr)
+void ASTInspector::InspectExpressionCall(Ptr<CallExpr> callExpr)
 {
-  Position position = callExpr->GetCalleePosition();
+  Position position = callExpr->GetCalleePos();
   Writeln(std::format("call expression: {{{}:{}:{}:{}}}", position.m_Line, position.m_Column, position.m_Start, position.m_End));
   Tab();
 
@@ -198,7 +199,7 @@ void ASTInspector::InspectExpressionCall(CallExpr *callExpr)
 
   Writeln("arguments: [");
   Tab();
-  for (auto argument : callExpr->GetArguments())
+  for (auto argument : callExpr->GetArgs())
   {
     InspectExpression(argument);
   }
@@ -208,11 +209,11 @@ void ASTInspector::InspectExpressionCall(CallExpr *callExpr)
   UnTab();
 }
 
-void ASTInspector::InspectExpressionAssign(AssignExpr *assignExpr)
+void ASTInspector::InspectExpressionAssign(Ptr<AssignExpr> assignExpr)
 {
   Writeln("Assign Expression:");
   Tab();
-  Writeln(std::format("Assignee: {}", assignExpr->GetAssignee()->GetValue()));
+  Writeln(std::format("Assignee: {}", assignExpr->GetDest()->GetValue()));
   Writeln("Value:");
   Tab();
   InspectExpression(assignExpr->GetValue());
@@ -220,9 +221,9 @@ void ASTInspector::InspectExpressionAssign(AssignExpr *assignExpr)
   UnTab();
 }
 
-void ASTInspector::InspectExpressionFieldAccess(FieldAccExpr *fieldAccessExpression)
+void ASTInspector::InspectExpressionFieldAccess(Ptr<FieldAccExpr> fieldAccessExpression)
 {
-  Position pos = fieldAccessExpression->GetPosition();
+  Position pos = fieldAccessExpression->GetPos();
   Writeln(std::format("Field Access Expression: {}:{}:{}:{}", pos.m_Line, pos.m_Column, pos.m_Start, pos.m_End));
   Tab();
   Writeln(std::format("Field Name: {}", fieldAccessExpression->GetFieldName()->GetValue()));
@@ -233,18 +234,17 @@ void ASTInspector::InspectExpressionFieldAccess(FieldAccExpr *fieldAccessExpress
   UnTab();
 }
 
-void ASTInspector::InspectExpressionString(StringExpr *strExpr)
+void ASTInspector::InspectExpressionString(Ptr<StringExpr> strExpr)
 {
   Writeln(std::format("string literal: {}", strExpr->GetValue()));
 }
 
-// ;
-void ASTInspector::InspectEpressionIdentifier(IdentExpr *identExpr)
+void ASTInspector::InspectEpressionIdentifier(Ptr<IdentExpr> identExpr)
 {
   Writeln(std::format("identifer expression: {}", identExpr->GetValue()));
 }
 
-std::string AST::Inspect()
+std::string Ast::Inspect()
 {
   ASTInspector astInspector(*this);
   return astInspector.Inspect();

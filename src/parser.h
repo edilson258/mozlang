@@ -12,12 +12,12 @@
 class Parser
 {
 public:
-  Parser(Module *module, ModuleManager &modManager) : m_Module(module), m_ModuleID(module->m_ID), m_Lexer(Lexer(module->m_ID, modManager)), m_CurrToken(), m_NextToken() {};
+  Parser(Ptr<Module> module, ModuleManager &modManager) : m_Module(module), m_ModuleID(module->m_ID), m_Lexer(Lexer(module->m_ID, modManager)), m_CurrToken(), m_NextToken(), m_HasPubModifier(false) {};
 
   std::optional<Diagnostic> Parse();
 
 private:
-  Module *m_Module;
+  Ptr<Module> m_Module;
   ModuleID m_ModuleID;
   Lexer m_Lexer;
   Token m_CurrToken;
@@ -30,22 +30,22 @@ private:
   bool AcceptsPubModifier(TokenType);
   bool EraseIfPubModifier();
 
-  Result<Stmt *, Diagnostic> ParseStmt();
-  Result<Stmt *, Diagnostic> ParseStmtImport();
-  Result<Stmt *, Diagnostic> ParseStmtFunction();
-  Result<Stmt *, Diagnostic> ParseStmtReturn();
-  Result<Stmt *, Diagnostic> ParseStmtLet();
-  Result<Stmt *, Diagnostic> ParseStmtBlock();
-  Result<Stmt *, Diagnostic> ParseStmtExpr();
-  Result<Expr *, Diagnostic> ParseExpr(Prec);
-  Result<Expr *, Diagnostic> ParseExprPrim();
-  Result<IdentExpr *, Diagnostic> ParseExprIdent();
-  Result<CallExpr *, Diagnostic> ParseExprCall(Expr *);
-  Result<AssignExpr *, Diagnostic> ParseExprAssign(Expr *);
-  Result<FieldAccExpr *, Diagnostic> ParseExprFieldAcc(Expr *);
+  Result<Ptr<Stmt>, Diagnostic> ParseStmt();
+  Result<Ptr<Stmt>, Diagnostic> ParseStmtImport();
+  Result<Ptr<Stmt>, Diagnostic> ParseStmtFunction();
+  Result<Ptr<Stmt>, Diagnostic> ParseStmtReturn();
+  Result<Ptr<Stmt>, Diagnostic> ParseStmtLet();
+  Result<Ptr<Stmt>, Diagnostic> ParseStmtBlock();
+  Result<Ptr<Stmt>, Diagnostic> ParseStmtExpr();
+  Result<Ptr<Expr>, Diagnostic> ParseExpr(Prec);
+  Result<Ptr<Expr>, Diagnostic> ParseExprPrim();
+  Result<Ptr<IdentExpr>, Diagnostic> ParseExprIdent();
+  Result<Ptr<CallExpr>, Diagnostic> ParseExprCall(Ptr<Expr>);
+  Result<Ptr<AssignExpr>, Diagnostic> ParseExprAssign(Ptr<Expr>);
+  Result<Ptr<FieldAccExpr>, Diagnostic> ParseExprFieldAcc(Ptr<Expr>);
 
   Result<bool, Diagnostic> ParsePubAccMod();
   Result<FunParams, Diagnostic> ParseFunParams();
-  Result<AstType *, Diagnostic> ParseTypeAnn();
-  Result<AstType *, Diagnostic> ParseFunTypeAnn();
+  Result<Ptr<AstType>, Diagnostic> ParseTypeAnn();
+  Result<Ptr<AstType>, Diagnostic> ParseFunTypeAnn();
 };

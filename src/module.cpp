@@ -3,9 +3,10 @@
 
 #include "error.h"
 #include "module.h"
+#include "pointer.h"
 #include "result.h"
 
-Result<Module *, Error> ModuleManager::Load(std::string path)
+Result<Ptr<Module>, Error> ModuleManager::Load(std::string path)
 {
   if (m_PathToID.find(path) != m_PathToID.end())
   {
@@ -20,7 +21,7 @@ Result<Module *, Error> ModuleManager::Load(std::string path)
   }
   std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
   ModuleID id = m_Modules.size();
-  auto module = new Module(id, path, content);
+  auto module = MakePtr(Module(id, path, content));
   m_Modules[id] = module;
   return module;
 }

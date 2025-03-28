@@ -2,6 +2,7 @@
 #include <sstream>
 #include <string>
 
+#include "pointer.h"
 #include "type.h"
 
 namespace type
@@ -41,30 +42,56 @@ std::string Type::Inspect() const
     return "f64";
   case Base::FUNCTION:
     return "function";
-  case Base::ANY:
-    return "any";
+  // case Base::ANY:
+  //   return "any";
   case Base::OBJECT:
     return "object";
+  case Base::ERROR:
+    return "ERROR";
+  case Base::UNIT:
+    return "unit";
   }
   return "UNKNWON TYPE";
 }
 
-bool Type::IsCompatibleWith(Type *other) const
+bool Type::IsVoid() const
 {
-  if (Base::ANY == m_Base)
+  return m_Base == Base::VOID;
+}
+
+bool Type::IsNothing() const
+{
+  switch (m_Base)
   {
+  case Base::VOID:
+  case Base::UNIT:
     return true;
+  default:
+    return false;
   }
+}
+
+bool Type::IsError() const
+{
+  return Base::ERROR == m_Base;
+}
+
+bool Type::IsCompatWith(Ptr<Type> other) const
+{
+  // if (Base::ANY == m_Base)
+  // {
+  //   return true;
+  // }
   return m_Base == other->m_Base;
 }
 
-bool Function::IsCompatibleWith(Type *other) const
+bool Function::IsCompatWith(Ptr<Type> other) const
 {
   if (Base::FUNCTION != other->m_Base)
   {
     return false;
   }
-  auto *otherFn = (Function *)other;
+  auto otherFn = CastPtr<Function>(other);
   if (!(!(m_IsVarArgs ^ otherFn->m_IsVarArgs)))
   {
     return false;
@@ -73,13 +100,13 @@ bool Function::IsCompatibleWith(Type *other) const
   {
     return false;
   }
-  if (!m_RetType->IsCompatibleWith(otherFn))
+  if (!m_RetType->IsCompatWith(otherFn))
   {
     return false;
   }
   for (size_t i = 0; i < m_Args.size(); ++i)
   {
-    if (!m_Args.at(i)->IsCompatibleWith(otherFn->m_Args.at(i)))
+    if (!m_Args.at(i)->IsCompatWith(otherFn->m_Args.at(i)))
     {
       return false;
     }
@@ -87,13 +114,13 @@ bool Function::IsCompatibleWith(Type *other) const
   return true;
 }
 
-bool Object::IsCompatibleWith(Type *other) const
+bool Object::IsCompatWith(Ptr<Type> other) const
 {
   if (Base::OBJECT != other->m_Base)
   {
     return false;
   }
-  auto *otherObject = (Object *)other;
+  auto otherObject = CastPtr<Object>(other);
   if (m_Entries.size() > otherObject->m_Entries.size())
   {
     return false;
@@ -104,7 +131,7 @@ bool Object::IsCompatibleWith(Type *other) const
     {
       return false;
     }
-    if (!pair.second->IsCompatibleWith(otherObject->m_Entries[pair.first]))
+    if (!pair.second->IsCompatWith(otherObject->m_Entries[pair.first]))
     {
       return false;
     }

@@ -1,9 +1,5 @@
 import io from @std::io;
 
-fun sum(x: i32, y: i32): i32 {
-  x
-}
-
 fun main() {
-  io.println("Hello, world!");
+  io.println("Hello, World!");
 }

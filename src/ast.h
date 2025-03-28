@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "pointer.h"
 #include "token.h"
 #include "type.h"
 
@@ -39,7 +40,7 @@ class Stmt
 {
 public:
   StmtT GetType() const { return m_Type; }
-  virtual Position GetPosition() const = 0;
+  virtual Position GetPos() const = 0;
 
   virtual ~Stmt() = default;
 
@@ -54,7 +55,7 @@ class Expr : public Stmt
 {
 public:
   ExprT GetType() const { return m_Type; }
-  virtual Position GetPosition() const override = 0;
+  virtual Position GetPos() const override = 0;
 
   virtual ~Expr() = default;
 
@@ -65,73 +66,85 @@ private:
   ExprT m_Type;
 };
 
+/*
+  Call expression
+*/
 class CallExprArgs
 {
 public:
-  CallExprArgs(Position position, std::vector<Expr *> args) : m_Position(position), m_Arguments(std::move(args)) {};
+  CallExprArgs(Position position, std::vector<Ptr<Expr>> args) : m_Pos(position), m_Args(std::move(args)) {};
 
-  Position GetPosition() const { return m_Position; }
-  std::vector<Expr *> GetArguments() const { return m_Arguments; }
+  Position GetPos() const { return m_Pos; }
+  std::vector<Ptr<Expr>> GetArgs() const { return m_Args; }
 
 private:
-  Position m_Position;
-  std::vector<Expr *> m_Arguments;
+  Position m_Pos;
+  std::vector<Ptr<Expr>> m_Args;
 };
 
 class CallExpr : public Expr
 {
 public:
-  CallExpr(Expr *callee, CallExprArgs args) : Expr(ExprT::Call), m_Callee(callee), m_Arguments(args) {};
+  CallExpr(Ptr<Expr> callee, CallExprArgs args) : Expr(ExprT::Call), m_Callee(callee), m_Args(args) {};
 
-  Position GetPosition() const override { return m_Callee->GetPosition().MergeWith(m_Arguments.GetPosition()); }
-  Position GetCalleePosition() const { return m_Callee->GetPosition(); }
-  Position GetArgumentsPosition() const { return m_Arguments.GetPosition(); }
-  Expr *GetCallee() const { return m_Callee; }
-  std::vector<Expr *> GetArguments() const { return m_Arguments.GetArguments(); }
+  Position GetPos() const override { return m_Callee->GetPos().MergeWith(m_Args.GetPos()); }
+  Position GetCalleePos() const { return m_Callee->GetPos(); }
+  Position GetArgsPos() const { return m_Args.GetPos(); }
+  Ptr<Expr> GetCallee() const { return m_Callee; }
+  std::vector<Ptr<Expr>> GetArgs() const { return m_Args.GetArgs(); }
 
 private:
-  Expr *m_Callee;
-  CallExprArgs m_Arguments;
+  Ptr<Expr> m_Callee;
+  CallExprArgs m_Args;
 };
 
+/*
+  Ident expression
+*/
 class IdentExpr : public Expr
 {
 public:
   IdentExpr(Token token) : Expr(ExprT::Ident), m_Token(token) {};
 
   std::string GetValue() const { return m_Token.m_Lexeme; }
-  Position GetPosition() const override { return m_Token.m_Position; }
+  Position GetPos() const override { return m_Token.m_Position; }
 
 private:
   Token m_Token;
 };
 
+/*
+  Assign expression
+*/
 class AssignExpr : public Expr
 {
 public:
-  AssignExpr(IdentExpr *dest, Expr *value) : Expr(ExprT::Assign), m_Dest(dest), m_Value(value) {};
+  AssignExpr(Ptr<IdentExpr> dest, Ptr<Expr> value) : Expr(ExprT::Assign), m_Dest(dest), m_Value(value) {};
 
-  Position GetPosition() const override { return m_Dest->GetPosition().MergeWith(m_Value->GetPosition()); }
-  IdentExpr *GetAssignee() const { return m_Dest; }
-  Expr *GetValue() const { return m_Value; }
+  Position GetPos() const override { return m_Dest->GetPos().MergeWith(m_Value->GetPos()); }
+  Ptr<IdentExpr> GetDest() const { return m_Dest; }
+  Ptr<Expr> GetValue() const { return m_Value; }
 
 private:
-  IdentExpr *m_Dest;
-  Expr *m_Value;
+  Ptr<IdentExpr> m_Dest;
+  Ptr<Expr> m_Value;
 };
 
+/*
+  Field Access expression
+*/
 class FieldAccExpr : public Expr
 {
 public:
-  FieldAccExpr(Expr *value, IdentExpr *fieldName) : Expr(ExprT::FieldAcc), m_Value(value), m_FieldName(fieldName) {};
+  FieldAccExpr(Ptr<Expr> value, Ptr<IdentExpr> fieldName) : Expr(ExprT::FieldAcc), m_Value(value), m_FieldName(fieldName) {};
 
-  Position GetPosition() const override { return m_Value->GetPosition().MergeWith(m_FieldName->GetPosition()); }
-  Expr *GetValue() const { return m_Value; }
-  IdentExpr *GetFieldName() const { return m_FieldName; }
+  Position GetPos() const override { return m_Value->GetPos().MergeWith(m_FieldName->GetPos()); }
+  Ptr<Expr> GetValue() const { return m_Value; }
+  Ptr<IdentExpr> GetFieldName() const { return m_FieldName; }
 
 private:
-  Expr *m_Value;
-  IdentExpr *m_FieldName;
+  Ptr<Expr> m_Value;
+  Ptr<IdentExpr> m_FieldName;
 };
 
 class StringExpr : public Expr
@@ -140,7 +153,7 @@ public:
   StringExpr(Token token) : Expr(ExprT::String), m_Token(token) {};
 
   std::string GetValue() const { return m_Token.m_Lexeme; }
-  Position GetPosition() const override { return m_Token.m_Position; }
+  Position GetPos() const override { return m_Token.m_Position; }
 
 private:
   Token m_Token;
@@ -162,58 +175,58 @@ private:
 class BlockStmt : public Stmt
 {
 public:
-  BlockStmt(Position position, std::vector<Stmt *> stmts) : Stmt(StmtT::Block), m_Position(position), m_Stmts(std::move(stmts)) {};
+  BlockStmt(Position position, std::vector<Ptr<Stmt>> stmts) : Stmt(StmtT::Block), m_Position(position), m_Stmts(std::move(stmts)) {};
 
-  std::vector<Stmt *> GetStatements() const { return m_Stmts; }
-  Position GetPosition() const override { return m_Position; }
+  std::vector<Ptr<Stmt>> GetStatements() const { return m_Stmts; }
+  Position GetPos() const override { return m_Position; }
 
 private:
   Position m_Position;
-  std::vector<Stmt *> m_Stmts;
+  std::vector<Ptr<Stmt>> m_Stmts;
 };
 
 class RetStmt : public Stmt
 {
 public:
-  RetStmt(Expr *value) : Stmt(StmtT::Ret), m_Pos(value->GetPosition()), m_Value(value) {};
-  RetStmt(Position pos, Expr *value) : Stmt(StmtT::Ret), m_Pos(pos), m_Value(value) {};
+  RetStmt(Ptr<Expr> value) : Stmt(StmtT::Ret), m_Pos(value->GetPos()), m_Value(value), m_IsImplicity(true) {};
+  RetStmt(Position pos, Ptr<Expr> value) : Stmt(StmtT::Ret), m_Pos(pos), m_Value(value), m_IsImplicity(false) {};
 
-  Expr *GetValue() const { return m_Value; }
+  Ptr<Expr> GetValue() const { return m_Value; }
   bool IsImplicity() const { return m_IsImplicity; }
-  Position GetPosition() const override { return m_Pos.MergeWith(m_Value->GetPosition()); }
+  Position GetPos() const override { return m_Pos.MergeWith(m_Value->GetPos()); }
 
 private:
   Position m_Pos;
-  Expr *m_Value;
+  Ptr<Expr> m_Value;
   bool m_IsImplicity;
 };
 
 class AstType
 {
 public:
-  AstType(Position position, type::Type *type) : m_Position(position), m_Type(type) {};
+  AstType(Position position, Ptr<type::Type> type) : m_Position(position), m_Type(type) {};
 
-  Position GetPosition() const { return m_Position; }
-  type::Type *GetType() const { return m_Type; }
+  Position GetPos() const { return m_Position; }
+  Ptr<type::Type> GetType() const { return m_Type; }
 
 private:
   Position m_Position;
-  type::Type *m_Type;
+  Ptr<type::Type> m_Type;
 };
 
 class FunParam
 {
 public:
-  FunParam(IdentExpr *ident, AstType *astType) : m_Ident(ident), m_AstType(astType) {};
+  FunParam(Ptr<IdentExpr> ident, Ptr<AstType> astType) : m_Ident(ident), m_AstType(astType) {};
 
   std::string GetName() const { return m_Ident->GetValue(); }
-  AstType *GetAstType() const { return m_AstType; }
-  Position GetNamePosition() const { return m_Ident->GetPosition(); }
-  Position GetPosition() const { return m_Ident->GetPosition().MergeWith(m_AstType->GetPosition()); }
+  Ptr<AstType> GetAstType() const { return m_AstType; }
+  Position GetNamePos() const { return m_Ident->GetPos(); }
+  Position GetPos() const { return m_Ident->GetPos().MergeWith(m_AstType->GetPos()); }
 
 private:
-  IdentExpr *m_Ident;
-  AstType *m_AstType;
+  Ptr<IdentExpr> m_Ident;
+  Ptr<AstType> m_AstType;
 };
 
 class Ellipsis
@@ -228,100 +241,99 @@ private:
 class FunParams
 {
 public:
-  FunParams(Position position, std::vector<FunParam> params, std::optional<Ellipsis> varArgsNotation) : m_Position(position), m_Params(std::move(params)), m_VarArgsNotation(varArgsNotation) {};
+  FunParams(Position position, std::vector<FunParam> params, std::optional<Ellipsis> varArgsNotation) : m_Pos(position), m_Params(std::move(params)), m_Ellipsis(varArgsNotation) {};
 
-  Position GetPosition() const { return m_Position; }
+  Position GetPos() const { return m_Pos; }
   std::vector<FunParam> GetParams() const { return m_Params; }
-  bool IsVarArgs() const { return m_VarArgsNotation.has_value(); }
+  bool IsVarArgs() const { return m_Ellipsis.has_value(); }
 
 private:
-  Position m_Position;
+  Position m_Pos;
   std::vector<FunParam> m_Params;
-  std::optional<Ellipsis> m_VarArgsNotation;
+  std::optional<Ellipsis> m_Ellipsis;
 };
 
 class FunSign
 {
 public:
-  FunSign(bool isPub, Position pos, IdentExpr *ident, FunParams params, AstType *retType) : m_IsPub(isPub), m_Pos(pos), m_Ident(ident), m_Params(params), m_RetType(retType) {};
+  FunSign(bool isPub, Position pos, Ptr<IdentExpr> ident, FunParams params, Ptr<AstType> retType) : m_IsPub(isPub), m_Pos(pos), m_Ident(ident), m_Params(params), m_RetType(retType) {};
 
-  Position GetPosition() const { return m_Pos; }
-  Position GetNamePosition() const { return m_Ident->GetPosition(); }
-  Position GetParamsPosition() const { return m_Params.GetPosition(); }
+  Position GetPos() const { return m_Pos; }
+  Position GetNamePos() const { return m_Ident->GetPos(); }
+  Position GetParamsPos() const { return m_Params.GetPos(); }
   bool IsPub() const { return m_IsPub; }
   bool IsVarArgs() const { return m_Params.IsVarArgs(); }
   std::string GetName() const { return m_Ident->GetValue(); }
   std::vector<FunParam> GetParams() const { return m_Params.GetParams(); }
-  AstType *GetRetType() const { return m_RetType; }
+  Ptr<AstType> GetRetType() const { return m_RetType; }
 
 private:
   bool m_IsPub;
   Position m_Pos;
-  IdentExpr *m_Ident;
+  Ptr<IdentExpr> m_Ident;
   FunParams m_Params;
-  AstType *m_RetType;
+  Ptr<AstType> m_RetType;
 };
 
 class FunStmt : public Stmt
 {
 public:
-  FunStmt(FunSign sign, BlockStmt *body) : Stmt(StmtT::Fun), m_Sign(sign), m_Body(body) {};
+  FunStmt(FunSign sign, Ptr<BlockStmt> body) : Stmt(StmtT::Fun), m_Sign(sign), m_Body(body) {};
 
-  Position GetPosition() const override { return m_Sign.GetPosition().MergeWith(m_Body->GetPosition()); }
-  BlockStmt *GetBody() const { return m_Body; }
+  Position GetPos() const override { return m_Sign.GetPos().MergeWith(m_Body->GetPos()); }
+  Ptr<BlockStmt> GetBody() const { return m_Body; }
   FunSign GetSign() const { return m_Sign; }
 
 private:
   FunSign m_Sign;
-  BlockStmt *m_Body;
+  Ptr<BlockStmt> m_Body;
 };
 
 class LetStmt : public Stmt
 {
 public:
-  LetStmt(bool isPub, Position pos, IdentExpr *ident, AstType *astType, Expr *init) : Stmt(StmtT::Let), m_IsPub(isPub), m_Pos(pos), m_Ident(ident), m_AstType(astType), m_Init(init) {};
+  LetStmt(bool isPub, Position pos, Ptr<IdentExpr> ident, Ptr<AstType> astType, Ptr<Expr> init) : Stmt(StmtT::Let), m_IsPub(isPub), m_Pos(pos), m_Ident(ident), m_AstType(astType), m_Init(init) {};
 
   bool IsPub() const { return m_IsPub; }
-  Position GetPosition() const override { return m_Pos; }
-  Position GetNamePosition() const { return m_Ident->GetPosition(); }
+  Position GetPos() const override { return m_Pos; }
+  Position GetNamePos() const { return m_Ident->GetPos(); }
   std::string GetName() const { return m_Ident->GetValue(); }
-  AstType *GetAstType() const { return m_AstType; }
-  Expr *GetInit() const { return m_Init; }
+  Ptr<AstType> GetAstType() const { return m_AstType; }
+  Ptr<Expr> GetInit() const { return m_Init; }
 
 private:
   bool m_IsPub;
   Position m_Pos;
-  IdentExpr *m_Ident;
-  AstType *m_AstType;
-  Expr *m_Init;
+  Ptr<IdentExpr> m_Ident;
+  Ptr<AstType> m_AstType;
+  Ptr<Expr> m_Init;
 };
 
 class ImportStmt : public Stmt
 {
 public:
-  ImportStmt(Token importToken, IdentExpr *alias, Token fromToken, std::optional<Token> atToken, std::vector<IdentExpr *> path) : Stmt(StmtT::Import), m_ImportToken(importToken), m_Name(alias), m_FromToken(fromToken), m_AtToken(atToken), m_Path(std::move(path)) {};
+  ImportStmt(Position pos, Ptr<IdentExpr> alias, std::optional<Token> atToken, std::vector<Ptr<IdentExpr>> path) : Stmt(StmtT::Import), m_Pos(pos), m_Name(alias), m_AtToken(atToken), m_Path(std::move(path)) {};
 
-  Position GetPosition() const override { return m_ImportToken.m_Position.MergeWith(m_Path.back()->GetPosition()); }
-  Position GetNamePosition() const { return m_Name->GetPosition(); }
-  Position GetPathPosition() const { return m_Path.front()->GetPosition().MergeWith(m_Path.back()->GetPosition()); }
+  Position GetPos() const override { return m_Pos.MergeWith(m_Path.back()->GetPos()); }
+  Position GetNamePos() const { return m_Name->GetPos(); }
+  Position GetPathPos() const { return m_Path.front()->GetPos().MergeWith(m_Path.back()->GetPos()); }
   std::string GetName() const { return m_Name->GetValue(); }
-  std::vector<IdentExpr *> GetPath() const { return m_Path; }
+  std::vector<Ptr<IdentExpr>> GetPath() const { return m_Path; }
   bool hasAtNotation() const { return m_AtToken.has_value(); }
 
 private:
-  Token m_ImportToken;
-  IdentExpr *m_Name;
-  Token m_FromToken;
+  Position m_Pos; // `import` token position
+  Ptr<IdentExpr> m_Name;
   std::optional<Token> m_AtToken;
-  std::vector<IdentExpr *> m_Path;
+  std::vector<Ptr<IdentExpr>> m_Path;
 };
 
-class AST
+class Ast
 {
 public:
-  std::vector<Stmt *> m_Program;
+  std::vector<Ptr<Stmt>> m_Program;
 
-  AST() : m_Program() {};
+  Ast() : m_Program() {};
 
   std::string Inspect();
 };

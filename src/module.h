@@ -28,8 +28,8 @@ public:
   ModuleStatus m_Status;
   std::string m_Path;
   std::string m_Content;
-  AST *m_AST;
-  class ModuleContext *m_Exports;
+  Ptr<Ast> m_AST;
+  Ptr<class ModuleContext> m_Exports;
   std::vector<ModuleID> m_Imports;
 
   Module(ModuleID id, std::string path, std::string content) : m_ID(id), m_Status(ModuleStatus::IDLE), m_Path(path), m_Content(content), m_AST(nullptr), m_Exports(nullptr), m_Imports() {};
@@ -38,10 +38,10 @@ public:
 class ModuleManager
 {
 public:
-  std::map<ModuleID, Module *> m_Modules;
+  std::map<ModuleID, Ptr<Module>> m_Modules;
   std::map<std::string, ModuleID> m_PathToID;
 
   ModuleManager() : m_Modules() {};
 
-  Result<Module *, Error> Load(std::string);
+  Result<Ptr<Module>, Error> Load(std::string);
 };

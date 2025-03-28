@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+#include "pointer.h"
+
 namespace type
 {
 enum class Base
@@ -24,9 +26,10 @@ enum class Base
   F16,
   F32,
   F64,
-  // internal
-  ANY,
   OBJECT,
+  // internal
+  UNIT,
+  ERROR,
 };
 
 class Type
@@ -38,30 +41,33 @@ public:
   virtual ~Type() = default;
 
   virtual std::string Inspect() const;
-  virtual bool IsCompatibleWith(Type *) const;
+  virtual bool IsCompatWith(Ptr<Type>) const;
+  bool IsVoid() const;
+  bool IsError() const;
+  bool IsNothing() const;
 };
 
 class Function : public Type
 {
 public:
   size_t m_ReqArgsCount;
-  std::vector<Type *> m_Args;
-  Type *m_RetType;
+  std::vector<Ptr<Type>> m_Args;
+  Ptr<Type> m_RetType;
   bool m_IsVarArgs;
 
   std::string Inspect() const override;
-  bool IsCompatibleWith(Type *) const override;
+  bool IsCompatWith(Ptr<Type>) const override;
 
-  Function(size_t reqArgsCount, std::vector<Type *> args, Type *retType, bool isVariadic = false) : Type(Base::FUNCTION), m_ReqArgsCount(reqArgsCount), m_Args(std::move(args)), m_RetType(retType), m_IsVarArgs(isVariadic) {}
+  Function(size_t reqArgsCount, std::vector<Ptr<Type>> args, Ptr<Type> retType, bool isVariadic = false) : Type(Base::FUNCTION), m_ReqArgsCount(reqArgsCount), m_Args(std::move(args)), m_RetType(retType), m_IsVarArgs(isVariadic) {}
 };
 
 class Object : public Type
 {
 public:
-  std::map<std::string, Type *> m_Entries;
+  std::map<std::string, Ptr<Type>> m_Entries;
 
   std::string Inspect() const override;
-  bool IsCompatibleWith(Type *) const override;
+  bool IsCompatWith(Ptr<Type>) const override;
 
   Object() : Type(Base::OBJECT), m_Entries() {};
 };
