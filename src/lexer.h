@@ -28,6 +28,7 @@ private:
   bool IsEof();
   char PeekOne();
   void Advance();
+  void Advance(size_t);
   size_t AdvanceWhile(std::function<bool(char)>);
   bool StartsWith(std::string);
 

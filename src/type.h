@@ -22,12 +22,10 @@ enum class Base
   U16,
   U32,
   U64,
-  F8,
-  F16,
-  F32,
-  F64,
+  Float,
   OBJECT,
   // internal
+  IntRange,
   UNIT,
   UNKNOWN,
 };
@@ -46,9 +44,23 @@ public:
   bool Isknown() const;
   bool IsUnknown() const;
   bool IsUnit() const;
+  bool IsInteger() const;
 
   bool IsSomething() const;
   bool IsNothing() const;
+};
+
+class IntRange : public Type
+{
+public:
+  IntRange(bool sign, unsigned long byteSize) : Type(Base::IntRange), m_Signed(sign), m_ByteSize(byteSize) {}
+
+  bool IsSigned() const { return m_Signed; }
+  unsigned long BytesCount() const { return m_ByteSize; }
+
+private:
+  bool m_Signed;
+  unsigned long m_ByteSize;
 };
 
 class Function : public Type

@@ -1,9 +1,11 @@
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <format>
 #include <optional>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "ast.h"
@@ -104,7 +106,7 @@ Ptr<Bind> Checker::CheckStmtFun(Ptr<FunStmt> funStmt)
   if (!body)
   {
     // if is no body then is a simple declaration, eg. `pub fun println(...): void;`
-    LeaveScope();
+    m_Scopes.pop_back();
     return nullptr;
   }
 
@@ -293,6 +295,8 @@ Ptr<Bind> Checker::CheckExpr(Ptr<Expr> expr)
     return CheckExprCall(CastPtr<CallExpr>(expr));
   case ExprT::String:
     return CheckExprString(CastPtr<StringExpr>(expr));
+  case ExprT::Number:
+    return CheckExprNumber(CastPtr<NumberExpr>(expr));
   case ExprT::Ident:
     return CheckExprIdent(CastPtr<IdentExpr>(expr));
   case ExprT::FieldAcc:
@@ -335,20 +339,13 @@ Ptr<Bind> Checker::CheckExprCall(Ptr<CallExpr> callExpr)
   for (size_t i = 0; i < callExpressionArgs.size(); ++i)
   {
     auto argumentBind = CheckExpr(callExpressionArgs.at(i));
-    if (!argumentBind)
+    if (argumentBind->IsError() || i >= calleeFnType->m_Args.size() || calleeFnType->m_Args.at(i)->IsCompatWith(argumentBind->m_Type))
     {
       continue;
     }
-    argumentBind->m_IsUsed = true;
-    if (i >= calleeFnType->m_Args.size())
-    {
-      continue;
-    }
-    if (calleeFnType->m_Args.at(i)->IsCompatWith(argumentBind->m_Type))
-    {
-      continue;
-    }
-    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, argumentBind->m_Pos, m_Module->m_ID, DiagnosticSeverity::ERROR, "argument type mismatch"));
+    auto expect = calleeFnType->m_Args.at(i)->Inspect();
+    auto found = argumentBind->m_Type->Inspect();
+    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, argumentBind->m_Pos, m_Module->m_ID, DiagnosticSeverity::ERROR, std::format("expect argument of type '{}' but got '{}'", expect, found)));
   }
   return MakePtr(Bind(BindT::Expr, calleeFnType->m_RetType, m_Module->m_ID, callExpr->GetPos()));
 }
@@ -387,7 +384,6 @@ Ptr<Bind> Checker::CheckExprAssign(Ptr<AssignExpr> assignExpr)
     m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, valueBind->m_Pos, valueBind->m_ModID, DiagnosticSeverity::ERROR, std::format("expect value of type '{}' but got '{}'", expect, found)));
     return Bind::MakeError(m_Module->m_ID, assignExpr->GetValue()->GetPos());
   }
-  // TODO: update type instead of reassigning to allow single modification point
   valueBind->m_IsUsed = true;
   valueBind->m_Pos = assignExpr->GetPos();
   return valueBind;
@@ -427,6 +423,71 @@ Ptr<Bind> Checker::CheckExprFieldAcc(Ptr<FieldAccExpr> fieldAccExpr)
 Ptr<Bind> Checker::CheckExprString(Ptr<StringExpr> stringExpr)
 {
   return MakePtr(Bind(BindT::Expr, MakePtr(type::Type(type::Base::STRING)), m_Module->m_ID, stringExpr->GetPos()));
+}
+
+Ptr<Bind> Checker::CheckExprNumber(Ptr<NumberExpr> numExpr)
+{
+  if (numExpr->IsFloat())
+  {
+    return CheckExprNumberFloat(numExpr);
+  }
+  if (NumberBase::Bin == numExpr->GetBase())
+  {
+    return CheckExprIntegerAsBinary(numExpr->GetRaw().substr(2), numExpr->GetPos());
+  }
+  uint64_t value;
+  try
+  {
+    value = std::stoull(numExpr->GetRaw(), nullptr, static_cast<int>(numExpr->GetBase()));
+  }
+  catch (std::invalid_argument &)
+  {
+    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, numExpr->GetPos(), m_Module->m_ID, DiagnosticSeverity::ERROR, "invalid number"));
+    return Bind::MakeError(m_Module->m_ID, numExpr->GetPos());
+  }
+  catch (std::out_of_range &)
+  {
+    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, numExpr->GetPos(), m_Module->m_ID, DiagnosticSeverity::ERROR, "number out of range"));
+    return Bind::MakeError(m_Module->m_ID, numExpr->GetPos());
+  }
+  std::string bits;
+  while (value > 0)
+  {
+    bits = (value % 2 ? '1' : '0') + bits;
+    value /= 2;
+  }
+  return CheckExprIntegerAsBinary(bits, numExpr->GetPos());
+}
+
+Ptr<Bind> Checker::CheckExprNumberFloat(Ptr<NumberExpr> floatExpr)
+{
+  auto raw = floatExpr->GetRaw();
+  try
+  {
+    (void)std::stod(raw);
+  }
+  catch (std::invalid_argument &)
+  {
+    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, floatExpr->GetPos(), m_Module->m_ID, DiagnosticSeverity::ERROR, "invalid float number"));
+    return Bind::MakeError(m_Module->m_ID, floatExpr->GetPos());
+  }
+  catch (std::out_of_range &)
+  {
+    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, floatExpr->GetPos(), m_Module->m_ID, DiagnosticSeverity::ERROR, "float number out of range"));
+    return Bind::MakeError(m_Module->m_ID, floatExpr->GetPos());
+  }
+  return MakePtr(Bind(BindT::Expr, MakePtr(type::Type(type::Base::Float)), m_Module->m_ID, floatExpr->GetPos()));
+}
+
+Ptr<Bind> Checker::CheckExprIntegerAsBinary(std::string xs, Position pos)
+{
+  auto firstActiveBitPos = xs.find('1');
+  if (firstActiveBitPos == std::string::npos)
+  {
+    return MakePtr(Bind(BindT::Expr, MakePtr(type::IntRange(false, 0)), m_Module->m_ID, pos));
+  }
+  auto bytes = (xs.size() - firstActiveBitPos + 7) / 8;
+  return MakePtr(Bind(BindT::Expr, MakePtr(type::IntRange(false, bytes)), m_Module->m_ID, pos));
 }
 
 void Checker::EnterScope(ScopeType scopeType)

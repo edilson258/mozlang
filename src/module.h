@@ -1,16 +1,13 @@
 #pragma once
 
-#include <map>
-#include <string>
-
-#include "error.h"
-#include "result.h"
-
 #include <cstddef>
+#include <map>
 #include <string>
 #include <vector>
 
 #include "ast.h"
+#include "error.h"
+#include "result.h"
 
 using ModuleID = size_t;
 

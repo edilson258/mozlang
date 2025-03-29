@@ -4,19 +4,22 @@
 
 enum class TokenType
 {
-  IDENT,
+  Ident,
 
-  STRING,
-  NUMBER,
+  StrLit,
+  BinLit,
+  HexLit,
+  DecLit,
+  FloatLit,
 
   // Keywords
-  IMPORT,
-  FUN,
-  RETURN,
-  LET,
-  FROM,
-  PUB,
-  CLASS,
+  Import,
+  Fun,
+  Ret,
+  Let,
+  From,
+  Pub,
+  Class,
 
   I8,
   I16,
@@ -26,31 +29,28 @@ enum class TokenType
   U16,
   U32,
   U64,
-  F8,
-  F16,
-  F32,
-  F64,
-  VOID,
-  STR_TYP,
+  Float,
+  Void,
+  String,
 
-  AT, // @
-  COMMA,
-  COLON,
-  ASSOC, // ::
-  LPAREN,
-  RPAREN,
-  LBRACE,
-  RBRACE,
-  EQUAL,
-  SEMICOLON,
-  DOT,
-  ARROW,    // ->
-  ELLIPSIS, // ...
+  At, // @
+  Comma,
+  Colon,
+  Assoc, // ::
+  Lparen,
+  Rparen,
+  Lbrace,
+  Rbrace,
+  Equal,
+  Semi,
+  Dot,
+  Arrow,    // ->
+  Ellipsis, // ...
 
-  PLUS,     // +
-  MINUS,    // -
-  ASTERISK, // *
-  SLASH,    // /
+  Plus,     // +
+  Minus,    // -
+  Asterisk, // *
+  Slash,    // /
 
   END,
 };

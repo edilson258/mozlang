@@ -7,7 +7,6 @@
 
 namespace type
 {
-
 std::string Type::Inspect() const
 {
   switch (m_Base)
@@ -32,14 +31,8 @@ std::string Type::Inspect() const
     return "u32";
   case Base::U64:
     return "u64";
-  case Base::F8:
-    return "f8";
-  case Base::F16:
-    return "f16";
-  case Base::F32:
-    return "f32";
-  case Base::F64:
-    return "f64";
+  case Base::Float:
+    return "float";
   case Base::FUNCTION:
     return "function";
   case Base::OBJECT:
@@ -48,6 +41,8 @@ std::string Type::Inspect() const
     return "()";
   case Base::UNKNOWN:
     return "unknown";
+  case Base::IntRange:
+    return "integer";
   }
   return "UNKNWON TYPE";
 }
@@ -96,9 +91,32 @@ bool Type::IsUnit() const
   return Base::UNIT == m_Base;
 }
 
+bool Type::IsInteger() const
+{
+  // use switch
+  switch (m_Base)
+  {
+  case Base::I8:
+  case Base::I16:
+  case Base::I32:
+  case Base::I64:
+  case Base::U8:
+  case Base::U16:
+  case Base::U32:
+  case Base::U64:
+    return true;
+  default:
+    return false;
+  }
+}
+
 bool Type::IsCompatWith(Ptr<Type> other) const
 {
   if (m_Base == Base::VOID && other->IsUnit())
+  {
+    return true;
+  }
+  if (IsInteger() && other->m_Base == Base::IntRange)
   {
     return true;
   }
@@ -169,6 +187,17 @@ std::string Function::Inspect() const
     if (i + 1 < m_Args.size())
     {
       oss << ", ";
+    }
+  }
+  if (m_IsVarArgs)
+  {
+    if (m_Args.size() > 0)
+    {
+      oss << ", ...";
+    }
+    else
+    {
+      oss << "...";
     }
   }
   oss << ") -> " << m_RetType->Inspect();

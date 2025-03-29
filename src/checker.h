@@ -7,6 +7,7 @@
 #include "context.h"
 #include "diagnostic.h"
 #include "module.h"
+#include "token.h"
 
 enum class ScopeType
 {
@@ -54,6 +55,9 @@ private:
   Ptr<Bind> CheckExpr(Ptr<Expr>);
   Ptr<Bind> CheckExprCall(Ptr<CallExpr>);
   Ptr<Bind> CheckExprString(Ptr<StringExpr>);
+  Ptr<Bind> CheckExprNumber(Ptr<NumberExpr>);
+  Ptr<Bind> CheckExprNumberFloat(Ptr<NumberExpr>);
+  Ptr<Bind> CheckExprIntegerAsBinary(std::string, Position);
   Ptr<Bind> CheckExprIdent(Ptr<IdentExpr>);
   Ptr<Bind> CheckExprAssign(Ptr<AssignExpr>);
   Ptr<Bind> CheckExprFieldAcc(Ptr<FieldAccExpr>);

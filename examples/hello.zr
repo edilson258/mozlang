@@ -1,5 +1,10 @@
 import io from @std::io;
 
+fun get_float(): float {
+  100;
+  3.14159
+}
+
 pub fun say_hello(name: string): void {
   io.println("Hello ", name);
 }

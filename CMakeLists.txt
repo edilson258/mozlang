@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.20)
 
 project (ZeroLang
   VERSION 0.1.0
@@ -9,6 +9,12 @@ project (ZeroLang
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+
+if(NOT CMAKE_BUILD_TYPE)
+  message(WARNING "CMAKE_BUILD_TYPE is not set. Defaulting to 'Release'.")
+  set(CMAKE_BUILD_TYPE Release)
+endif()
 
 add_compile_options(
   -Wall                 # Enable most warnings
@@ -24,6 +30,6 @@ add_compile_options(
   -Wnull-dereference    # Warn if a null pointer dereference is detected
 )
 
-file(GLOB_RECURSE zero_sources "src/*.cpp")
-add_executable(zero ${zero_sources})
-target_include_directories(zero PUBLIC ${CMAKE_SOURCE_DIR}/src)
+file(GLOB_RECURSE zeroc_sources "src/*.cpp")
+add_executable(zeroc ${zeroc_sources})
+target_include_directories(zeroc PUBLIC ${CMAKE_SOURCE_DIR}/src)

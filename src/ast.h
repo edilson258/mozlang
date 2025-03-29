@@ -32,6 +32,7 @@ enum class ExprT
   Call = 1,
   Ident,
   String,
+  Number,
   Assign,
   FieldAcc,
 };
@@ -161,15 +162,26 @@ private:
 
 enum class NumberBase
 {
-  Binary,
-  Decimal,
-  Hexadecimal,
+  Bin = 2,
+  Dec = 10,
+  Hex = 16,
 };
 
 class NumberExpr : public Expr
 {
 public:
+  NumberExpr(Position pos, std::string raw, NumberBase base, bool isFloat = false) : Expr(ExprT::Number), m_Pos(pos), m_Raw(raw), m_Base(base), m_IsFloat(isFloat) {};
+
+  Position GetPos() const override { return m_Pos; }
+  bool IsFloat() const { return m_IsFloat; }
+  NumberBase GetBase() const { return m_Base; }
+  std::string GetRaw() const { return m_Raw; }
+
 private:
+  Position m_Pos;
+  std::string m_Raw;
+  NumberBase m_Base;
+  bool m_IsFloat;
 };
 
 class BlockStmt : public Stmt
