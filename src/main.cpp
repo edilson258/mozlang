@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
     diagnosticEngine.Report(parseError.value());
     return 1;
   }
-  std::cout << mainModule->m_AST->Inspect() << std::endl;
+  // std::cout << mainModule->m_AST->Inspect() << std::endl;
   Checker checker(mainModule, moduleManager);
   auto diagnostics = checker.Check();
   bool hasErrorDiagnostic = false;

@@ -42,14 +42,12 @@ std::string Type::Inspect() const
     return "f64";
   case Base::FUNCTION:
     return "function";
-  // case Base::ANY:
-  //   return "any";
   case Base::OBJECT:
     return "object";
-  case Base::ERROR:
-    return "ERROR";
   case Base::UNIT:
-    return "unit";
+    return "()";
+  case Base::UNKNOWN:
+    return "unknown";
   }
   return "UNKNWON TYPE";
 }
@@ -57,6 +55,28 @@ std::string Type::Inspect() const
 bool Type::IsVoid() const
 {
   return m_Base == Base::VOID;
+}
+
+bool Type::Isknown() const
+{
+  return m_Base != Base::UNKNOWN;
+}
+
+bool Type::IsUnknown() const
+{
+  return m_Base == Base::UNKNOWN;
+}
+
+bool Type::IsSomething() const
+{
+  switch (m_Base)
+  {
+  case Base::VOID:
+  case Base::UNIT:
+    return false;
+  default:
+    return true;
+  }
 }
 
 bool Type::IsNothing() const
@@ -71,17 +91,17 @@ bool Type::IsNothing() const
   }
 }
 
-bool Type::IsError() const
+bool Type::IsUnit() const
 {
-  return Base::ERROR == m_Base;
+  return Base::UNIT == m_Base;
 }
 
 bool Type::IsCompatWith(Ptr<Type> other) const
 {
-  // if (Base::ANY == m_Base)
-  // {
-  //   return true;
-  // }
+  if (m_Base == Base::VOID && other->IsUnit())
+  {
+    return true;
+  }
   return m_Base == other->m_Base;
 }
 

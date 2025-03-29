@@ -192,8 +192,8 @@ public:
   RetStmt(Position pos, Ptr<Expr> value) : Stmt(StmtT::Ret), m_Pos(pos), m_Value(value), m_IsImplicity(false) {};
 
   Ptr<Expr> GetValue() const { return m_Value; }
-  bool IsImplicity() const { return m_IsImplicity; }
-  Position GetPos() const override { return m_Pos.MergeWith(m_Value->GetPos()); }
+  bool IsExplicity() const { return !m_IsImplicity; }
+  Position GetPos() const override { return m_Value ? m_Pos.MergeWith(m_Value->GetPos()) : m_Pos; }
 
 private:
   Position m_Pos;

@@ -1,6 +1,6 @@
-import hello from "examples/hello.zr";
+import hello from examples::hello;
 
-fun get_name(): string {
+fun get_name(): i32 {
   "Edilson"
 }
 

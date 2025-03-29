@@ -29,7 +29,7 @@ enum class Base
   OBJECT,
   // internal
   UNIT,
-  ERROR,
+  UNKNOWN,
 };
 
 class Type
@@ -43,7 +43,11 @@ public:
   virtual std::string Inspect() const;
   virtual bool IsCompatWith(Ptr<Type>) const;
   bool IsVoid() const;
-  bool IsError() const;
+  bool Isknown() const;
+  bool IsUnknown() const;
+  bool IsUnit() const;
+
+  bool IsSomething() const;
   bool IsNothing() const;
 };
 

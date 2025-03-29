@@ -16,6 +16,7 @@ enum class BindT
   Param,
   RetVal,
   Mod,
+  Error,
 };
 
 class Bind
@@ -30,6 +31,10 @@ public:
   Ptr<Bind> m_Ref;
 
   Bind(BindT bindT, Ptr<type::Type> type, ModuleID modID, Position pos, bool isUsed = false, bool isPub = false, Ptr<Bind> ref = nullptr) : m_BindT(bindT), m_ModID(modID), m_Pos(pos), m_Type(type), m_IsUsed(isUsed), m_IsPub(isPub), m_Ref(ref) {}
+
+  bool IsError() const { return BindT::Error == m_BindT || (m_Ref && m_Ref->IsError()); }
+
+  static inline Ptr<Bind> MakeError(ModuleID modID, Position pos) { return MakePtr(Bind(BindT::Error, MakePtr(type::Type(type::Base::UNKNOWN)), modID, pos)); }
 };
 
 class BindFun : public Bind

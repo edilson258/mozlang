@@ -187,8 +187,8 @@ void DiagnosticEngine::Report(Diagnostic diagnostic)
   if (diagnostic.m_Reference.has_value())
   {
     auto ref = diagnostic.m_Reference.value();
-    std::cerr << std::format("{}:{}:{} {}", m_ModManager.m_Modules[ref.m_ModuleID]->m_Path, ref.m_Position.m_Line, ref.m_Position.m_Column, ref.m_Message) << std::endl;
-    std::cerr << "\t" << std::endl;
+    std::cerr << Paint(std::format("\t{}:{}:{} {}", m_ModManager.m_Modules[ref.m_ModuleID]->m_Path, ref.m_Position.m_Line, ref.m_Position.m_Column, ref.m_Message), BOLD_WHITE) << std::endl;
+    std::cerr << std::endl;
     std::cerr << "\t" << insertTabAfterNewline(Highlight(m_ModManager.m_Modules[ref.m_ModuleID]->m_Content, ref.m_Position.m_Start, ref.m_Position.m_End, MatchSeverityColor(DiagnosticSeverity::INFO))) << std::endl;
   }
 }
