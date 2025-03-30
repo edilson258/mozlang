@@ -1,10 +1,8 @@
 import io from @std::io;
 
-fun double(x: i8): i8 {
-  x
-}
-
 fun main(): void {
-  let y = double(256);
+  let num: u8;
+  num = 0b1011;
+  num;
   io.println("Hello, World!");
 }

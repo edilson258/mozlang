@@ -27,11 +27,13 @@ private:
 
   bool IsEof();
   char PeekOne();
+  char PeekNext();
   void Advance();
   void Advance(size_t);
   size_t AdvanceWhile(std::function<bool(char)>);
   bool StartsWith(std::string);
 
+  Result<Token, Diagnostic> MakeTokenNumber();
   Result<Token, Diagnostic> MakeTokenString();
   Result<Token, Diagnostic> MakeTokenSimple(TokenType);
   Result<Token, Diagnostic> MakeIfNextOr(std::string, TokenType, TokenType);

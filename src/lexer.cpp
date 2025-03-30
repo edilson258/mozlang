@@ -23,6 +23,25 @@ Result<Token, Diagnostic> Lexer::Next()
     return Token(Position(m_Line, m_Column, m_Cursor, m_Cursor), TokenType::END, "EOF");
   }
   char current = PeekOne();
+  // {+-}[0-9]
+  if (std::isdigit(current) || ((current == '-' || current == '+') && std::isdigit(PeekNext())))
+  {
+    return MakeTokenNumber();
+  }
+  if (std::isalpha(current) || '_' == current)
+  {
+    size_t at = m_Cursor;
+    size_t atColumn = m_Column;
+    size_t len = AdvanceWhile([](char c)
+                              { return std::isalnum(c) || '_' == c; });
+    std::string label = m_ModuleContent.substr(at, len);
+    std::optional<TokenType> keyword = Keyword::match(label);
+    if (keyword.has_value())
+    {
+      return Token(Position(m_Line, atColumn, at, m_Cursor - 1), keyword.value(), label);
+    }
+    return Token(Position(m_Line, atColumn, at, m_Cursor - 1), TokenType::Ident, label);
+  }
   switch (current)
   {
   case '@':
@@ -50,49 +69,6 @@ Result<Token, Diagnostic> Lexer::Next()
   case '"':
     return MakeTokenString();
   }
-
-  if (std::isalpha(current) || '_' == current)
-  {
-    size_t at = m_Cursor;
-    size_t atColumn = m_Column;
-    size_t len = AdvanceWhile([](char c)
-                              { return std::isalnum(c) || '_' == c; });
-    std::string label = m_ModuleContent.substr(at, len);
-    std::optional<TokenType> keyword = Keyword::match(label);
-    if (keyword.has_value())
-    {
-      return Token(Position(m_Line, atColumn, at, m_Cursor - 1), keyword.value(), label);
-    }
-    return Token(Position(m_Line, atColumn, at, m_Cursor - 1), TokenType::Ident, label);
-  }
-
-  // Try lex number
-  // eg. 69, 3.14159, 0b101011, 0xcafebabe
-  size_t at = m_Cursor;
-  size_t atColumn = m_Column;
-  if (std::isdigit(current) && '0' != current)
-  {
-    size_t len = AdvanceWhile([](char c)
-                              { return std::isdigit(c) || c == '.'; });
-    std::string label = m_ModuleContent.substr(at, len);
-    TokenType tt = std::find(label.begin(), label.end(), '.') == label.end() ? TokenType::DecLit : TokenType::FloatLit;
-    return Token(Position(m_Line, atColumn, at, m_Cursor - 1), tt, label);
-  }
-  else if (StartsWith("0b"))
-  {
-    Advance(2);
-    size_t len = 2 + AdvanceWhile([](char c)
-                                  { return c == '0' || c == '1'; });
-    return Token(Position(m_Line, atColumn, at, m_Cursor - 1), TokenType::BinLit, m_ModuleContent.substr(at, len));
-  }
-  else if (StartsWith("0x"))
-  {
-    Advance(2);
-    size_t len = 2 + AdvanceWhile([](char c)
-                                  { return std::isdigit(c) || ((c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')); });
-    return Token(Position(m_Line, atColumn, at, m_Cursor - 1), TokenType::HexLit, m_ModuleContent.substr(at, len));
-  }
-
   std::string message = "Unexpected token: ";
   message.push_back(current);
   return Diagnostic(Errno::SYNTAX_ERROR, Position(m_Line, m_Column, m_Cursor, m_Cursor), m_ModuleID, DiagnosticSeverity::ERROR, message);
@@ -145,6 +121,44 @@ Result<Token, Diagnostic> Lexer::MakeTokenString()
   return Token(Position(m_Line, atColumn, at - 1, m_Cursor - 1), TokenType::StrLit, m_ModuleContent.substr(at, len));
 }
 
+Result<Token, Diagnostic> Lexer::MakeTokenNumber()
+{
+  auto at = m_Cursor;
+  auto atCol = m_Column;
+  size_t len = 0;
+  char current = PeekOne();
+  if (current == '+' || current == '-')
+  {
+    len++;
+    Advance();
+  }
+  if (StartsWith("0b"))
+  {
+    len += 2;
+    Advance(2);
+    auto bufLen = AdvanceWhile([](char c)
+                               { return c == '0' || c == '1'; });
+    assert(bufLen > 0);
+    len += bufLen;
+    return Token(Position(m_Line, atCol, at, m_Cursor - 1), TokenType::BinLit, m_ModuleContent.substr(at, len));
+  }
+  else if (StartsWith("0x"))
+  {
+    len += 2;
+    Advance(2);
+    size_t bufLen = AdvanceWhile([](char c)
+                                 { return std::isdigit(c) || ((c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')); });
+    assert(bufLen > 0);
+    len += bufLen;
+    return Token(Position(m_Line, atCol, at, m_Cursor - 1), TokenType::HexLit, m_ModuleContent.substr(at, len));
+  }
+  len += AdvanceWhile([](char c)
+                      { return std::isdigit(c) || c == '.'; });
+  std::string label = m_ModuleContent.substr(at, len);
+  // TODO: validate number
+  return Token(Position(m_Line, atCol, at, m_Cursor - 1), std::find(label.begin(), label.end(), '.') == label.end() ? TokenType::DecLit : TokenType::FloatLit, label);
+}
+
 bool Lexer::IsEof()
 {
   return m_Cursor >= m_ModuleContent.length();
@@ -157,6 +171,15 @@ char Lexer::PeekOne()
     return EOF_CHAR;
   }
   return m_ModuleContent.at(m_Cursor);
+}
+
+char Lexer::PeekNext()
+{
+  if (m_Cursor + 1 >= m_ModuleContent.length())
+  {
+    return EOF_CHAR;
+  }
+  return m_ModuleContent.at(m_Cursor + 1);
 }
 
 void Lexer::Advance()

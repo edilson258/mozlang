@@ -45,6 +45,7 @@ public:
   bool IsUnit() const;
   bool Isknown() const;
   bool IsUnknown() const;
+  bool IsSigned() const;
   bool IsInteger() const;
   bool IsIntRange() const;
   bool IsSomething() const;
@@ -54,20 +55,16 @@ public:
 class IntRange : public Type
 {
 public:
-  IntRange(bool sign, unsigned long byteSize) : Type(Base::IntRange), m_Signed(sign), m_BytesCout(byteSize) {}
+  bool m_IsSigned;
+  unsigned long m_BytesCout;
+
+  IntRange(bool sign, unsigned long byteSize) : Type(Base::IntRange), m_IsSigned(sign), m_BytesCout(byteSize) {}
 
   std::string Inspect() const override;
-
   Ptr<Type> GetDefault() const;
   Ptr<Type> GetSynthesized() const;
-  bool IsSigned() const { return m_Signed; }
-  unsigned long GetByteSize() const { return m_BytesCout; }
-  bool CanFitIn(const Ptr<Type> other) const;
   bool CanFitIn(const Type *other) const;
-
-private:
-  bool m_Signed;
-  unsigned long m_BytesCout;
+  bool CanFitIn(const Ptr<Type> other) const;
 };
 
 class Function : public Type

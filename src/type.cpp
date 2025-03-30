@@ -92,6 +92,24 @@ bool Type::IsUnit() const
   return Base::UNIT == m_Base;
 }
 
+bool Type::IsSigned() const
+{
+  if (!IsInteger())
+  {
+    return false;
+  }
+  switch (m_Base)
+  {
+  case Base::I8:
+  case Base::I16:
+  case Base::I32:
+  case Base::I64:
+    return true;
+  default:
+    return false;
+  }
+}
+
 bool Type::IsInteger() const
 {
   // use switch
@@ -165,12 +183,7 @@ static inline unsigned long integerToSizeInBytes(Base base)
 
 bool IntRange::CanFitIn(const Ptr<Type> other) const
 {
-  if (!other->IsInteger())
-  {
-    return false;
-  }
-  auto otherSize = integerToSizeInBytes(other->m_Base);
-  return m_BytesCout <= otherSize;
+  return CanFitIn(other.get());
 }
 
 bool IntRange::CanFitIn(const Type *other) const
@@ -180,6 +193,10 @@ bool IntRange::CanFitIn(const Type *other) const
     return false;
   }
   auto otherSize = integerToSizeInBytes(other->m_Base);
+  if (m_IsSigned && !other->IsSigned())
+  {
+    return false;
+  }
   return m_BytesCout <= otherSize;
 }
 

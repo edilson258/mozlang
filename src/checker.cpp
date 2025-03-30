@@ -1,3 +1,4 @@
+#include <bit>
 #include <cassert>
 #include <format>
 #include <optional>
@@ -181,6 +182,10 @@ Ptr<Bind> Checker::CheckStmtBlock(Ptr<BlockStmt> blockStmt)
       returnBind = bind;
       continue;
     }
+    if (bind->m_Ref)
+    {
+      bind->m_Ref->m_IsUsed = true;
+    }
     if (!bind->m_IsUsed && bind->m_Type->IsSomething() && !bind->IsError())
     {
       m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, bind->m_Pos, m_Module->m_ID, DiagnosticSeverity::WARN, "expression results to unused value"));
@@ -353,7 +358,6 @@ Ptr<Bind> Checker::CheckExprIdent(Ptr<IdentExpr> identExpr)
   auto bind = LookupBind(identExpr->GetValue());
   if (bind)
   {
-    bind->m_IsUsed = true;
     return MakePtr(Bind(BindT::Expr, bind->m_Type, m_Module->m_ID, identExpr->GetPos(), false, false, bind->m_Ref ? bind->m_Ref : bind));
   }
   m_Diagnostics.push_back(Diagnostic(Errno::NAME_ERROR, identExpr->GetPos(), m_Module->m_ID, DiagnosticSeverity::ERROR, std::format("undefined name '{}'", identExpr->GetValue())));
@@ -362,7 +366,7 @@ Ptr<Bind> Checker::CheckExprIdent(Ptr<IdentExpr> identExpr)
 
 Ptr<Bind> Checker::CheckExprAssign(Ptr<AssignExpr> assignExpr)
 {
-  // assignee
+  // dest
   auto destBind = CheckExprIdent(assignExpr->GetDest());
   if (destBind->IsError())
   {
@@ -382,6 +386,7 @@ Ptr<Bind> Checker::CheckExprAssign(Ptr<AssignExpr> assignExpr)
     m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, valueBind->m_Pos, valueBind->m_ModID, DiagnosticSeverity::ERROR, std::format("expect value of type '{}' but got '{}'", expect, found)));
     return Bind::MakeError(m_Module->m_ID, assignExpr->GetValue()->GetPos());
   }
+  destBind->m_Ref = valueBind->m_Ref;
   valueBind->m_IsUsed = true;
   valueBind->m_Pos = assignExpr->GetPos();
   return valueBind;
@@ -395,6 +400,7 @@ Ptr<Bind> Checker::CheckExprFieldAcc(Ptr<FieldAccExpr> fieldAccExpr)
     valueBind->m_Pos = valueBind->m_Pos.MergeWith(fieldAccExpr->GetFieldName()->GetPos());
     return valueBind;
   }
+  valueBind->m_Ref->m_IsUsed = true;
   if (type::Base::OBJECT != valueBind->m_Type->m_Base)
   {
     m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, fieldAccExpr->GetValue()->GetPos(), m_Module->m_ID, DiagnosticSeverity::ERROR, "object is not indexable"));
@@ -429,44 +435,31 @@ Ptr<Bind> Checker::CheckExprNumber(Ptr<NumberExpr> numExpr)
   {
     return CheckExprNumberFloat(numExpr);
   }
-  std::string bits;
-  if (NumberBase::Bin == numExpr->GetBase())
+  uint64_t value = 0;
+  bool isSigned = numExpr->m_Raw.at(0) == '-';
+  try
   {
-    // get binary literal without '0b' prefix
-    bits = numExpr->GetRaw().substr(2);
+    value = std::stoull(isSigned ? numExpr->m_Raw.substr(1) : numExpr->m_Raw, nullptr, static_cast<int>(numExpr->m_Base));
   }
-  else
+  catch (std::invalid_argument &)
   {
-    uint64_t value;
-    try
-    {
-      value = std::stoull(numExpr->GetRaw(), nullptr, static_cast<int>(numExpr->GetBase()));
-    }
-    catch (std::invalid_argument &)
-    {
-      m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, numExpr->GetPos(), m_Module->m_ID, DiagnosticSeverity::ERROR, "invalid number"));
-      return Bind::MakeError(m_Module->m_ID, numExpr->GetPos());
-    }
-    catch (std::out_of_range &)
-    {
-      m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, numExpr->GetPos(), m_Module->m_ID, DiagnosticSeverity::ERROR, "number out of range"));
-      return Bind::MakeError(m_Module->m_ID, numExpr->GetPos());
-    }
-    while (value > 0)
-    {
-      bits = (value % 2 ? '1' : '0') + bits;
-      value /= 2;
-    }
+    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, numExpr->GetPos(), m_Module->m_ID, DiagnosticSeverity::ERROR, "integer literal is invalid"));
+    return Bind::MakeError(m_Module->m_ID, numExpr->GetPos());
   }
-  return CheckExprIntegerAsBinary(bits, numExpr->GetPos());
+  catch (std::out_of_range &)
+  {
+    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, numExpr->GetPos(), m_Module->m_ID, DiagnosticSeverity::ERROR, "integer literal exceeds storage limit of 8 bytes"));
+    return Bind::MakeError(m_Module->m_ID, numExpr->GetPos());
+  }
+  auto bytesCount = (std::bit_width(value) + 7) / 8;
+  return MakePtr(Bind(BindT::Expr, MakePtr(type::IntRange(isSigned, (unsigned long)bytesCount)), m_Module->m_ID, numExpr->m_Pos));
 }
 
 Ptr<Bind> Checker::CheckExprNumberFloat(Ptr<NumberExpr> floatExpr)
 {
-  auto raw = floatExpr->GetRaw();
   try
   {
-    (void)std::stod(raw);
+    (void)std::stod(floatExpr->GetRaw());
   }
   catch (std::invalid_argument &)
   {
@@ -479,17 +472,6 @@ Ptr<Bind> Checker::CheckExprNumberFloat(Ptr<NumberExpr> floatExpr)
     return Bind::MakeError(m_Module->m_ID, floatExpr->GetPos());
   }
   return MakePtr(Bind(BindT::Expr, MakePtr(type::Type(type::Base::Float)), m_Module->m_ID, floatExpr->GetPos()));
-}
-
-Ptr<Bind> Checker::CheckExprIntegerAsBinary(std::string xs, Position pos, bool sign)
-{
-  auto firstActiveBitPos = xs.find('1');
-  if (firstActiveBitPos == std::string::npos)
-  {
-    return MakePtr(Bind(BindT::Expr, MakePtr(type::IntRange(sign, 0)), m_Module->m_ID, pos));
-  }
-  auto bytes = (xs.size() - firstActiveBitPos + 7) / 8;
-  return MakePtr(Bind(BindT::Expr, MakePtr(type::IntRange(sign, bytes)), m_Module->m_ID, pos));
 }
 
 void Checker::EnterScope(ScopeType scopeType)
@@ -515,10 +497,10 @@ void Checker::LeaveScope()
       m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, (CastPtr<BindMod>(bind.second))->m_NamePos, bind.second->m_ModID, DiagnosticSeverity::WARN, "unused import"));
       break;
     case BindT::Var:
-      m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, bind.second->m_Pos, bind.second->m_ModID, DiagnosticSeverity::WARN, "unused variable"));
+      m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, bind.second->m_Pos, bind.second->m_ModID, DiagnosticSeverity::WARN, std::format("unused variable '{}'", bind.first)));
       break;
     case BindT::Param:
-      m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, bind.second->m_Pos, bind.second->m_ModID, DiagnosticSeverity::WARN, "unused parameter"));
+      m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, bind.second->m_Pos, bind.second->m_ModID, DiagnosticSeverity::WARN, std::format("unused parameter '{}'", bind.first)));
       break;
     case BindT::Fun:
       m_Diagnostics.push_back(Diagnostic(Errno::UNUSED_VALUE, (CastPtr<BindFun>(bind.second))->NamePosition, bind.second->m_ModID, DiagnosticSeverity::WARN, std::format("function '{}' never gets called", bind.first)));
