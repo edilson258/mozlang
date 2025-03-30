@@ -1,4 +1,5 @@
 #include <cstddef>
+#include <cstdio>
 #include <sstream>
 #include <string>
 
@@ -110,15 +111,92 @@ bool Type::IsInteger() const
   }
 }
 
+bool Type::IsIntRange() const
+{
+  return Base::IntRange == m_Base;
+}
+
+Ptr<Type> IntRange::GetDefault() const
+{
+  if (m_BytesCout <= 4)
+  {
+    return MakePtr(Type(Base::I32));
+  }
+  return MakePtr(Type(Base::I64));
+}
+
+Ptr<Type> IntRange::GetSynthesized() const
+{
+  if (m_BytesCout <= 1)
+  {
+    return MakePtr(Type(Base::I8));
+  }
+  if (m_BytesCout <= 2)
+  {
+    return MakePtr(Type(Base::I16));
+  }
+  if (m_BytesCout <= 4)
+  {
+    return MakePtr(Type(Base::I32));
+  }
+  return MakePtr(Type(Base::I64));
+}
+
+static inline unsigned long integerToSizeInBytes(Base base)
+{
+  switch (base)
+  {
+  case Base::I8:
+  case Base::U8:
+    return 1;
+  case Base::I16:
+  case Base::U16:
+    return 2;
+  case Base::I32:
+  case Base::U32:
+    return 4;
+  case Base::I64:
+  case Base::U64:
+    return 8;
+  default:
+    return 0;
+  }
+}
+
+bool IntRange::CanFitIn(const Ptr<Type> other) const
+{
+  if (!other->IsInteger())
+  {
+    return false;
+  }
+  auto otherSize = integerToSizeInBytes(other->m_Base);
+  return m_BytesCout <= otherSize;
+}
+
+bool IntRange::CanFitIn(const Type *other) const
+{
+  if (!other->IsInteger())
+  {
+    return false;
+  }
+  auto otherSize = integerToSizeInBytes(other->m_Base);
+  return m_BytesCout <= otherSize;
+}
+
+std::string IntRange::Inspect() const
+{
+  return GetDefault()->Inspect();
+}
+
 bool Type::IsCompatWith(Ptr<Type> other) const
 {
   if (m_Base == Base::VOID && other->IsUnit())
   {
     return true;
   }
-  if (IsInteger() && other->m_Base == Base::IntRange)
+  if (IsInteger() && other->IsIntRange())
   {
-    return true;
+    return CastPtr<IntRange>(other)->CanFitIn(this);
   }
   return m_Base == other->m_Base;
 }

@@ -1,10 +1,10 @@
 import io from @std::io;
 
-fun get_float(): float {
-  100;
-  3.14159
+fun double(x: i8): i8 {
+  x
 }
 
-pub fun say_hello(name: string): void {
-  io.println("Hello ", name);
+fun main(): void {
+  let y = double(256);
+  io.println("Hello, World!");
 }

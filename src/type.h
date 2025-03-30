@@ -40,12 +40,13 @@ public:
 
   virtual std::string Inspect() const;
   virtual bool IsCompatWith(Ptr<Type>) const;
+
   bool IsVoid() const;
+  bool IsUnit() const;
   bool Isknown() const;
   bool IsUnknown() const;
-  bool IsUnit() const;
   bool IsInteger() const;
-
+  bool IsIntRange() const;
   bool IsSomething() const;
   bool IsNothing() const;
 };
@@ -53,14 +54,20 @@ public:
 class IntRange : public Type
 {
 public:
-  IntRange(bool sign, unsigned long byteSize) : Type(Base::IntRange), m_Signed(sign), m_ByteSize(byteSize) {}
+  IntRange(bool sign, unsigned long byteSize) : Type(Base::IntRange), m_Signed(sign), m_BytesCout(byteSize) {}
 
+  std::string Inspect() const override;
+
+  Ptr<Type> GetDefault() const;
+  Ptr<Type> GetSynthesized() const;
   bool IsSigned() const { return m_Signed; }
-  unsigned long BytesCount() const { return m_ByteSize; }
+  unsigned long GetByteSize() const { return m_BytesCout; }
+  bool CanFitIn(const Ptr<Type> other) const;
+  bool CanFitIn(const Type *other) const;
 
 private:
   bool m_Signed;
-  unsigned long m_ByteSize;
+  unsigned long m_BytesCout;
 };
 
 class Function : public Type

@@ -1,6 +1,4 @@
 #include <cassert>
-#include <cstddef>
-#include <cstdint>
 #include <format>
 #include <optional>
 #include <sstream>
@@ -343,9 +341,9 @@ Ptr<Bind> Checker::CheckExprCall(Ptr<CallExpr> callExpr)
     {
       continue;
     }
-    auto expect = calleeFnType->m_Args.at(i)->Inspect();
-    auto found = argumentBind->m_Type->Inspect();
-    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, argumentBind->m_Pos, m_Module->m_ID, DiagnosticSeverity::ERROR, std::format("expect argument of type '{}' but got '{}'", expect, found)));
+    auto expect = calleeFnType->m_Args.at(i);
+    auto found = argumentBind->m_Type;
+    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, argumentBind->m_Pos, m_Module->m_ID, DiagnosticSeverity::ERROR, std::format("expect argument of type '{}' but got '{}'", expect->Inspect(), found->Inspect())));
   }
   return MakePtr(Bind(BindT::Expr, calleeFnType->m_RetType, m_Module->m_ID, callExpr->GetPos()));
 }
@@ -431,30 +429,34 @@ Ptr<Bind> Checker::CheckExprNumber(Ptr<NumberExpr> numExpr)
   {
     return CheckExprNumberFloat(numExpr);
   }
+  std::string bits;
   if (NumberBase::Bin == numExpr->GetBase())
   {
-    return CheckExprIntegerAsBinary(numExpr->GetRaw().substr(2), numExpr->GetPos());
+    // get binary literal without '0b' prefix
+    bits = numExpr->GetRaw().substr(2);
   }
-  uint64_t value;
-  try
+  else
   {
-    value = std::stoull(numExpr->GetRaw(), nullptr, static_cast<int>(numExpr->GetBase()));
-  }
-  catch (std::invalid_argument &)
-  {
-    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, numExpr->GetPos(), m_Module->m_ID, DiagnosticSeverity::ERROR, "invalid number"));
-    return Bind::MakeError(m_Module->m_ID, numExpr->GetPos());
-  }
-  catch (std::out_of_range &)
-  {
-    m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, numExpr->GetPos(), m_Module->m_ID, DiagnosticSeverity::ERROR, "number out of range"));
-    return Bind::MakeError(m_Module->m_ID, numExpr->GetPos());
-  }
-  std::string bits;
-  while (value > 0)
-  {
-    bits = (value % 2 ? '1' : '0') + bits;
-    value /= 2;
+    uint64_t value;
+    try
+    {
+      value = std::stoull(numExpr->GetRaw(), nullptr, static_cast<int>(numExpr->GetBase()));
+    }
+    catch (std::invalid_argument &)
+    {
+      m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, numExpr->GetPos(), m_Module->m_ID, DiagnosticSeverity::ERROR, "invalid number"));
+      return Bind::MakeError(m_Module->m_ID, numExpr->GetPos());
+    }
+    catch (std::out_of_range &)
+    {
+      m_Diagnostics.push_back(Diagnostic(Errno::TYPE_ERROR, numExpr->GetPos(), m_Module->m_ID, DiagnosticSeverity::ERROR, "number out of range"));
+      return Bind::MakeError(m_Module->m_ID, numExpr->GetPos());
+    }
+    while (value > 0)
+    {
+      bits = (value % 2 ? '1' : '0') + bits;
+      value /= 2;
+    }
   }
   return CheckExprIntegerAsBinary(bits, numExpr->GetPos());
 }
@@ -479,15 +481,15 @@ Ptr<Bind> Checker::CheckExprNumberFloat(Ptr<NumberExpr> floatExpr)
   return MakePtr(Bind(BindT::Expr, MakePtr(type::Type(type::Base::Float)), m_Module->m_ID, floatExpr->GetPos()));
 }
 
-Ptr<Bind> Checker::CheckExprIntegerAsBinary(std::string xs, Position pos)
+Ptr<Bind> Checker::CheckExprIntegerAsBinary(std::string xs, Position pos, bool sign)
 {
   auto firstActiveBitPos = xs.find('1');
   if (firstActiveBitPos == std::string::npos)
   {
-    return MakePtr(Bind(BindT::Expr, MakePtr(type::IntRange(false, 0)), m_Module->m_ID, pos));
+    return MakePtr(Bind(BindT::Expr, MakePtr(type::IntRange(sign, 0)), m_Module->m_ID, pos));
   }
   auto bytes = (xs.size() - firstActiveBitPos + 7) / 8;
-  return MakePtr(Bind(BindT::Expr, MakePtr(type::IntRange(false, bytes)), m_Module->m_ID, pos));
+  return MakePtr(Bind(BindT::Expr, MakePtr(type::IntRange(sign, bytes)), m_Module->m_ID, pos));
 }
 
 void Checker::EnterScope(ScopeType scopeType)

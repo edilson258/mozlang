@@ -57,7 +57,7 @@ private:
   Ptr<Bind> CheckExprString(Ptr<StringExpr>);
   Ptr<Bind> CheckExprNumber(Ptr<NumberExpr>);
   Ptr<Bind> CheckExprNumberFloat(Ptr<NumberExpr>);
-  Ptr<Bind> CheckExprIntegerAsBinary(std::string, Position);
+  Ptr<Bind> CheckExprIntegerAsBinary(std::string, Position, bool sign = false);
   Ptr<Bind> CheckExprIdent(Ptr<IdentExpr>);
   Ptr<Bind> CheckExprAssign(Ptr<AssignExpr>);
   Ptr<Bind> CheckExprFieldAcc(Ptr<FieldAccExpr>);
